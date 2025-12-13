@@ -1,0 +1,89 @@
+#######################################
+# InstantIoT Library v1.0 Keywords
+#######################################
+
+#######################################
+# Classes (KEYWORD1)
+#######################################
+InstantIoTWiFiAP	KEYWORD1
+
+#######################################
+# Methods (KEYWORD2)
+#######################################
+begin	KEYWORD2
+end	KEYWORD2
+loop	KEYWORD2
+led	KEYWORD2
+gauge	KEYWORD2
+metric	KEYWORD2
+hLevel	KEYWORD2
+vLevel	KEYWORD2
+chart	KEYWORD2
+barChart	KEYWORD2
+text	KEYWORD2
+getIP	KEYWORD2
+getPort	KEYWORD2
+getSSID	KEYWORD2
+isConnected	KEYWORD2
+hasClient	KEYWORD2
+setValue	KEYWORD2
+setRange	KEYWORD2
+setLabel	KEYWORD2
+setUnit	KEYWORD2
+setColor	KEYWORD2
+setBrightness	KEYWORD2
+on	KEYWORD2
+off	KEYWORD2
+toggle	KEYWORD2
+addSeries	KEYWORD2
+addPoint	KEYWORD2
+setBarValue	KEYWORD2
+setText	KEYWORD2
+setStyle	KEYWORD2
+setAlign	KEYWORD2
+addThreshold	KEYWORD2
+clearAll	KEYWORD2
+
+#######################################
+# DSL Macros (KEYWORD2)
+#######################################
+ON_PRESS	KEYWORD2
+ON_RELEASE	KEYWORD2
+ON_LONG_PRESS	KEYWORD2
+ON_TOGGLE	KEYWORD2
+ON_TRIGGER	KEYWORD2
+ON_RESET	KEYWORD2
+ON_VALUE_CHANGED	KEYWORD2
+ON_VALUE_CHANGING	KEYWORD2
+ON_DRAG_STARTED	KEYWORD2
+ON_DRAG_ENDED	KEYWORD2
+ON_TURN_ON	KEYWORD2
+ON_TURN_OFF	KEYWORD2
+ON_SWITCH_TOGGLE	KEYWORD2
+ON_JOYSTICK	KEYWORD2
+ON_JOYSTICK_RELEASED	KEYWORD2
+ON_POSITION_CHANGED	KEYWORD2
+ON_DPAD_UP	KEYWORD2
+ON_DPAD_DOWN	KEYWORD2
+ON_DPAD_LEFT	KEYWORD2
+ON_DPAD_RIGHT	KEYWORD2
+ON_DPAD_CENTER	KEYWORD2
+ON_SELECTION_CHANGED	KEYWORD2
+
+#######################################
+# Callbacks (KEYWORD2)
+#######################################
+onSimpleButtonEvent	KEYWORD2
+onAdvancedButtonEvent	KEYWORD2
+onEmergencyButtonEvent	KEYWORD2
+onHorizontalSliderEvent	KEYWORD2
+onVerticalSliderEvent	KEYWORD2
+onSwitchEvent	KEYWORD2
+onJoystickEvent	KEYWORD2
+onDirectionPadEvent	KEYWORD2
+onSegmentedSwitchEvent	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+INSTANTIOT_VERSION	LITERAL1
