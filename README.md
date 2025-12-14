@@ -202,8 +202,7 @@ ON_SELECTION_CHANGED("id") // Selection changed
 ## Connection
 
 1. Upload sketch to ESP32/ESP8266
-2. Connect your phone to the WiFi network created by ESP (e.g., "MyESP")
-3. Open InstantIoT app and connect to the device
+2. Open InstantIoT app and connect to the device
 
 ## License
 
