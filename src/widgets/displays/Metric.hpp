@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "../WidgetBase.hpp"
-#include "../../InstantIoTConfig.h"
+#include "../../core/BinaryCodec.hpp"
 
 namespace InstantIoT {
 
@@ -9,20 +9,20 @@ class MetricWidget : public DisplayWidget {
 public:
     MetricWidget(const char* id, IMessageSender& sender)
         : DisplayWidget(id, sender) {}
-    
-    const char* getType() const override { return "metric"; }
-    
+
+    uint8_t getTypeCode() const override { return TYPE_METRIC; }
+
     MetricWidget& setValue(float value) {
-        char payload[32];
-        snprintf(payload, sizeof(payload), "{\"value\":%.2f}", value);
-        sendMessage("setvalue", payload);
+        uint8_t buf[4]; writeFloatLE(buf, value);
+        sendBinary(EV_SETVALUE, buf, 4);
         return *this;
     }
-    
-    MetricWidget& setUnit(const char* unit) {
-        char payload[48];
-        snprintf(payload, sizeof(payload), "{\"unit\":\"%s\"}", unit);
-        sendMessage("setunit", payload);
+
+    MetricWidget& setSecondaryValue(const char* val, const char* label) {
+        uint8_t buf[80]; size_t b = 0;
+        b += writeString(buf+b, val);
+        b += writeString(buf+b, label);
+        sendBinary(EV_SETSECONDARY, buf, b);
         return *this;
     }
 };

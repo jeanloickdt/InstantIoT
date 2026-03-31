@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "../WidgetBase.hpp"
-#include "../../InstantIoTConfig.h"
+#include "../../core/BinaryCodec.hpp"
 
 namespace InstantIoT {
 
@@ -9,31 +9,27 @@ class HorizontalLevelWidget : public DisplayWidget {
 public:
     HorizontalLevelWidget(const char* id, IMessageSender& sender)
         : DisplayWidget(id, sender) {}
-    
-    const char* getType() const override { return "horizontallevel"; }
-    
+
+    uint8_t getTypeCode() const override { return TYPE_HLEVEL; }
+
     HorizontalLevelWidget& setValue(float value) {
-        char payload[32];
-        snprintf(payload, sizeof(payload), "{\"value\":%.2f}", value);
-        sendMessage("setvalue", payload);
+        uint8_t buf[4]; writeFloatLE(buf, value);
+        sendBinary(EV_SETVALUE, buf, 4);
         return *this;
     }
-    
+
     HorizontalLevelWidget& setRange(float min, float max) {
-        char payload[48];
-        snprintf(payload, sizeof(payload), "{\"min\":%.2f,\"max\":%.2f}", min, max);
-        sendMessage("setrange", payload);
+        uint8_t buf[8]; writeFloatLE(buf, min); writeFloatLE(buf+4, max);
+        sendBinary(EV_SETRANGE, buf, 8);
         return *this;
     }
 
     HorizontalLevelWidget& update(float value, float min, float max) {
-        char payload[64];
-        snprintf(payload, sizeof(payload),
-            "{\"value\":%.2f,\"min\":%.2f,\"max\":%.2f}", value, min, max);
-        sendMessage("update", payload);
+        uint8_t buf[12];
+        writeFloatLE(buf, value); writeFloatLE(buf+4, min); writeFloatLE(buf+8, max);
+        sendBinary(EV_UPDATE, buf, 12);
         return *this;
     }
-
 };
 
 } // namespace InstantIoT
