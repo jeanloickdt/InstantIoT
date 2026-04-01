@@ -78,7 +78,6 @@ public:
         return _transport.connected();
     }
 
-
     bool sendBinary(
         const char* widgetId,
         uint8_t typeCode,
@@ -99,7 +98,6 @@ public:
         );
 
         if (len == 0) return false;
-
         return _transport.write(_txBuffer, len) == len;
     }
 
@@ -109,9 +107,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_LED
     LedWidget& led(const char* id) {
-        for (uint8_t i = 0; i < _ledCount; i++) {
+        for (uint8_t i = 0; i < _ledCount; i++)
             if (strcmp(_leds[i]->getId(), id) == 0) return *_leds[i];
-        }
         if (_ledCount < INSTANTIOT_MAX_WIDGETS) {
             _leds[_ledCount] = new LedWidget(id, *this);
             return *_leds[_ledCount++];
@@ -123,9 +120,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_GAUGE
     GaugeWidget& gauge(const char* id) {
-        for (uint8_t i = 0; i < _gaugeCount; i++) {
+        for (uint8_t i = 0; i < _gaugeCount; i++)
             if (strcmp(_gauges[i]->getId(), id) == 0) return *_gauges[i];
-        }
         if (_gaugeCount < INSTANTIOT_MAX_WIDGETS) {
             _gauges[_gaugeCount] = new GaugeWidget(id, *this);
             return *_gauges[_gaugeCount++];
@@ -137,9 +133,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_METRIC
     MetricWidget& metric(const char* id) {
-        for (uint8_t i = 0; i < _metricCount; i++) {
+        for (uint8_t i = 0; i < _metricCount; i++)
             if (strcmp(_metrics[i]->getId(), id) == 0) return *_metrics[i];
-        }
         if (_metricCount < INSTANTIOT_MAX_WIDGETS) {
             _metrics[_metricCount] = new MetricWidget(id, *this);
             return *_metrics[_metricCount++];
@@ -151,9 +146,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
     HorizontalLevelWidget& hLevel(const char* id) {
-        for (uint8_t i = 0; i < _hLevelCount; i++) {
+        for (uint8_t i = 0; i < _hLevelCount; i++)
             if (strcmp(_hLevels[i]->getId(), id) == 0) return *_hLevels[i];
-        }
         if (_hLevelCount < INSTANTIOT_MAX_WIDGETS) {
             _hLevels[_hLevelCount] = new HorizontalLevelWidget(id, *this);
             return *_hLevels[_hLevelCount++];
@@ -165,9 +159,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_VERTICALLEVEL
     VerticalLevelWidget& vLevel(const char* id) {
-        for (uint8_t i = 0; i < _vLevelCount; i++) {
+        for (uint8_t i = 0; i < _vLevelCount; i++)
             if (strcmp(_vLevels[i]->getId(), id) == 0) return *_vLevels[i];
-        }
         if (_vLevelCount < INSTANTIOT_MAX_WIDGETS) {
             _vLevels[_vLevelCount] = new VerticalLevelWidget(id, *this);
             return *_vLevels[_vLevelCount++];
@@ -179,9 +172,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_ADVANCEDCHART
     AdvancedChartWidget& chart(const char* id) {
-        for (uint8_t i = 0; i < _chartCount; i++) {
+        for (uint8_t i = 0; i < _chartCount; i++)
             if (strcmp(_charts[i]->getId(), id) == 0) return *_charts[i];
-        }
         if (_chartCount < INSTANTIOT_MAX_WIDGETS) {
             _charts[_chartCount] = new AdvancedChartWidget(id, *this);
             return *_charts[_chartCount++];
@@ -193,9 +185,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_BARCHART
     BarChartWidget& barChart(const char* id) {
-        for (uint8_t i = 0; i < _barChartCount; i++) {
+        for (uint8_t i = 0; i < _barChartCount; i++)
             if (strcmp(_barCharts[i]->getId(), id) == 0) return *_barCharts[i];
-        }
         if (_barChartCount < INSTANTIOT_MAX_WIDGETS) {
             _barCharts[_barChartCount] = new BarChartWidget(id, *this);
             return *_barCharts[_barChartCount++];
@@ -207,9 +198,8 @@ public:
 
     #ifdef INSTANTIOT_WIDGETS_TEXT
     TextWidget& text(const char* id) {
-        for (uint8_t i = 0; i < _textCount; i++) {
+        for (uint8_t i = 0; i < _textCount; i++)
             if (strcmp(_texts[i]->getId(), id) == 0) return *_texts[i];
-        }
         if (_textCount < INSTANTIOT_MAX_WIDGETS) {
             _texts[_textCount] = new TextWidget(id, *this);
             return *_texts[_textCount++];
@@ -237,43 +227,32 @@ protected:
     bool _initialized;
 
     #ifdef INSTANTIOT_WIDGETS_LED
-    LedWidget* _leds[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _ledCount = 0;
+    LedWidget* _leds[INSTANTIOT_MAX_WIDGETS]; uint8_t _ledCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_GAUGE
-    GaugeWidget* _gauges[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _gaugeCount = 0;
+    GaugeWidget* _gauges[INSTANTIOT_MAX_WIDGETS]; uint8_t _gaugeCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_METRIC
-    MetricWidget* _metrics[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _metricCount = 0;
+    MetricWidget* _metrics[INSTANTIOT_MAX_WIDGETS]; uint8_t _metricCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
-    HorizontalLevelWidget* _hLevels[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _hLevelCount = 0;
+    HorizontalLevelWidget* _hLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _hLevelCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_VERTICALLEVEL
-    VerticalLevelWidget* _vLevels[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _vLevelCount = 0;
+    VerticalLevelWidget* _vLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _vLevelCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_ADVANCEDCHART
-    AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _chartCount = 0;
+    AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS]; uint8_t _chartCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_BARCHART
-    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _barChartCount = 0;
+    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS]; uint8_t _barChartCount = 0;
     #endif
     #ifdef INSTANTIOT_WIDGETS_TEXT
-    TextWidget* _texts[INSTANTIOT_MAX_WIDGETS];
-    uint8_t _textCount = 0;
+    TextWidget* _texts[INSTANTIOT_MAX_WIDGETS]; uint8_t _textCount = 0;
     #endif
 
     // ════════════════════════════════════════════════════════
     // 📥 LECTURE — réassemblage trames binaires
-    //
-    // Remplace l'ancien readLoop() qui cherchait '\n'.
-    // Lit AA + VER + LEN pour extraire les trames complètes.
     // ════════════════════════════════════════════════════════
 
     void readLoop() {
@@ -281,42 +260,28 @@ protected:
             uint8_t buf[64];
             int n = _transport.read(buf, sizeof(buf));
             if (n <= 0) break;
-
-            // Accumuler dans le buffer de réassemblage
             for (int i = 0; i < n; i++) {
                 if (_rxPos < sizeof(_rxBuffer)) {
                     _rxBuffer[_rxPos++] = buf[i];
                 } else {
-                    // Overflow — reset
                     _rxPos = 0;
-                    IIOT_LOG("[BinaryCodec] RX overflow, reset");
+                    IIOT_LOG("[Core] RX overflow, reset");
                 }
             }
-
-            // Extraire les trames complètes
-            extractFrames();
         }
+        extractFrames();
     }
 
     void extractFrames() {
         while (_rxPos >= 4) {
-            // Chercher AA
-            if (_rxBuffer[0] != 0xAA) {
-                shiftBuffer(1);
-                continue;
-            }
-            // Vérifier VER
-            if (_rxBuffer[1] != 0x01) {
-                shiftBuffer(1);
-                continue;
-            }
-            // Lire LEN
+            if (_rxBuffer[0] != 0xAA) { shiftBuffer(1); continue; }
+            if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
+
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
             uint16_t frameSize = 4 + len + 1;
 
-            if (_rxPos < frameSize) break; // trame incomplète
+            if (_rxPos < frameSize) break;
 
-            // Trame complète — décoder
             processFrame(_rxBuffer, frameSize);
             shiftBuffer(frameSize);
         }
