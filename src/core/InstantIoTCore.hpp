@@ -1,13 +1,13 @@
 #pragma once
 /**
  * ============================================================
- * 🔄 InstantIoTCore.hpp - Boucle principale
+ * 🔄 InstantIoTCore.hpp - Boucle principale — protocole binaire v1
  * ============================================================
  */
 
 #include <Arduino.h>
 #include "Transport.h"
-#include "JsonCodec.hpp"
+#include "BinaryCodec.hpp"
 #include "Registry.hpp"
 #include "InstantIoTDeviceConfig.hpp"
 #include "InstantIoTMessage.hpp"
@@ -54,17 +54,15 @@ public:
     }
 
     // ════════════════════════════════════════════════════════
-    // 🔧 LIFECYCLE
+    //  LIFECYCLE
     // ════════════════════════════════════════════════════════
 
     virtual bool begin() {
         IIOT_LOG("[InstantIoT] Starting...");
-
         if (!_transport.begin()) {
             IIOT_LOG("[InstantIoT] Transport FAILED");
             return false;
         }
-
         _initialized = true;
         IIOT_LOG("[InstantIoT] Ready");
         return true;
@@ -78,6 +76,46 @@ public:
 
     bool connected() override {
         return _transport.connected();
+    }
+
+    // ════════════════════════════════════════════════════════
+    // 📤 ENVOI — binaire direct
+    //
+    // Appelé par les widgets avec les bytes du payload déjà
+    // encodés en binaire. Plus de JSON, plus de snprintf.
+    // ════════════════════════════════════════════════════════
+
+    bool sendMessage(
+        const char* widgetId,
+        const char* widgetType,
+        const char* event,
+        const char* /*payload_ignored*/ = nullptr
+    ) override {
+        return false; // Non utilisé en mode binaire — voir sendBinary()
+    }
+
+    bool sendBinary(
+        const char* widgetId,
+        uint8_t typeCode,
+        uint8_t eventCode,
+        const uint8_t* payloadBytes = nullptr,
+        size_t payloadLen = 0
+    ) override {
+        if (!_transport.connected()) return false;
+
+        size_t len = _codec.encode(
+            _txBuffer, sizeof(_txBuffer),
+            _config.getDeviceId(),
+            widgetId,
+            typeCode,
+            eventCode,
+            payloadBytes,
+            payloadLen
+        );
+
+        if (len == 0) return false;
+
+        return _transport.write(_txBuffer, len) == len;
     }
 
     // ════════════════════════════════════════════════════════
@@ -197,41 +235,19 @@ public:
     #endif
 
     // ════════════════════════════════════════════════════════
-    // 📤 ENVOI
-    // ════════════════════════════════════════════════════════
-
-    bool sendMessage(const char* widgetId, const char* widgetType, const char* event, const char* payload = nullptr) override {
-        if (!_transport.connected()) return false;
-
-        size_t len = _codec.encode(
-            _txBuffer, sizeof(_txBuffer),
-            _config.getDashboardId(), _config.getDeviceId(),
-            widgetId, widgetType, event, payload
-        );
-
-        if (len == 0) return false;
-
-        if (len < sizeof(_txBuffer) - 1) {
-            _txBuffer[len++] = '\n';
-        }
-
-        return _transport.write((const uint8_t*)_txBuffer, len) == len;
-    }
-
-    // ════════════════════════════════════════════════════════
     // ⚙️ CONFIG
     // ════════════════════════════════════════════════════════
 
     DeviceConfig& config() { return _config; }
 
 protected:
-    ITransport& _transport;
-    JsonCodec _codec;
+    ITransport&  _transport;
+    BinaryCodec  _codec;
     DeviceConfig _config;
 
-    char _rxBuffer[INSTANT_RX_BUFFER_SIZE];
-    size_t _rxPos;
-    char _txBuffer[INSTANT_TX_BUFFER_SIZE];
+    uint8_t _rxBuffer[INSTANT_RX_BUFFER_SIZE];
+    size_t  _rxPos;
+    uint8_t _txBuffer[INSTANT_TX_BUFFER_SIZE];
 
     bool _initialized;
 
@@ -269,7 +285,10 @@ protected:
     #endif
 
     // ════════════════════════════════════════════════════════
-    // 📥 LECTURE EN CHUNKS
+    // 📥 LECTURE — réassemblage trames binaires
+    //
+    // Remplace l'ancien readLoop() qui cherchait '\n'.
+    // Lit AA + VER + LEN pour extraire les trames complètes.
     // ════════════════════════════════════════════════════════
 
     void readLoop() {
@@ -278,31 +297,57 @@ protected:
             int n = _transport.read(buf, sizeof(buf));
             if (n <= 0) break;
 
+            // Accumuler dans le buffer de réassemblage
             for (int i = 0; i < n; i++) {
-                uint8_t c = buf[i];
-
-                if (c == '\n') {
-                    if (_rxPos > 0) {
-                        _rxBuffer[_rxPos] = '\0';
-                        processLine(_rxBuffer, _rxPos);
-                        _rxPos = 0;
-                    }
-                } else if (c != '\r') {
-                    if (_rxPos < sizeof(_rxBuffer) - 1) {
-                        _rxBuffer[_rxPos++] = c;
-                    }
+                if (_rxPos < sizeof(_rxBuffer)) {
+                    _rxBuffer[_rxPos++] = buf[i];
+                } else {
+                    // Overflow — reset
+                    _rxPos = 0;
+                    IIOT_LOG("[BinaryCodec] RX overflow, reset");
                 }
             }
+
+            // Extraire les trames complètes
+            extractFrames();
         }
     }
 
-    void processLine(const char* data, size_t len) {
-        if (len == 0 || data[0] != '{') return;
+    void extractFrames() {
+        while (_rxPos >= 4) {
+            // Chercher AA
+            if (_rxBuffer[0] != 0xAA) {
+                shiftBuffer(1);
+                continue;
+            }
+            // Vérifier VER
+            if (_rxBuffer[1] != 0x01) {
+                shiftBuffer(1);
+                continue;
+            }
+            // Lire LEN
+            uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
+            uint16_t frameSize = 4 + len + 1;
 
+            if (_rxPos < frameSize) break; // trame incomplète
+
+            // Trame complète — décoder
+            processFrame(_rxBuffer, frameSize);
+            shiftBuffer(frameSize);
+        }
+    }
+
+    void shiftBuffer(size_t n) {
+        if (n >= _rxPos) { _rxPos = 0; return; }
+        memmove(_rxBuffer, _rxBuffer + n, _rxPos - n);
+        _rxPos -= n;
+    }
+
+    void processFrame(const uint8_t* data, size_t len) {
         DecodedMessage msg;
-        if (!_codec.decode(data, len, msg)) return;
-
-        WidgetRegistry::dispatch(msg.widgetType, msg.widgetId, msg.event, msg);
+        uint8_t typeCode = 0, eventCode = 0;
+        if (!_codec.decode(data, len, msg, typeCode, eventCode)) return;
+        WidgetRegistry::dispatch(typeCode, msg.widgetId, eventCode, msg);
     }
 };
 

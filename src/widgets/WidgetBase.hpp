@@ -9,20 +9,25 @@ class WidgetBase {
 protected:
     char _id[INSTANTIOT_MAX_WIDGET_ID_LENGTH];
     IMessageSender& _sender;
-    
+
 public:
     WidgetBase(const char* id, IMessageSender& sender) : _sender(sender) {
         strncpy(_id, id, sizeof(_id) - 1);
         _id[sizeof(_id) - 1] = '\0';
     }
-    
+
     virtual ~WidgetBase() = default;
     const char* getId() const { return _id; }
-    virtual const char* getType() const = 0;
-    
+    virtual uint8_t getTypeCode() const = 0;
+
 protected:
-    bool sendMessage(const char* event, const char* payload = nullptr) {
-        return _sender.sendMessage(_id, getType(), event, payload);
+    // Envoi binaire direct — utilisé par les widgets
+    bool sendBinary(
+        uint8_t eventCode,
+        const uint8_t* payload = nullptr,
+        size_t payloadLen = 0
+    ) {
+        return _sender.sendBinary(_id, getTypeCode(), eventCode, payload, payloadLen);
     }
 };
 
