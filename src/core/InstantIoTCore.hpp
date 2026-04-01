@@ -78,21 +78,6 @@ public:
         return _transport.connected();
     }
 
-    // ════════════════════════════════════════════════════════
-    // 📤 ENVOI — binaire direct
-    //
-    // Appelé par les widgets avec les bytes du payload déjà
-    // encodés en binaire. Plus de JSON, plus de snprintf.
-    // ════════════════════════════════════════════════════════
-
-    bool sendMessage(
-        const char* widgetId,
-        const char* widgetType,
-        const char* event,
-        const char* /*payload_ignored*/ = nullptr
-    ) override {
-        return false; // Non utilisé en mode binaire — voir sendBinary()
-    }
 
     bool sendBinary(
         const char* widgetId,
