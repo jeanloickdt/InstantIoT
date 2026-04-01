@@ -74,7 +74,7 @@ public:
 
     // ── Status ────────────────────────────────────────────────
 
-    bool connected() override { return _connected; }
+    bool connected() override { return true; }
     int  available() override { return _serial.available(); }
 
     // ── Read ──────────────────────────────────────────────────
