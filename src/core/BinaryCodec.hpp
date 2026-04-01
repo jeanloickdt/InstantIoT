@@ -13,6 +13,27 @@
  *   0x0F       = patch  (envoi groupé multi-champs)
  *   0x10..0x1F = App → Device (commands reçues)
  *
+ * Optimisation mémoire — activer seulement les widgets utilisés :
+ *
+ *   #define INSTANTIOT_WIDGET_SIMPLEBUTTON
+ *   #define INSTANTIOT_WIDGET_ADVANCEDBUTTON
+ *   #define INSTANTIOT_WIDGET_GAUGE
+ *   #define INSTANTIOT_WIDGET_JOYSTICK
+ *   #define INSTANTIOT_WIDGET_HLEVEL
+ *   #define INSTANTIOT_WIDGET_VLEVEL
+ *   #define INSTANTIOT_WIDGET_METRIC
+ *   #define INSTANTIOT_WIDGET_SEGSWITCH
+ *   #define INSTANTIOT_WIDGET_ADVANCEDCHART
+ *   #define INSTANTIOT_WIDGET_HSLIDER
+ *   #define INSTANTIOT_WIDGET_VSLIDER
+ *   #define INSTANTIOT_WIDGET_LED
+ *   #define INSTANTIOT_WIDGET_SWITCH
+ *   #define INSTANTIOT_WIDGET_DIRECTIONPAD
+ *   #define INSTANTIOT_WIDGET_TEXT
+ *
+ * Si aucun #define n'est présent, tous les widgets sont compilés
+ * (comportement par défaut, rétrocompatible).
+ *
  * CRC-8/SMBUS poly=0x07
  * Strings : uint8 LEN + octets
  * Floats  : IEEE 754 little-endian
@@ -25,6 +46,25 @@
 #include <string.h>
 #include "Codec.h"
 #include "../InstantIoTConfig.h"
+
+// ── Activation par défaut si aucun widget explicite ───────────────────────────
+#if !defined(INSTANTIOT_WIDGET_SIMPLEBUTTON)   && \
+    !defined(INSTANTIOT_WIDGET_ADVANCEDBUTTON) && \
+    !defined(INSTANTIOT_WIDGET_GAUGE)          && \
+    !defined(INSTANTIOT_WIDGET_JOYSTICK)       && \
+    !defined(INSTANTIOT_WIDGET_HLEVEL)         && \
+    !defined(INSTANTIOT_WIDGET_VLEVEL)         && \
+    !defined(INSTANTIOT_WIDGET_METRIC)         && \
+    !defined(INSTANTIOT_WIDGET_SEGSWITCH)      && \
+    !defined(INSTANTIOT_WIDGET_ADVANCEDCHART)  && \
+    !defined(INSTANTIOT_WIDGET_HSLIDER)        && \
+    !defined(INSTANTIOT_WIDGET_VSLIDER)        && \
+    !defined(INSTANTIOT_WIDGET_LED)            && \
+    !defined(INSTANTIOT_WIDGET_SWITCH)         && \
+    !defined(INSTANTIOT_WIDGET_DIRECTIONPAD)   && \
+    !defined(INSTANTIOT_WIDGET_TEXT)
+    #define INSTANTIOT_ALL_WIDGETS
+#endif
 
 namespace InstantIoT {
 
@@ -92,7 +132,7 @@ static const uint8_t CMD_DRAGSTARTED       = 0x12;
 static const uint8_t CMD_DRAGENDED         = 0x13;
 
 // ============================================================
-// 📋 PATCH FIELD CODES
+//  PATCH FIELD CODES
 // ============================================================
 
 static const uint8_t PATCH_VALUE           = 0x01;
@@ -206,7 +246,7 @@ class BinaryCodec {
     ) {
         size_t p = 0;
 
-        // PATCH 0x0F — champs multiples
+        // ── PATCH 0x0F — champs multiples ────────────────────────────
         if (eventCode == EV_PATCH) {
             if (p >= len) return;
             uint8_t fieldCount = payload[p++];
@@ -257,14 +297,18 @@ class BinaryCodec {
             return;
         }
 
-        // Events fixes par TYPE+EVENT
+        // ── Events fixes par TYPE+EVENT ───────────────────────────────
         switch (typeCode) {
+
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_SIMPLEBUTTON) || defined(INSTANTIOT_WIDGET_ADVANCEDBUTTON)
             case TYPE_SIMPLEBUTTON:
             case TYPE_ADVANCEDBUTTON:
                 if ((eventCode == CMD_TOGGLE || eventCode == CMD_SETTOGGLESTATE) && p < len)
                     addParamBool(msg, "state", payload[p++] != 0);
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_GAUGE) || defined(INSTANTIOT_WIDGET_HLEVEL) || defined(INSTANTIOT_WIDGET_VLEVEL)
             case TYPE_GAUGE:
             case TYPE_HLEVEL:
             case TYPE_VLEVEL:
@@ -275,12 +319,16 @@ class BinaryCodec {
                 else if (eventCode == EV_UPDATE && p+12<=len)
                     { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"min",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"max",readFloatLE(payload+p)); p+=4; }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_JOYSTICK)
             case TYPE_JOYSTICK:
                 if (eventCode == CMD_POSCHANGED && p+8<=len)
                     { addParamFloat(msg,"x",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_METRIC)
             case TYPE_METRIC:
                 if (eventCode == EV_SETVALUE && p+4<=len)
                     { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; }
@@ -291,7 +339,9 @@ class BinaryCodec {
                     addParam(msg,"value",val); addParam(msg,"label",lbl);
                 }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_SEGSWITCH)
             case TYPE_SEGSWITCH:
                 if (eventCode == CMD_SELCHANGED && p<len) {
                     addParamInt(msg,"index",payload[p++]);
@@ -300,7 +350,9 @@ class BinaryCodec {
                 } else if ((eventCode==CMD_SEGSELECTED||eventCode==CMD_SEGDESELECTED) && p<len)
                     addParamInt(msg,"index",payload[p++]);
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_ADVANCEDCHART)
             case TYPE_ADVANCEDCHART:
                 if (eventCode == EV_ADDPOINT && p<len) {
                     char sid[32]; p += readString(payload+p,sid,sizeof(sid)); addParam(msg,"seriesId",sid);
@@ -312,7 +364,9 @@ class BinaryCodec {
                     char sid[32]; p += readString(payload+p,sid,sizeof(sid)); addParam(msg,"seriesId",sid);
                 }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_HSLIDER) || defined(INSTANTIOT_WIDGET_VSLIDER)
             case TYPE_HSLIDER:
             case TYPE_VSLIDER:
                 if (eventCode == EV_SETRANGE && p+8<=len)
@@ -320,29 +374,39 @@ class BinaryCodec {
                 else if (p+4<=len)
                     { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_LED)
             case TYPE_LED:
                 if (eventCode == EV_SETBRIGHTNESS && p<len)
                     addParamInt(msg,"brightness",payload[p++]);
                 else if (eventCode == EV_SETCOLOR && p+3<=len)
                     { addParamInt(msg,"r",payload[p++]); addParamInt(msg,"g",payload[p++]); addParamInt(msg,"b",payload[p++]); }
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_SWITCH)
             case TYPE_SWITCH:
                 if (eventCode == CMD_SWITCHVALUE && p<len)
-                    addParamBool(msg,"value",payload[p++]!=0);
+                    addParamBool(msg,"isOn",payload[p++]!=0);
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_DIRECTIONPAD)
             case TYPE_DIRECTIONPAD:
                 if (p<len) addParamInt(msg,"button",payload[p++]);
                 break;
+#endif
 
+#if defined(INSTANTIOT_ALL_WIDGETS) || defined(INSTANTIOT_WIDGET_TEXT)
             case TYPE_TEXT:
                 if (eventCode == EV_SETTEXT && p<len) {
                     char txt[64]; p += readString(payload+p,txt,sizeof(txt));
                     addParam(msg,"text",txt);
                 }
                 break;
+#endif
+
         }
     }
 
@@ -355,7 +419,6 @@ public:
 
     // ============================================================
     //  ENCODE — bytes payload → trame binaire complète
-    // Appelé par les widgets avec typeCode + eventCode + payload
     // ============================================================
 
     size_t encode(
@@ -408,7 +471,7 @@ public:
     }
 
     // ============================================================
-    // 📥 DECODE — trame binaire → DecodedMessage + typeCode + eventCode
+    //  DECODE — trame binaire → DecodedMessage
     // ============================================================
 
     bool decode(
@@ -458,8 +521,8 @@ public:
 
         outMessage.deviceId    = _deviceId;
         outMessage.widgetId    = _widgetId;
-        outMessage.widgetType  = "";   // non utilisé — Registry travaille avec typeCode
-        outMessage.event       = "";   // non utilisé — Registry travaille avec eventCode
+        outMessage.widgetType  = "";
+        outMessage.event       = "";
         outMessage.dashboardId = "";
 
         return true;
