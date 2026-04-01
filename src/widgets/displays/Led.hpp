@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "../WidgetBase.hpp"
-#include "../../InstantIoTConfig.h"
+#include "../../core/BinaryCodec.hpp"
 
 namespace InstantIoT {
 
@@ -9,68 +9,63 @@ class LedWidget : public DisplayWidget {
 public:
     LedWidget(const char* id, IMessageSender& sender)
         : DisplayWidget(id, sender) {}
-    
-    const char* getType() const override { return "led"; }
-    
-    LedWidget& On() { sendMessage("turnon"); return *this; }
-    LedWidget& Off() { sendMessage("turnoff"); return *this; }
-    LedWidget& toggle() { sendMessage("toggle"); return *this; }
-    
-    // Kotlin attend "setbrightness" avec "brightness"
+
+    uint8_t getTypeCode() const override { return TYPE_LED; }
+
+    // ── On / Off / Toggle ─────────────────────────────────────
+    LedWidget& On()     { sendBinary(0x01); return *this; }
+    LedWidget& Off()    { sendBinary(0x02); return *this; }
+    LedWidget& toggle() { sendBinary(0x03); return *this; }
+
+    // Alias lowercase pour compatibilité exemples
+    LedWidget& on()     { return On(); }
+    LedWidget& off()    { return Off(); }
+    LedWidget& turnOn() { return On(); }
+    LedWidget& turnOff(){ return Off(); }
+
+    // ── Brightness ────────────────────────────────────────────
+    LedWidget& setBrightness(uint8_t v) {
+        sendBinary(EV_SETBRIGHTNESS, &v, 1);
+        return *this;
+    }
+
+    // Alias — setIntensity accepte float 0.0..1.0 ou 0..100
     LedWidget& setIntensity(float value) {
-        char payload[32];
-        snprintf(payload, sizeof(payload), "{\"brightness\":%.2f}", value);
-        sendMessage("setbrightness", payload);
+        uint8_t v = (uint8_t)(value <= 1.0f ? value * 100 : value);
+        return setBrightness(v);
+    }
+
+    // ── Color ─────────────────────────────────────────────────
+    LedWidget& setColor(uint8_t r, uint8_t g, uint8_t b) {
+        uint8_t buf[3] = {r, g, b};
+        sendBinary(EV_SETCOLOR, buf, 3);
         return *this;
     }
 
-    // Alias pour clarté
-    LedWidget& setBrightness(float value) { return setIntensity(value); }
-
-    // Kotlin attend "updateoncolors" avec "led" en hex string
     LedWidget& setColor(uint32_t rgb) {
-        char payload[48];
-        snprintf(payload, sizeof(payload), "{\"led\":\"#%06lX\"}", (unsigned long)rgb);
-        sendMessage("updateoncolors", payload);
-        return *this;
+        return setColor((rgb>>16)&0xFF, (rgb>>8)&0xFF, rgb&0xFF);
     }
 
-    // Version avec couleurs séparées (led, halo, rays)
-    LedWidget& setColors(uint32_t led, uint32_t halo, uint32_t rays) {
-        char payload[96];
-        snprintf(payload, sizeof(payload),
-            "{\"led\":\"#%06lX\",\"halo\":\"#%06lX\",\"rays\":\"#%06lX\"}",
-            (unsigned long)led, (unsigned long)halo, (unsigned long)rays);
-        sendMessage("updateoncolors", payload);
-        return *this;
+    // Alias setColors — dans le proto v1 on envoie juste la couleur led
+    LedWidget& setColors(uint32_t led, uint32_t /*halo*/, uint32_t /*rays*/) {
+        return setColor(led);
     }
 
-    // setState combiné - utilise turnon/turnoff + brightness
+    // ── setState ──────────────────────────────────────────────
     LedWidget& setState(bool on, float intensity = 1.0f) {
-        if (on) {
-            setIntensity(intensity);
-            On();
-        } else {
-            Off();
-        }
+        if (on) { setIntensity(intensity); On(); }
+        else Off();
         return *this;
     }
 
-    // Afficher/masquer le halo
-    LedWidget& showHalo(bool show) {
-        char payload[24];
-        snprintf(payload, sizeof(payload), "{\"show\":%s}", show ? "true" : "false");
-        sendMessage("showhalo", payload);
-        return *this;
+    LedWidget& setBrightness(float value) {
+        return setIntensity(value);
     }
 
-    // Afficher/masquer les rayons
-    LedWidget& showRays(bool show) {
-        char payload[24];
-        snprintf(payload, sizeof(payload), "{\"show\":%s}", show ? "true" : "false");
-        sendMessage("showrays", payload);
-        return *this;
-    }
+    // ── showHalo / showRays ───────────────────────────────────
+    // Non supporté en protocole binaire v1 — no-op pour compatibilité
+    LedWidget& showHalo(bool) { return *this; }
+    LedWidget& showRays(bool) { return *this; }
 };
 
 } // namespace InstantIoT
