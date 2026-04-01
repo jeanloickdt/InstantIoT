@@ -123,7 +123,9 @@
 
 // Détecte toggle explicite
 #define ON_SWITCH_TOGGLE(id) \
-    if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SwitchEventKind::Toggle)
+    if (_INSTANTIOT_IS_ID(e, id) && \
+        (e.kind == InstantIoT::SwitchEventKind::Toggle || \
+         e.kind == InstantIoT::SwitchEventKind::SetValue))
 
 // Avec capture de l'état (pour setvalue)
 #define ON_SWITCH_VALUE(id, var_isOn) \
