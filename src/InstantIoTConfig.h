@@ -14,6 +14,11 @@
  *     #define INSTANTIOT_DEBUG 1
  *     #include <InstantIoTWiFiAP.hpp>
  *
+ * Optimisation mémoire — désactiver les widgets non utilisés :
+ *   #define INSTANTIOT_WIDGETS_ADVANCEDCHART 0
+ *   #define INSTANTIOT_WIDGETS_SEGSWITCH     0
+ *   #include <InstantIoTWiFiAP.hpp>
+ *
  * ============================================================
  */
 
@@ -60,7 +65,12 @@
 // ============================================================
 // 🎛️ WIDGETS ACTIVÉS
 // ============================================================
+// Tous activés par défaut.
+// Pour désactiver un widget et gagner de la mémoire flash :
+//   #define INSTANTIOT_WIDGETS_ADVANCEDCHART 0
+//   #include <InstantIoTWiFiAP.hpp>
 
+// ── Display (Device → App) ────────────────────────────────
 #ifndef INSTANTIOT_WIDGETS_LED
     #define INSTANTIOT_WIDGETS_LED 1
 #endif
@@ -87,6 +97,39 @@
 
 #ifndef INSTANTIOT_WIDGETS_TEXT
     #define INSTANTIOT_WIDGETS_TEXT 1
+#endif
+
+// ── Controls (App → Device) ───────────────────────────────
+#ifndef INSTANTIOT_WIDGETS_SIMPLEBUTTON
+    #define INSTANTIOT_WIDGETS_SIMPLEBUTTON 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_ADVANCEDBUTTON
+    #define INSTANTIOT_WIDGETS_ADVANCEDBUTTON 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_SWITCH
+    #define INSTANTIOT_WIDGETS_SWITCH 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_JOYSTICK
+    #define INSTANTIOT_WIDGETS_JOYSTICK 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_DIRECTIONPAD
+    #define INSTANTIOT_WIDGETS_DIRECTIONPAD 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_HSLIDER
+    #define INSTANTIOT_WIDGETS_HSLIDER 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_VSLIDER
+    #define INSTANTIOT_WIDGETS_VSLIDER 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_SEGSWITCH
+    #define INSTANTIOT_WIDGETS_SEGSWITCH 1
 #endif
 
 // ============================================================

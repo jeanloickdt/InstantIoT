@@ -1,45 +1,71 @@
 /*************************************************************
- * TEST: SimpleButton
- * 
- * Events reçus de l'app:
- * - press
- * - release  
- * - longpress
+ * InstantIoT — Example: SimpleButton
+ *
+ * Use case: Control a LED with a button
+ *
+ * Widget: SimpleButton  id="btn1"
+ * Board : ESP8266 / ESP32
+ *
+ * Wiring:
+ *   LED_PIN (GPIO2) → 220Ω → LED → GND
+ *
+ * Behavior:
+ *   Press      → LED ON
+ *   Release    → LED OFF
+ *   Long Press → Blink 3x
+ *
+ * Protocol (App → Device):
+ *   press, release, longpress, toggle(isOn)
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>
 
-InstantIoTWiFiAP instant("Test_SimpleButton", "12345678");
+#define LED_PIN 2  // Built-in LED (active LOW on ESP8266)
+
+InstantIoTWiFiAP instant("InstantIoT_Button", "12345678");
+
+bool isBlinking = false;
 
 void onSimpleButtonEvent(const SimpleButtonEvent& e) {
-    Serial.print("[SimpleButton] id=");
-    Serial.print(e.widgetId);
-    Serial.print(" event=");
-    
     ON_PRESS("btn1") {
-        Serial.println("PRESS");
+        digitalWrite(LED_PIN, LOW);   // ON
+        Serial.println("btn1 → PRESS — LED ON");
     }
+
     ON_RELEASE("btn1") {
-        Serial.println("RELEASE");
+        if (!isBlinking) {
+            digitalWrite(LED_PIN, HIGH);  // OFF
+            Serial.println("btn1 → RELEASE — LED OFF");
+        }
     }
+
     ON_LONG_PRESS("btn1") {
-        Serial.println("LONG_PRESS");
+        Serial.println("btn1 → LONG PRESS — Blink 3x");
+        isBlinking = true;
+        for (int i = 0; i < 3; i++) {
+            digitalWrite(LED_PIN, LOW);  delay(150);
+            digitalWrite(LED_PIN, HIGH); delay(150);
+        }
+        isBlinking = false;
     }
-    ON_TOGGLE_STATE("btn1", var_isOn){
-        Serial.println(var_isOn ? "ON" : "OFF");
+
+    ON_TOGGLE_STATE("btn1", isOn) {
+        digitalWrite(LED_PIN, isOn ? LOW : HIGH);
+        Serial.print("btn1 → TOGGLE — isOn=");
+        Serial.println(isOn);
     }
 }
 
 void setup() {
-    delay(3000);  // Attendre 3 secondes
+    delay(2000);
     Serial.begin(115200);
-    delay(1000);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH); // OFF
 
-    Serial.println("\n=== TEST: SimpleButton ===");
-    Serial.println("Widget requis: SimpleButton id='btn1'");
+    Serial.println("\n=== SimpleButton Example ===");
     instant.begin();
-    Serial.print("IP: ");
-    Serial.println(instant.getIP());
+    Serial.print("IP: "); Serial.println(instant.getIP());
+    Serial.println("Widget: SimpleButton  id='btn1'");
 }
 
 void loop() {
