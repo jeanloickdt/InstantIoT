@@ -9,8 +9,8 @@
  * Board : ESP32 only
  *
  * Usage:
- *   #include <InstantIoTBluetooth.hpp>
- *   InstantIoTBluetooth instant("MyDevice");
+ *   #include <InstantIoTBluetoothESP32SPP.hpp>
+ *   InstantIoTBluetoothESP32SPP instant("MyDevice");
  *
  *   void setup() { instant.begin(); }
  *   void loop()  { instant.loop();  }
@@ -20,15 +20,10 @@
  * ============================================================
  */
 
-
 #include <Arduino.h>
 #include <BluetoothSerial.h>
 #include "../../core/Transport.h"
 #include "../../InstantIoTConfig.h"
-
-#ifndef INSTANT_BT_TIMEOUT_MS
-    #define INSTANT_BT_TIMEOUT_MS 5000
-#endif
 
 namespace InstantIoT {
 
@@ -37,8 +32,6 @@ public:
 
     BT_ESP32(const char* deviceName)
         : _deviceName(deviceName)
-        , _connected(false)
-        , _lastRxMs(0)
     {}
 
     // ── Lifecycle ─────────────────────────────────────────────
@@ -52,30 +45,15 @@ public:
             return false;
         }
 
-        _connected = false;
-        _lastRxMs  = 0;
-
         IIOT_LOG("[BT-ESP32] Ready — waiting for connection");
         return true;
     }
 
-    void poll() override {
-        if (_bt.available() > 0) {
-            if (!_connected) {
-                _connected = true;
-                IIOT_LOG("[BT-ESP32] Device connected");
-            }
-            _lastRxMs = millis();
-        }
-        if (_connected && (millis() - _lastRxMs > INSTANT_BT_TIMEOUT_MS)) {
-            _connected = false;
-            IIOT_LOG("[BT-ESP32] Device disconnected (timeout)");
-        }
-    }
+    void poll() override {}
 
     // ── Status ────────────────────────────────────────────────
 
-    bool connected() override { return true; }
+    bool connected() override { return _bt.connected(); }
     int  available() override { return _bt.available(); }
 
     // ── Read ──────────────────────────────────────────────────
@@ -97,8 +75,6 @@ public:
 private:
     BluetoothSerial _bt;
     const char*     _deviceName;
-    bool            _connected;
-    uint32_t        _lastRxMs;
 };
 
 } // namespace InstantIoT
