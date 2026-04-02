@@ -1,11 +1,11 @@
 #pragma once
 /**
  * ============================================================
- * 📡 BT_Serial.hpp - Transport Bluetooth via SoftwareSerial
+ * 📡 InstantSoftwareSerial.hpp - Transport SoftwareSerial
  * ============================================================
  *
- * Compatible with any Bluetooth Serial module:
- *   HC-05, HC-06, HM-10, JDY-30, etc.
+ * Compatible with any serial module:
+ *   HC-05, HC-06, HM-10, JDY-30, XBee, etc.
  *
  * Supported boards:
  *   Arduino Uno, Nano, Mega, ESP8266
@@ -26,20 +26,20 @@
 #include "../../core/Transport.h"
 #include "../../InstantIoTConfig.h"
 
-#ifndef INSTANT_BT_BAUDRATE
-    #define INSTANT_BT_BAUDRATE 9600
+#ifndef INSTANT_SERIAL_BAUDRATE
+    #define INSTANT_SERIAL_BAUDRATE 9600
 #endif
 
-#ifndef INSTANT_BT_TIMEOUT_MS
-    #define INSTANT_BT_TIMEOUT_MS 5000
+#ifndef INSTANT_SERIAL_TIMEOUT_MS
+    #define INSTANT_SERIAL_TIMEOUT_MS 5000
 #endif
 
 namespace InstantIoT {
 
-class BT_Serial : public ITransport {
+class InstantSoftwareSerial : public ITransport {
 public:
 
-    BT_Serial(uint8_t rxPin, uint8_t txPin, long baudrate = INSTANT_BT_BAUDRATE)
+    InstantSoftwareSerial(uint8_t rxPin, uint8_t txPin, long baudrate = INSTANT_SERIAL_BAUDRATE)
         : _serial(rxPin, txPin)
         , _baudrate(baudrate)
         , _connected(false)
@@ -49,12 +49,12 @@ public:
     // ── Lifecycle ─────────────────────────────────────────────
 
     bool begin() override {
-        IIOT_LOG("[BT-Serial] Starting...");
-        IIOT_LOG_VAL("[BT-Serial] Baudrate: ", _baudrate);
+        IIOT_LOG("[InstantSerial] Starting...");
+        IIOT_LOG_VAL("[InstantSerial] Baudrate: ", _baudrate);
         _serial.begin(_baudrate);
         _connected = false;
         _lastRxMs  = 0;
-        IIOT_LOG("[BT-Serial] Ready — waiting for connection");
+        IIOT_LOG("[InstantSerial] Ready — waiting for connection");
         return true;
     }
 
@@ -62,13 +62,13 @@ public:
         if (_serial.available() > 0) {
             if (!_connected) {
                 _connected = true;
-                IIOT_LOG("[BT-Serial] Device connected");
+                IIOT_LOG("[InstantSerial] Device connected");
             }
             _lastRxMs = millis();
         }
-        if (_connected && (millis() - _lastRxMs > INSTANT_BT_TIMEOUT_MS)) {
+        if (_connected && (millis() - _lastRxMs > INSTANT_SERIAL_TIMEOUT_MS)) {
             _connected = false;
-            IIOT_LOG("[BT-Serial] Device disconnected (timeout)");
+            IIOT_LOG("[InstantSerial] Device disconnected (timeout)");
         }
     }
 
