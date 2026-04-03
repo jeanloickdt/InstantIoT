@@ -58,7 +58,6 @@ public:
     // ════════════════════════════════════════════════════════
 
     virtual bool begin() {
-        
         IIOT_LOG("[InstantIoT] Starting...");
         if (!_transport.begin()) {
             IIOT_LOG("[InstantIoT] Transport FAILED");
@@ -261,8 +260,6 @@ protected:
             uint8_t buf[64];
             int n = _transport.read(buf, sizeof(buf));
             if (n <= 0) break;
-                    Serial.print("RX "); Serial.print(n); Serial.println(" bytes");
-
             for (int i = 0; i < n; i++) {
                 if (_rxPos < sizeof(_rxBuffer)) {
                     _rxBuffer[_rxPos++] = buf[i];
@@ -276,12 +273,13 @@ protected:
     }
 
     void extractFrames() {
-        while (_rxPos >= 4) {
+        // Trame minimale : AA(1) + VER(1) + LEN(2) + SEQ(1) + body(min0) + CRC(1) = 6
+        while (_rxPos >= 5) {
             if (_rxBuffer[0] != 0xAA) { shiftBuffer(1); continue; }
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
-            uint16_t frameSize = 4 + len + 1;
+            uint16_t frameSize = 5 + len + 1;  // ← header(5) + body + CRC
 
             if (_rxPos < frameSize) break;
 
@@ -300,8 +298,6 @@ protected:
         DecodedMessage msg;
         uint8_t typeCode = 0, eventCode = 0;
         if (!_codec.decode(data, len, msg, typeCode, eventCode)) return;
-        Serial.print("TYPE="); Serial.print(typeCode, HEX);
-    Serial.print(" EVENT="); Serial.println(eventCode, HEX);
         WidgetRegistry::dispatch(typeCode, msg.widgetId, eventCode, msg);
     }
 };
