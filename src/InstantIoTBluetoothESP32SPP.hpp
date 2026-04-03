@@ -21,9 +21,7 @@
  * ============================================================
  */
 
-#if !defined(ESP32)
-    #error "InstantIoTBluetoothESP32SPP: ESP32 only"
-#endif
+#if defined(ESP32)
 
 #include "InstantIoTConfig.h"
 #include "core/InstantIoTCore.hpp"
@@ -40,3 +38,5 @@ public:
 private:
     InstantIoT::BT_ESP32 _transportImpl;
 };
+
+#endif // ESP32

@@ -22,9 +22,7 @@
  * ============================================================
  */
 
-#if !defined(ESP32)
-    #error "InstantIoTBluetoothBLE: ESP32 family only"
-#endif
+#if defined(ESP32)
 
 #include "InstantIoTConfig.h"
 #include "core/InstantIoTCore.hpp"
@@ -41,3 +39,5 @@ public:
 private:
     InstantIoT::BT_ESP32_BLE _transportImpl;
 };
+
+#endif // ESP32
