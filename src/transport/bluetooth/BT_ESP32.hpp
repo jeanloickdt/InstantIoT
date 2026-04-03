@@ -20,6 +20,8 @@
  * ============================================================
  */
 
+#if defined(ESP32)
+
 #include <Arduino.h>
 #include <BluetoothSerial.h>
 #include "../../core/Transport.h"
@@ -34,29 +36,21 @@ public:
         : _deviceName(deviceName)
     {}
 
-    // ── Lifecycle ─────────────────────────────────────────────
-
     bool begin() override {
         IIOT_LOG("[BT-ESP32] Starting...");
         IIOT_LOG_VAL("[BT-ESP32] Device name: ", _deviceName);
-
         if (!_bt.begin(_deviceName)) {
             IIOT_LOG("[BT-ESP32] Failed to start Bluetooth!");
             return false;
         }
-
         IIOT_LOG("[BT-ESP32] Ready — waiting for connection");
         return true;
     }
 
     void poll() override {}
 
-    // ── Status ────────────────────────────────────────────────
-
     bool connected() override { return _bt.connected(); }
     int  available() override { return _bt.available(); }
-
-    // ── Read ──────────────────────────────────────────────────
 
     int read(uint8_t* buf, size_t len) override {
         size_t count = 0;
@@ -65,8 +59,6 @@ public:
         }
         return count > 0 ? (int)count : -1;
     }
-
-    // ── Write ─────────────────────────────────────────────────
 
     size_t write(const uint8_t* buf, size_t len) override {
         return _bt.write(buf, len);
@@ -78,3 +70,5 @@ private:
 };
 
 } // namespace InstantIoT
+
+#endif // ESP32
