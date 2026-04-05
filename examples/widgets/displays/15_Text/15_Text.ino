@@ -1,62 +1,39 @@
 /*************************************************************
- * TEST: Text Widget
- * 
- * Events envoyés vers l'app:
- * - settext (payload: text)
- * - setcolor (payload: color hex)
+ * InstantIoT — Example 12: Text
+ *
+ * Use case: Display dynamic text from ESP32
+ *
+ * Widget: Text  id="txt1"
+ * Board : ESP32
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>
 #include <utils/InstantIoTTimer.hpp>
 
-InstantIoTWiFiAP instant("Test_Text", "12345678");
+InstantIoTWiFiAP instant("InstantIoT_Text", "12345678");
 InstantTimer timers;
 
-int msgIndex = 0;
-const char* messages[] = {
-    "Hello World!",
-    "InstantIoT",
-    "Temperature: 25C",
-    "Status: OK",
-    "Connecting...",
-    "Ready!"
-};
+int counter = 0;
 
-uint32_t colors[] = {
-    0xFFFFFF,  // White
-    0xFF0000,  // Red
-    0x00FF00,  // Green
-    0x0000FF,  // Blue
-    0xFFFF00,  // Yellow
-    0xFF00FF   // Magenta
-};
-
-void testText() {
+void updateText() {
     if (!instant.connected()) return;
-    
-    Serial.print("Text: setText('");
-    Serial.print(messages[msgIndex]);
-    Serial.println("')");
-    
-    instant.text("text1").setText(messages[msgIndex]);
-    delay(1);
-    instant.text("text1") .setColor(colors[msgIndex]);
-    
-    msgIndex = (msgIndex + 1) % 6;
+
+    char msg[32];
+    snprintf(msg, sizeof(msg), "Count: %d", counter++);
+    instant.text("txt1").setText(msg);
+
+    Serial.println(msg);
 }
 
 void setup() {
-      delay(3000);
+    delay(2000);
     Serial.begin(115200);
-    delay(1000);
-    Serial.println("\n=== TEST: Text Widget ===");
-    Serial.println("Widget requis: Text id='text1'");
+
     instant.begin();
-    
-    timers.every(1500, testText);
-    
-    Serial.print("IP: ");
-    Serial.println(instant.getIP());
+    timers.every(1000, updateText);
+
+    Serial.print("IP: "); Serial.println(instant.getIP());
+    Serial.println("=== Text Example ===");
 }
 
 void loop() {

@@ -1,71 +1,64 @@
 /*************************************************************
- * TEST: AdvancedChart Widget
- * 
- * Events envoyés vers l'app:
- * - adddatapoint (payload: seriesId, x, y)
- * - clearseriesdata (payload: seriesId)
- * - clearalldata
- * - addseries (payload: seriesId, label, lineColor)
- * - updateseriesstyle (payload: seriesId, lineColor, showPoints, showFill)
- * - setmaxdatapoints (payload: maxDataPoints)
- * - updateaxislabels (payload: chartTitle, xAxisLabel, yAxisLabel)
+ * InstantIoT — Example 13: AdvancedChart
+ *
+ * Use case: Plot distance over time with HC-SR04
+ *
+ * Widget: AdvancedChart  id="chart1"
+ * Board : ESP32
+ *
+ * Wiring:
+ *   HC-SR04 TRIG → GPIO14
+ *   HC-SR04 ECHO → GPIO12
+ *   HC-SR04 VCC  → 5V
+ *   HC-SR04 GND  → GND
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>
 #include <utils/InstantIoTTimer.hpp>
 
-InstantIoTWiFiAP instant("Test_Chart", "12345678");
+#define TRIG_PIN  14
+#define ECHO_PIN  12
+#define DIST_MAX 200.0f
+
+InstantIoTWiFiAP instant("InstantIoT_Chart", "12345678");
 InstantTimer timers;
 
-// Fake sensor data
-float voltage = 220.0;
-float current = 5.0;
-float power = 0;
-
-void sendVoltage() {
-    if (!instant.connected()) return;
-    voltage += random(-50, 51) / 10.0;
-    voltage = constrain(voltage, 200, 240);
-    instant.chart("chart1").addPoint("U", voltage);
+float readDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+    if (duration == 0) return -1.0f;
+    return duration * 0.034f / 2.0f;
 }
 
-void sendCurrent() {
+void updateChart() {
     if (!instant.connected()) return;
-    current += random(-20, 21) / 10.0;
-    current = constrain(current, 0, 10);
-    instant.chart("chart1").addPoint("I", current);
-}
 
-void sendPower() {
-    if (!instant.connected()) return;
-    power = voltage * current / 100.0;  // Scale for display
-    instant.chart("chart1").addPoint("P", power);
-    
-    Serial.print("U=");
-    Serial.print(voltage);
-    Serial.print(" I=");
-    Serial.print(current);
-    Serial.print(" P=");
-    Serial.println(power);
+    float distance = readDistance();
+    if (distance < 0 || distance > DIST_MAX) return;
+
+    // Add point to series "distance"
+    instant.chart("chart1").addPoint("distance", distance);
+
+    Serial.print("Distance: "); Serial.print(distance);
+    Serial.println(" cm");
 }
 
 void setup() {
-     delay(3000);
+    delay(2000);
     Serial.begin(115200);
-    delay(1000);
-    randomSeed(analogRead(0));
-    Serial.println("\n=== TEST: AdvancedChart Widget ===");
-    Serial.println("Widget requis: AdvancedChart id='chart1'");
-    Serial.println("Series auto-created: U, I, P");
+
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+
     instant.begin();
-    
-    // Staggered sends to avoid congestion
-    timers.every(200, sendVoltage);
-    timers.every(210, sendCurrent);
-    timers.every(220, sendPower);
-    
-    Serial.print("IP: ");
-    Serial.println(instant.getIP());
+    timers.every(500, updateChart);
+
+    Serial.print("IP: "); Serial.println(instant.getIP());
+    Serial.println("=== AdvancedChart Example ===");
 }
 
 void loop() {
