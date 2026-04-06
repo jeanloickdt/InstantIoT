@@ -27,28 +27,25 @@ public:
     {}
 
     virtual ~InstantIoTCoreBase() {
-        #ifdef INSTANTIOT_WIDGETS_LED
+        #if INSTANTIOT_WIDGETS_LED
         for (uint8_t i = 0; i < _ledCount; i++) delete _leds[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_GAUGE
+        #if INSTANTIOT_WIDGETS_GAUGE
         for (uint8_t i = 0; i < _gaugeCount; i++) delete _gauges[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_METRIC
+        #if INSTANTIOT_WIDGETS_METRIC
         for (uint8_t i = 0; i < _metricCount; i++) delete _metrics[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
+        #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
         for (uint8_t i = 0; i < _hLevelCount; i++) delete _hLevels[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_VERTICALLEVEL
+        #if INSTANTIOT_WIDGETS_VERTICALLEVEL
         for (uint8_t i = 0; i < _vLevelCount; i++) delete _vLevels[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_ADVANCEDCHART
+        #if INSTANTIOT_WIDGETS_ADVANCEDCHART
         for (uint8_t i = 0; i < _chartCount; i++) delete _charts[i];
         #endif
-        #ifdef INSTANTIOT_WIDGETS_BARCHART
-        for (uint8_t i = 0; i < _barChartCount; i++) delete _barCharts[i];
-        #endif
-        #ifdef INSTANTIOT_WIDGETS_TEXT
+        #if INSTANTIOT_WIDGETS_TEXT
         for (uint8_t i = 0; i < _textCount; i++) delete _texts[i];
         #endif
     }
@@ -105,7 +102,7 @@ public:
     // 📊 WIDGET ACCESS
     // ════════════════════════════════════════════════════════
 
-    #ifdef INSTANTIOT_WIDGETS_LED
+    #if INSTANTIOT_WIDGETS_LED
     LedWidget& led(const char* id) {
         for (uint8_t i = 0; i < _ledCount; i++)
             if (strcmp(_leds[i]->getId(), id) == 0) return *_leds[i];
@@ -118,7 +115,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_GAUGE
+    #if INSTANTIOT_WIDGETS_GAUGE
     GaugeWidget& gauge(const char* id) {
         for (uint8_t i = 0; i < _gaugeCount; i++)
             if (strcmp(_gauges[i]->getId(), id) == 0) return *_gauges[i];
@@ -131,7 +128,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_METRIC
+    #if INSTANTIOT_WIDGETS_METRIC
     MetricWidget& metric(const char* id) {
         for (uint8_t i = 0; i < _metricCount; i++)
             if (strcmp(_metrics[i]->getId(), id) == 0) return *_metrics[i];
@@ -144,7 +141,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
+    #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
     HorizontalLevelWidget& hLevel(const char* id) {
         for (uint8_t i = 0; i < _hLevelCount; i++)
             if (strcmp(_hLevels[i]->getId(), id) == 0) return *_hLevels[i];
@@ -157,7 +154,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_VERTICALLEVEL
+    #if INSTANTIOT_WIDGETS_VERTICALLEVEL
     VerticalLevelWidget& vLevel(const char* id) {
         for (uint8_t i = 0; i < _vLevelCount; i++)
             if (strcmp(_vLevels[i]->getId(), id) == 0) return *_vLevels[i];
@@ -170,7 +167,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_ADVANCEDCHART
+    #if INSTANTIOT_WIDGETS_ADVANCEDCHART
     AdvancedChartWidget& chart(const char* id) {
         for (uint8_t i = 0; i < _chartCount; i++)
             if (strcmp(_charts[i]->getId(), id) == 0) return *_charts[i];
@@ -183,20 +180,7 @@ public:
     }
     #endif
 
-    #ifdef INSTANTIOT_WIDGETS_BARCHART
-    BarChartWidget& barChart(const char* id) {
-        for (uint8_t i = 0; i < _barChartCount; i++)
-            if (strcmp(_barCharts[i]->getId(), id) == 0) return *_barCharts[i];
-        if (_barChartCount < INSTANTIOT_MAX_WIDGETS) {
-            _barCharts[_barChartCount] = new BarChartWidget(id, *this);
-            return *_barCharts[_barChartCount++];
-        }
-        static BarChartWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #ifdef INSTANTIOT_WIDGETS_TEXT
+    #if INSTANTIOT_WIDGETS_TEXT
     TextWidget& text(const char* id) {
         for (uint8_t i = 0; i < _textCount; i++)
             if (strcmp(_texts[i]->getId(), id) == 0) return *_texts[i];
@@ -226,28 +210,25 @@ protected:
 
     bool _initialized;
 
-    #ifdef INSTANTIOT_WIDGETS_LED
+    #if INSTANTIOT_WIDGETS_LED
     LedWidget* _leds[INSTANTIOT_MAX_WIDGETS]; uint8_t _ledCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_GAUGE
+    #if INSTANTIOT_WIDGETS_GAUGE
     GaugeWidget* _gauges[INSTANTIOT_MAX_WIDGETS]; uint8_t _gaugeCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_METRIC
+    #if INSTANTIOT_WIDGETS_METRIC
     MetricWidget* _metrics[INSTANTIOT_MAX_WIDGETS]; uint8_t _metricCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
+    #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
     HorizontalLevelWidget* _hLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _hLevelCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_VERTICALLEVEL
+    #if INSTANTIOT_WIDGETS_VERTICALLEVEL
     VerticalLevelWidget* _vLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _vLevelCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_ADVANCEDCHART
+    #if INSTANTIOT_WIDGETS_ADVANCEDCHART
     AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS]; uint8_t _chartCount = 0;
     #endif
-    #ifdef INSTANTIOT_WIDGETS_BARCHART
-    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS]; uint8_t _barChartCount = 0;
-    #endif
-    #ifdef INSTANTIOT_WIDGETS_TEXT
+    #if INSTANTIOT_WIDGETS_TEXT
     TextWidget* _texts[INSTANTIOT_MAX_WIDGETS]; uint8_t _textCount = 0;
     #endif
 
@@ -273,13 +254,12 @@ protected:
     }
 
     void extractFrames() {
-        // Trame minimale : AA(1) + VER(1) + LEN(2) + SEQ(1) + body(min0) + CRC(1) = 6
         while (_rxPos >= 5) {
             if (_rxBuffer[0] != 0xAA) { shiftBuffer(1); continue; }
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
-            uint16_t frameSize = 5 + len + 1;  // ← header(5) + body + CRC
+            uint16_t frameSize = 5 + len + 1;
 
             if (_rxPos < frameSize) break;
 

@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v2.0
+ * ⚡ InstantIoT Library v1.1.0
  * 
  * InstantIoTDeviceConfig.hpp - Configuration et identité du device
  * 
@@ -93,8 +93,13 @@ private:
         #elif defined(INSTANTIOT_PLATFORM_ESP8266)
             snprintf(_deviceId, sizeof(_deviceId), "esp8266_%08X", ESP.getChipId());
 
+        #elif defined(INSTANTIOT_PLATFORM_R4)
+            // R4 has no unique hardware ID — use fixed seed
+            // Override with: instant.config().setDeviceId("my_device")
+            snprintf(_deviceId, sizeof(_deviceId), "r4_%08lX", (unsigned long)0xDEADBEEF);
         #else
-            snprintf(_deviceId, sizeof(_deviceId), "device_%08lX", (unsigned long)millis());
+            // Unknown platform — use fixed seed
+            snprintf(_deviceId, sizeof(_deviceId), "device_%08lX", (unsigned long)0xDEADBEEF);
         #endif
     }
 };
