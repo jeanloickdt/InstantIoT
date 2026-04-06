@@ -1,65 +1,49 @@
 /*************************************************************
- *InstantIoT — Example: Switch
+ * InstantIoT — Example 14: Switch
  *
  * Use case: Control a relay with a switch
  *
  * Widget: Switch  id="sw1"
- * Board : ESP8266 / ESP32
+ * Board : ESP32
  *
  * Wiring:
- *   RELAY_PIN (GPIO5) → Relay module → Load
- *
- * Behavior:
- *   Switch ON  → Relay ON  → LED built-in ON
- *   Switch OFF → Relay OFF → LED built-in OFF
- *
- * Protocol (App → Device):
- *   turnon, turnoff, toggle, setvalue(isOn)
+ *   Relay → GPIO4
+ *   LED   → GPIO2 (built-in, active LOW)
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>
 
-#define LED_PIN   2  // Built-in LED (active LOW on ESP8266)
-#define RELAY_PIN 5  // Relay module
+#define RELAY_PIN 4
+#define LED_PIN   2
 
 InstantIoTWiFiAP instant("InstantIoT_Switch", "12345678");
 
-bool relayState = false;
-
-void setRelay(bool on) {
-    relayState = on;
-    digitalWrite(RELAY_PIN, on ? HIGH : LOW);
-    digitalWrite(LED_PIN,   on ? LOW  : HIGH); // built-in active LOW
-    Serial.print("Relay → "); Serial.println(on ? "ON" : "OFF");
-}
-
 void onSwitchEvent(const SwitchEvent& e) {
+
+      Serial.println(e.isOn);
     ON_TURN_ON("sw1") {
-        setRelay(true);
-        Serial.println("sw1 → TURN ON");
+        digitalWrite(RELAY_PIN, HIGH);
+        digitalWrite(LED_PIN, LOW);
+        Serial.println("sw1 → ON");
     }
 
     ON_TURN_OFF("sw1") {
-        setRelay(false);
-        Serial.println("sw1 → TURN OFF");
-    }
-
-    ON_SWITCH_TOGGLE("sw1") {
-        setRelay(e.isOn);
-        Serial.println("sw1 → TOGGLE");
+        digitalWrite(RELAY_PIN, LOW);
+        digitalWrite(LED_PIN, HIGH);
+        Serial.println("sw1 → OFF");
     }
 }
 
 void setup() {
     delay(2000);
     Serial.begin(115200);
-    pinMode(LED_PIN,   OUTPUT); digitalWrite(LED_PIN,   HIGH);
-    pinMode(RELAY_PIN, OUTPUT); digitalWrite(RELAY_PIN, LOW);
 
-    Serial.println("\n=== Switch Example ===");
+    pinMode(RELAY_PIN, OUTPUT); digitalWrite(RELAY_PIN, LOW);
+    pinMode(LED_PIN, OUTPUT);   digitalWrite(LED_PIN, HIGH);
+
     instant.begin();
     Serial.print("IP: "); Serial.println(instant.getIP());
-    Serial.println("Widget: Switch  id='sw1'");
+    Serial.println("=== Switch Example ===");
 }
 
 void loop() {

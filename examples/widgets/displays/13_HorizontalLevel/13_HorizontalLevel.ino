@@ -1,67 +1,75 @@
 /*************************************************************
- * TEST: HorizontalLevel & VerticalLevel Widgets
- * 
- * Events envoyés vers l'app:
- * - update (payload: value, min, max)
+ * InstantIoT — Example 10: HorizontalLevel
+ *
+ * Use case: Display water/tank level with HC-SR04
+ *
+ * Widget: HorizontalLevel  id="hlevel1"
+ * Board : ESP32
+ *
+ * Wiring:
+ *   HC-SR04 TRIG → GPIO14
+ *   HC-SR04 ECHO → GPIO12
+ *   HC-SR04 VCC  → 5V
+ *   HC-SR04 GND  → GND
+ *
+ * Behavior:
+ *   Distance 2cm  → Level 100% (full)
+ *   Distance 40cm → Level 0%   (empty)
  *************************************************************/
-
 
 #include <InstantIoTWiFiAP.hpp>
 #include <utils/InstantIoTTimer.hpp>
 
-InstantIoTWiFiAP instant("Test_Levels", "12345678");
+#define TRIG_PIN 14
+#define ECHO_PIN 12
+
+InstantIoTWiFiAP instant("InstantIoT_Level", "12345678");
 InstantTimer timers;
 
-float levelH = 0;
-float levelV = 0;
-int directionH = 1;
-int directionV = 1;
-
-void testHLevel() {
-    if (!instant.connected()) return;
-    
-    levelH += directionH * 5;
-    if (levelH >= 200) directionH = -1;
-    if (levelH <= 0) directionH = 1;
-    
-    Serial.print("HLevel: update(");
-    Serial.print(levelH);
-    Serial.println(", 0, 200)");
-    
-    instant.hLevel("hl1").update(levelH, 0, 200);
+// Measure distance with HC-SR04 (cm)
+float readDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+    if (duration == 0) return -1.0f; // timeout
+    return duration * 0.034f / 2.0f;
 }
 
-void testVLevel() {
+#define DIST_MIN  2.0f   // cm → 100%
+#define DIST_MAX 40.0f   // cm → 0%
+
+void updateLevel() {
     if (!instant.connected()) return;
-    
-    levelV += directionV * 3;
-    if (levelV >= 100) directionV = -1;
-    if (levelV <= 0) directionV = 1;
-    
-    Serial.print("VLevel: update(");
-    Serial.print(levelV);
-    Serial.println(", 0, 100)");
-    
-    instant.vLevel("vl1").update(levelV, 0, 100);
+
+    float distance = readDistance();
+    if (distance < 0) return; // skip on timeout
+
+    // Float mapping — preserves precision
+    float level = (DIST_MAX - distance) / (DIST_MAX - DIST_MIN) * 100.0f;
+    level = constrain(level, 0.0f, 100.0f);
+
+    instant.hLevel("hl1").update(level, 0.0f, 100.0f);
+
+    Serial.print("Distance: "); Serial.print(distance);
+    Serial.print(" cm | Level: "); Serial.print(level);
+    Serial.println("%");
 }
 
 void setup() {
-    delay(3000);
+    delay(2000);
     Serial.begin(115200);
-    delay(1000);
-    
-    Serial.println("\n=== TEST: Level Widgets ===");
-    Serial.println("Widgets requis:");
-    Serial.println("  - HorizontalLevel id='hl1'");
-    Serial.println("  - VerticalLevel id='vl1'");
-    
+
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+
     instant.begin();
-    
-    timers.every(200, testHLevel);
-    timers.every(210, testVLevel);
-    
-    Serial.print("IP: ");
-    Serial.println(instant.getIP());
+    timers.every(300, updateLevel);
+
+    Serial.print("IP: "); Serial.println(instant.getIP());
+    Serial.println("=== HorizontalLevel Example ===");
 }
 
 void loop() {

@@ -156,7 +156,7 @@ public:
                 return;
             }
 
-            // ── DirectionPad ──────────────────────────────────
+           // ── DirectionPad ──────────────────────────────────
             case TYPE_DIRECTIONPAD: {
                 DirectionPadEvent e;
                 e.widgetId  = widgetId;
