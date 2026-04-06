@@ -1,78 +1,182 @@
 #######################################
-# InstantIoT Library v1.0 Keywords
+# InstantIoT Library v1.1
+# Keywords for Arduino IDE highlighting
 #######################################
 
 #######################################
-# Classes (KEYWORD1)
+# Facades (KEYWORD1)
 #######################################
+
 InstantIoTWiFiAP	KEYWORD1
+InstantIoTBluetoothESP32SPP	KEYWORD1
+InstantIoTBluetoothBLE	KEYWORD1
+InstantIoTSerial	KEYWORD1
 
 #######################################
-# Methods (KEYWORD2)
+# Core Classes (KEYWORD1)
 #######################################
+
+InstantIoTCoreBase	KEYWORD1
+InstantTimer	KEYWORD1
+DeviceConfig	KEYWORD1
+
+#######################################
+# Widget Classes (KEYWORD1)
+#######################################
+
+LedWidget	KEYWORD1
+GaugeWidget	KEYWORD1
+MetricWidget	KEYWORD1
+HorizontalLevelWidget	KEYWORD1
+VerticalLevelWidget	KEYWORD1
+AdvancedChartWidget	KEYWORD1
+TextWidget	KEYWORD1
+
+#######################################
+# Lifecycle Methods (KEYWORD2)
+#######################################
+
 begin	KEYWORD2
-end	KEYWORD2
 loop	KEYWORD2
+connected	KEYWORD2
+hasClient	KEYWORD2
+getIP	KEYWORD2
+getPort	KEYWORD2
+getSSID	KEYWORD2
+
+#######################################
+# Widget Accessors (KEYWORD2)
+#######################################
+
 led	KEYWORD2
 gauge	KEYWORD2
 metric	KEYWORD2
 hLevel	KEYWORD2
 vLevel	KEYWORD2
 chart	KEYWORD2
-barChart	KEYWORD2
 text	KEYWORD2
-getIP	KEYWORD2
-getPort	KEYWORD2
-getSSID	KEYWORD2
-isConnected	KEYWORD2
-hasClient	KEYWORD2
-setValue	KEYWORD2
-setRange	KEYWORD2
-setLabel	KEYWORD2
-setUnit	KEYWORD2
-setColor	KEYWORD2
-setBrightness	KEYWORD2
+
+#######################################
+# LED Methods (KEYWORD2)
+#######################################
+
+On	KEYWORD2
+Off	KEYWORD2
 on	KEYWORD2
 off	KEYWORD2
 toggle	KEYWORD2
-addSeries	KEYWORD2
+turnOn	KEYWORD2
+turnOff	KEYWORD2
+setColor	KEYWORD2
+setBrightness	KEYWORD2
+setIntensity	KEYWORD2
+setState	KEYWORD2
+
+#######################################
+# Gauge / Level Methods (KEYWORD2)
+#######################################
+
+setValue	KEYWORD2
+setRange	KEYWORD2
+update	KEYWORD2
+
+#######################################
+# Metric Methods (KEYWORD2)
+#######################################
+
+setSecondaryValue	KEYWORD2
+
+#######################################
+# Chart Methods (KEYWORD2)
+#######################################
+
 addPoint	KEYWORD2
-setBarValue	KEYWORD2
-setText	KEYWORD2
-setStyle	KEYWORD2
-setAlign	KEYWORD2
-addThreshold	KEYWORD2
+addTimedPoint	KEYWORD2
+clearSeries	KEYWORD2
 clearAll	KEYWORD2
 
 #######################################
-# DSL Macros (KEYWORD2)
+# Text Methods (KEYWORD2)
 #######################################
+
+setText	KEYWORD2
+
+#######################################
+# Config Methods (KEYWORD2)
+#######################################
+
+config	KEYWORD2
+setDeviceId	KEYWORD2
+setDeviceName	KEYWORD2
+setDashboardId	KEYWORD2
+
+#######################################
+# DSL Macros — Buttons (KEYWORD2)
+#######################################
+
 ON_PRESS	KEYWORD2
 ON_RELEASE	KEYWORD2
 ON_LONG_PRESS	KEYWORD2
 ON_TOGGLE	KEYWORD2
+ON_TOGGLE_STATE	KEYWORD2
+
+#######################################
+# DSL Macros — Emergency (KEYWORD2)
+#######################################
+
 ON_TRIGGER	KEYWORD2
 ON_RESET	KEYWORD2
-ON_VALUE_CHANGED	KEYWORD2
+
+#######################################
+# DSL Macros — Sliders (KEYWORD2)
+#######################################
+
 ON_VALUE_CHANGING	KEYWORD2
+ON_VALUE_CHANGED	KEYWORD2
 ON_DRAG_STARTED	KEYWORD2
 ON_DRAG_ENDED	KEYWORD2
+
+#######################################
+# DSL Macros — Switch (KEYWORD2)
+#######################################
+
 ON_TURN_ON	KEYWORD2
 ON_TURN_OFF	KEYWORD2
 ON_SWITCH_TOGGLE	KEYWORD2
+
+#######################################
+# DSL Macros — Joystick (KEYWORD2)
+#######################################
+
 ON_JOYSTICK	KEYWORD2
 ON_JOYSTICK_RELEASED	KEYWORD2
 ON_POSITION_CHANGED	KEYWORD2
+
+#######################################
+# DSL Macros — Direction Pad (KEYWORD2)
+#######################################
+
 ON_DPAD_UP	KEYWORD2
 ON_DPAD_DOWN	KEYWORD2
 ON_DPAD_LEFT	KEYWORD2
 ON_DPAD_RIGHT	KEYWORD2
 ON_DPAD_CENTER	KEYWORD2
+ON_DPAD_PRESS	KEYWORD2
+ON_DPAD_RELEASE	KEYWORD2
+ON_DPAD_LONG_PRESS	KEYWORD2
+
+#######################################
+# DSL Macros — Segmented Switch (KEYWORD2)
+#######################################
+
 ON_SELECTION_CHANGED	KEYWORD2
+ON_SEGMENT_SELECTED	KEYWORD2
+ON_SEGMENT_DESELECTED	KEYWORD2
 
 #######################################
 # Callbacks (KEYWORD2)
 #######################################
+
 onSimpleButtonEvent	KEYWORD2
 onAdvancedButtonEvent	KEYWORD2
 onEmergencyButtonEvent	KEYWORD2
@@ -84,6 +188,20 @@ onDirectionPadEvent	KEYWORD2
 onSegmentedSwitchEvent	KEYWORD2
 
 #######################################
+# Timer (KEYWORD2)
+#######################################
+
+every	KEYWORD2
+once	KEYWORD2
+run	KEYWORD2
+
+#######################################
 # Constants (LITERAL1)
 #######################################
-INSTANTIOT_VERSION	LITERAL1
+
+INSTANTIOT_DEBUG	LITERAL1
+INSTANTIOT_MAX_WIDGETS	LITERAL1
+INSTANTIOT_MAX_WIDGET_ID_LENGTH	LITERAL1
+INSTANT_RX_BUFFER_SIZE	LITERAL1
+INSTANT_TX_BUFFER_SIZE	LITERAL1
+INSTANT_AP_PORT	LITERAL1
