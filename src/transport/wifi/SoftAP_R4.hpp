@@ -30,25 +30,25 @@ public:
     ) : ssid_(ssid), pass_(pass), port_(port), server_(port) {}
 
     bool begin() override {
-        Serial.print("[SoftAP-R4] Creating: "); Serial.println(ssid_);
+        IIOT_LOG_VAL("[SoftAP-R4] Creating: ", ssid_);
 
         int status = WiFi.beginAP(ssid_, pass_);
         if (status != WL_AP_LISTENING) {
-            Serial.println("[SoftAP-R4] FAILED!");
+            IIOT_LOG("[SoftAP-R4] FAILED!");
             return false;
         }
 
         delay(500);
         server_.begin();
 
-        Serial.println("[SoftAP-R4] Ready");
+        IIOT_LOG("[SoftAP-R4] Ready");
         return true;
     }
 
     void poll() override {
         if (client_ && !client_.connected()) {
             client_.stop();
-            Serial.println("[SoftAP-R4] Client disconnected");
+            IIOT_LOG("[SoftAP-R4] Client disconnected");
         }
 
         // Only accept new client if none connected
@@ -56,14 +56,13 @@ public:
             WiFiClient newClient = server_.available();
             if (newClient) {
                 client_ = newClient;
-                Serial.println("[SoftAP-R4] Client connected!");
+                IIOT_LOG("[SoftAP-R4] Client connected");
             }
         }
     }
 
     bool connected() override {
-        return WiFi.status() == WL_AP_CONNECTED && 
-            client_ && client_.connected();
+        return client_ && client_.connected();
     }
 
     int available() override {
