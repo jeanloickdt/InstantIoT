@@ -5,33 +5,17 @@
  * ============================================================
  *
  * Protocole :
- *   AA | VER | LEN(2B LE) | DEV_COUNT | [DEV_LEN|DEV]×N
+ *   AA | VER | LEN(2B LE) | SEQ(1B) | DEV_COUNT | [DEV_LEN|DEV]×N
  *      | WID_LEN | WID | TYPE | EVENT | PAYLOAD | CRC8
+ *
+ * SEQ : numéro de séquence 0..255 (wrap-around)
+ *   — dans le header, non couvert par LEN ni CRC
+ *   — permet de détecter et ignorer les paquets obsolètes
+ *   — Device et App ont chacun leur propre compteur
  *
  * Convention codes EVENT :
  *   0x01..0x0E = Device → App (events push)
  *   0x10..0x1F = App → Device (commands reçues)
- *
- * Optimisation mémoire — activer seulement les widgets utilisés :
- *
- *   #define INSTANTIOT_WIDGET_SIMPLEBUTTON
- *   #define INSTANTIOT_WIDGET_ADVANCEDBUTTON
- *   #define INSTANTIOT_WIDGET_GAUGE
- *   #define INSTANTIOT_WIDGET_JOYSTICK
- *   #define INSTANTIOT_WIDGET_HLEVEL
- *   #define INSTANTIOT_WIDGET_VLEVEL
- *   #define INSTANTIOT_WIDGET_METRIC
- *   #define INSTANTIOT_WIDGET_SEGSWITCH
- *   #define INSTANTIOT_WIDGET_ADVANCEDCHART
- *   #define INSTANTIOT_WIDGET_HSLIDER
- *   #define INSTANTIOT_WIDGET_VSLIDER
- *   #define INSTANTIOT_WIDGET_LED
- *   #define INSTANTIOT_WIDGET_SWITCH
- *   #define INSTANTIOT_WIDGET_DIRECTIONPAD
- *   #define INSTANTIOT_WIDGET_TEXT
- *
- * Si aucun #define n'est présent, tous les widgets sont compilés
- * (comportement par défaut, rétrocompatible).
  *
  * CRC-8/SMBUS poly=0x07
  * Strings : uint8 LEN + octets
@@ -45,8 +29,6 @@
 #include <string.h>
 #include "Codec.h"
 #include "../InstantIoTConfig.h"
-
-// Les defines viennent de InstantIoTConfig.h (inclus via ../InstantIoTConfig.h)
 
 namespace InstantIoT {
 
@@ -71,7 +53,7 @@ static const uint8_t TYPE_DIRECTIONPAD     = 0x0E;
 static const uint8_t TYPE_TEXT             = 0x0F;
 
 // ============================================================
-//  EVENT CODES — Device → App (0x01..0x0E) + patch (0x0F)
+//  EVENT CODES — Device → App (0x01..0x0E)
 // ============================================================
 
 static const uint8_t EV_SETVALUE           = 0x01;
@@ -184,6 +166,19 @@ class BinaryCodec {
     char _paramKeys[8][16];
     char _paramValues[8][32];
 
+    // ── SEQ — compteur sortant ────────────────────────────────
+    uint8_t _seqOut = 0;
+
+    // ── SEQ — dernier SEQ reçu par slot widget ────────────────
+    // On garde les 8 derniers widgets vus (FIFO simple)
+    static const uint8_t SEQ_SLOTS = 8;
+    struct SeqSlot {
+        char    widgetId[INSTANTIOT_MAX_WIDGET_ID_LENGTH];
+        uint8_t lastSeq;
+        bool    valid;
+    };
+    SeqSlot _seqIn[SEQ_SLOTS] = {};
+
     void addParam(DecodedMessage& msg, const char* key, const char* value) {
         if (msg.paramCount >= 8) return;
         uint8_t i = msg.paramCount;
@@ -208,6 +203,36 @@ class BinaryCodec {
         addParam(msg, key, val ? "true" : "false");
     }
 
+    // ── SEQ helpers ───────────────────────────────────────────
+
+    bool isObsolete(uint8_t incoming, uint8_t last) {
+        uint8_t diff = (uint8_t)(incoming - last);
+        return diff == 0 || diff > 128;  // même seq ou trop vieux
+    }
+
+    bool checkAndUpdateSeq(const char* widgetId, uint8_t seq) {
+        // Cherche le slot existant
+        for (uint8_t i = 0; i < SEQ_SLOTS; i++) {
+            if (_seqIn[i].valid && strcmp(_seqIn[i].widgetId, widgetId) == 0) {
+                if (isObsolete(seq, _seqIn[i].lastSeq)) return false;
+                _seqIn[i].lastSeq = seq;
+                return true;
+            }
+        }
+        // Nouveau widget — trouve un slot libre
+        for (uint8_t i = 0; i < SEQ_SLOTS; i++) {
+            if (!_seqIn[i].valid) {
+                strncpy(_seqIn[i].widgetId, widgetId, sizeof(_seqIn[i].widgetId) - 1);
+                _seqIn[i].widgetId[sizeof(_seqIn[i].widgetId) - 1] = '\0';
+                _seqIn[i].lastSeq = seq;
+                _seqIn[i].valid   = true;
+                return true;
+            }
+        }
+        // Tous les slots pleins — accepte quand même (pas de drop)
+        return true;
+    }
+
     void decodePayload(
         uint8_t typeCode, uint8_t eventCode,
         const uint8_t* payload, size_t len,
@@ -215,7 +240,6 @@ class BinaryCodec {
     ) {
         size_t p = 0;
 
-        // ── Events par TYPE+EVENT ─────────────────────────────────────
         switch (typeCode) {
 
 #if INSTANTIOT_WIDGETS_SIMPLEBUTTON || INSTANTIOT_WIDGETS_ADVANCEDBUTTON
@@ -248,13 +272,16 @@ class BinaryCodec {
 
 #if INSTANTIOT_WIDGETS_METRIC
             case TYPE_METRIC:
-                if (eventCode == EV_SETVALUE && p+4<=len)
-                    { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; }
+                if (eventCode == EV_SETVALUE && p+4<=len){ 
+                    addParamFloat(msg,"value",readFloatLE(payload+p)); 
+                    p+=4; 
+                }
                 else if (eventCode == EV_SETSECONDARY && p<len) {
                     char val[32], lbl[32];
                     p += readString(payload+p, val, sizeof(val));
                     p += readString(payload+p, lbl, sizeof(lbl));
-                    addParam(msg,"value",val); addParam(msg,"label",lbl);
+                    addParam(msg,"value",val); 
+                    addParam(msg,"label",lbl);
                 }
                 break;
 #endif
@@ -324,7 +351,6 @@ class BinaryCodec {
                 }
                 break;
 #endif
-
         }
     }
 
@@ -333,6 +359,10 @@ public:
     BinaryCodec() {
         _deviceId[0] = '\0';
         _widgetId[0] = '\0';
+        _seqOut = 0;
+        for (uint8_t i = 0; i < SEQ_SLOTS; i++) {
+            _seqIn[i].valid = false;
+        }
     }
 
     // ============================================================
@@ -376,13 +406,17 @@ public:
 
         uint16_t len = (uint16_t)b;
         uint8_t  crc = crc8(body, b);
-        size_t frameSize = 4 + b + 1;
+        uint8_t  seq = _seqOut++;
+
+        // header(5) + body + crc(1)
+        size_t frameSize = 5 + b + 1;
         if (frameSize > bufferSize) return 0;
 
         size_t pos = 0;
         buffer[pos++] = 0xAA;
         buffer[pos++] = 0x01;
         writeU16LE(buffer + pos, len); pos += 2;
+        buffer[pos++] = seq;            // ← SEQ
         memcpy(buffer + pos, body, b); pos += b;
         buffer[pos++] = crc;
         return pos;
@@ -399,17 +433,20 @@ public:
         uint8_t& outTypeCode,
         uint8_t& outEventCode
     ) {
-        if (!buffer || length < 9) return false;
+        // AA(1) + VER(1) + LEN(2) + SEQ(1) + body(min1) + CRC(1) = min 7
+        if (!buffer || length < 7) return false;
         size_t pos = 0;
 
         if (buffer[pos++] != 0xAA) return false;
         if (buffer[pos++] != 0x01) return false;
 
         uint16_t len = readU16LE(buffer + pos); pos += 2;
-        if (length < (size_t)(4 + len + 1)) return false;
+        uint8_t  seq = buffer[pos++];           // ← SEQ
 
-        // CRC
-        if (crc8(buffer + 4, len) != buffer[4 + len]) {
+        if (length < (size_t)(5 + len + 1)) return false;
+
+        // CRC — couvre body seulement (après SEQ)
+        if (crc8(buffer + 5, len) != buffer[5 + len]) {
             IIOT_LOG("[BinaryCodec] CRC mismatch");
             return false;
         }
@@ -426,6 +463,12 @@ public:
 
         // WID
         pos += readString(buffer + pos, _widgetId, sizeof(_widgetId));
+
+        // ── Filtre SEQ entrant ────────────────────────────────
+        if (!checkAndUpdateSeq(_widgetId, seq)) {
+            IIOT_LOG("[BinaryCodec] Obsolete packet ignored");
+            return false;
+        }
 
         // TYPE + EVENT
         outTypeCode  = buffer[pos++];

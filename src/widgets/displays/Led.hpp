@@ -58,10 +58,6 @@ public:
         return *this;
     }
 
-    LedWidget& setBrightness(float value) {
-        return setIntensity(value);
-    }
-
     // ── showHalo / showRays ───────────────────────────────────
     // Non supporté en protocole binaire v1 — no-op pour compatibilité
     LedWidget& showHalo(bool) { return *this; }
