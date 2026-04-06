@@ -7,17 +7,7 @@
  * Supported platforms:
  *   - ESP32
  *   - ESP8266
- *
- * Codec :
- *   Par défaut : protocole binaire iWidgets v1
- *   Pour activer le debug, définir AVANT l'include:
- *     #define INSTANTIOT_DEBUG 1
- *     #include <InstantIoTWiFiAP.hpp>
- *
- * Optimisation mémoire — désactiver les widgets non utilisés :
- *   #define INSTANTIOT_WIDGETS_ADVANCEDCHART 0
- *   #define INSTANTIOT_WIDGETS_SEGSWITCH     0
- *   #include <InstantIoTWiFiAP.hpp>
+ *   - Arduino Uno R4 WiFi
  *
  * ============================================================
  */
@@ -30,8 +20,10 @@
     #define INSTANTIOT_PLATFORM_ESP32
 #elif defined(ESP8266) || defined(ARDUINO_ARCH_ESP8266)
     #define INSTANTIOT_PLATFORM_ESP8266
+#elif defined(ARDUINO_UNOWIFIR4)
+    #define INSTANTIOT_PLATFORM_R4
 #else
-    #warning "InstantIoT: Plateforme non officielle (ESP32 ou ESP8266 recommandé)"
+    #warning "InstantIoT: Plateforme non officielle (ESP32, ESP8266 ou Arduino Uno R4 WiFi recommandé)"
 #endif
 
 // ============================================================
@@ -65,10 +57,6 @@
 // ============================================================
 // 🎛️ WIDGETS ACTIVÉS
 // ============================================================
-// Tous activés par défaut.
-// Pour désactiver un widget et gagner de la mémoire flash :
-//   #define INSTANTIOT_WIDGETS_ADVANCEDCHART 0
-//   #include <InstantIoTWiFiAP.hpp>
 
 // ── Display (Device → App) ────────────────────────────────
 #ifndef INSTANTIOT_WIDGETS_LED
