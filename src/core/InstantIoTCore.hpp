@@ -259,6 +259,7 @@ protected:
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
+            if (len > sizeof(_rxBuffer) - 6) { shiftBuffer(1); continue; }  // sanity guard
             uint16_t frameSize = 5 + len + 1;
 
             if (_rxPos < frameSize) break;

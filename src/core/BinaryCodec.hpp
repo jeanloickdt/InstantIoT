@@ -233,6 +233,14 @@ class BinaryCodec {
         return true;
     }
 
+    // Safe readString with bounds-check — returns 0 on error
+    static size_t safeReadString(const uint8_t* payload, size_t p, size_t len, char* out, size_t outSize) {
+        if (p >= len) { out[0] = '\0'; return 0; }
+        uint8_t slen = payload[p];
+        if (p + 1 + slen > len) { out[0] = '\0'; return 0; }
+        return readString(payload + p, out, outSize);
+    }
+
     void decodePayload(
         uint8_t typeCode, uint8_t eventCode,
         const uint8_t* payload, size_t len,
@@ -278,9 +286,11 @@ class BinaryCodec {
                 }
                 else if (eventCode == EV_SETSECONDARY && p<len) {
                     char val[32], lbl[32];
-                    p += readString(payload+p, val, sizeof(val));
-                    p += readString(payload+p, lbl, sizeof(lbl));
-                    addParam(msg,"value",val); 
+                    size_t n = safeReadString(payload, p, len, val, sizeof(val));
+                    if (!n) break; p += n;
+                    n = safeReadString(payload, p, len, lbl, sizeof(lbl));
+                    if (!n) break; p += n;
+                    addParam(msg,"value",val);
                     addParam(msg,"label",lbl);
                 }
                 break;
@@ -290,7 +300,9 @@ class BinaryCodec {
             case TYPE_SEGSWITCH:
                 if (eventCode == CMD_SELCHANGED && p<len) {
                     addParamInt(msg,"index",payload[p++]);
-                    char ids[64]; p += readString(payload+p, ids, sizeof(ids));
+                    char ids[64];
+                    size_t n = safeReadString(payload, p, len, ids, sizeof(ids));
+                    if (!n) break; p += n;
                     addParam(msg,"ids",ids);
                 } else if ((eventCode==CMD_SEGSELECTED||eventCode==CMD_SEGDESELECTED) && p<len)
                     addParamInt(msg,"index",payload[p++]);
@@ -300,13 +312,16 @@ class BinaryCodec {
 #if INSTANTIOT_WIDGETS_ADVANCEDCHART
             case TYPE_ADVANCEDCHART:
                 if (eventCode == EV_ADDPOINT && p<len) {
-                    char sid[32]; p += readString(payload+p,sid,sizeof(sid)); addParam(msg,"seriesId",sid);
+                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
+                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
                     if (p+4<=len) { addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
                 } else if (eventCode == EV_ADDTIMEDPOINT && p<len) {
-                    char sid[32]; p += readString(payload+p,sid,sizeof(sid)); addParam(msg,"seriesId",sid);
+                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
+                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
                     if (p+8<=len) { addParamFloat(msg,"x",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
                 } else if (eventCode == EV_CLEARSERIES && p<len) {
-                    char sid[32]; p += readString(payload+p,sid,sizeof(sid)); addParam(msg,"seriesId",sid);
+                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
+                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
                 }
                 break;
 #endif
@@ -346,7 +361,8 @@ class BinaryCodec {
 #if INSTANTIOT_WIDGETS_TEXT
             case TYPE_TEXT:
                 if (eventCode == EV_SETTEXT && p<len) {
-                    char txt[64]; p += readString(payload+p,txt,sizeof(txt));
+                    char txt[64]; size_t n = safeReadString(payload,p,len,txt,sizeof(txt));
+                    if (!n) break; p += n;
                     addParam(msg,"text",txt);
                 }
                 break;
