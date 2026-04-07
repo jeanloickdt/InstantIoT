@@ -78,6 +78,8 @@ public:
         );
         rxChar->setCallbacks(new CharCallbacks(this));
 
+        service->start();
+
         // Advertising
         NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
         advertising->addServiceUUID(NUS_SERVICE_UUID);

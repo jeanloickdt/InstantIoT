@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v2.0
+ * ⚡ InstantIoT Library v1.1.0
  * 
  * InstantIoTDebug.hpp - Système de debug portable
  * 
@@ -23,6 +23,18 @@
 
 #include <Arduino.h>
 #include "../InstantIoTConfig.h"
+
+// ============================================================
+// 🔧 DEFAULTS
+// ============================================================
+
+#ifndef INSTANTIOT_DEBUG_LEVEL
+    #define INSTANTIOT_DEBUG_LEVEL 0
+#endif
+
+#ifndef INSTANTIOT_DEBUG_SERIAL
+    #define INSTANTIOT_DEBUG_SERIAL Serial
+#endif
 
 // ============================================================
 // 🎨 COULEURS ANSI (pour terminaux supportés)

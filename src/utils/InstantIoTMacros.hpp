@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v2.0
+ * ⚡ InstantIoT Library v1.1.0
  * 
  * InstantIoTMacros.hpp — DSL fluide pour les callbacks
  * 
