@@ -9,8 +9,62 @@
  */
 
 #include <Arduino.h>
+#include <string.h>
 #include "InstantIoTMessage.hpp"
 #include "BinaryCodec.hpp"
+
+// ============================================================
+// 📚 PER-WIDGET HANDLER REGISTRY (used by I<Widget>(id) macros)
+//
+// Ces templates permettent d'enregistrer un handler par widget id
+// via des macros style :
+//
+//   ISimpleButton("btn1") { WHEN_TOGGLED(on) { ... } };
+//
+// Chaque bloc devient :
+//   - 1 fonction static void _fn(const EventT&)
+//   - 1 WidgetRegistrar<EventT> global statique qui attache son nœud
+//     à la liste chaînée au démarrage (ctor avant setup())
+//
+// RAM : 12 B par bloc (ESP32, 3 ptrs × 4 B). Pas de heap.
+// Coût dispatch : 1 strcmp par handler enregistré du type concerné.
+// ============================================================
+namespace InstantIoT {
+
+template<typename EventT>
+struct WidgetHandler {
+    const char* widgetId;
+    void (*fn)(const EventT&);
+    WidgetHandler<EventT>* next;
+};
+
+template<typename EventT>
+inline WidgetHandler<EventT>*& handlerListHead() {
+    static WidgetHandler<EventT>* head = nullptr;
+    return head;
+}
+
+template<typename EventT>
+struct WidgetRegistrar {
+    WidgetHandler<EventT> node;
+    WidgetRegistrar(const char* id, void (*fn)(const EventT&)) {
+        node.widgetId = id;
+        node.fn       = fn;
+        node.next     = handlerListHead<EventT>();
+        handlerListHead<EventT>() = &node;
+    }
+};
+
+template<typename EventT>
+inline void dispatchToHandlers(const EventT& e) {
+    for (auto* h = handlerListHead<EventT>(); h; h = h->next) {
+        if (h->widgetId && e.widgetId && strcmp(h->widgetId, e.widgetId) == 0) {
+            h->fn(e);
+        }
+    }
+}
+
+} // namespace InstantIoT
 
 // ============================================================
 // 🔗 WEAK CALLBACK DECLARATIONS
@@ -54,6 +108,7 @@ public:
                     default: return;
                 }
                 onSimpleButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -70,6 +125,7 @@ public:
                     default: return;
                 }
                 onAdvancedButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -88,6 +144,7 @@ public:
                     default: return;
                 }
                 onHorizontalSliderEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -106,6 +163,7 @@ public:
                     default: return;
                 }
                 onVerticalSliderEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -133,6 +191,7 @@ public:
                     default: return;
                 }
                 onSwitchEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -153,6 +212,7 @@ public:
                     default: return;
                 }
                 onJoystickEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -179,6 +239,7 @@ public:
                     default: return;
                 }
                 onDirectionPadEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -198,6 +259,7 @@ public:
                     default: return;
                 }
                 onSegmentedSwitchEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -208,6 +270,7 @@ public:
                     e.widgetId    = widgetId;
                     e.requestType = (eventCode == 0x10) ? "requestdata" : "requestrefresh";
                     onWidgetRequest(e);
+                    InstantIoT::dispatchToHandlers(e);
                 }
                 return;
             }
