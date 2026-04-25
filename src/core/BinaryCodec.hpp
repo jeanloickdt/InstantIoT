@@ -52,6 +52,7 @@ static const uint8_t TYPE_LED              = 0x0C;
 static const uint8_t TYPE_SWITCH           = 0x0D;
 static const uint8_t TYPE_DIRECTIONPAD     = 0x0E;
 static const uint8_t TYPE_TEXT             = 0x0F;
+static const uint8_t TYPE_BARCHART          = 0x10;
 
 // Service frame : heartbeat périodique émis par le device en mode
 // Server TCP. Le serveur reçoit → ne dispatch pas aux apps, reset
@@ -75,6 +76,11 @@ static const uint8_t EV_CLEARSERIES        = 0x03;
 static const uint8_t EV_CLEARALL           = 0x04;
 static const uint8_t EV_SETSERIESDATA      = 0x05;
 static const uint8_t EV_SETTEXT            = 0x01;
+
+// BarChart (TYPE_BARCHART)
+static const uint8_t EV_BAR_SETVALUES      = 0x01;  // [count:u8][values:float×count]
+static const uint8_t EV_BAR_SETBAR         = 0x02;  // [index:u8][value:float]
+static const uint8_t EV_BAR_CLEAR          = 0x03;  // no payload
 
 // ============================================================
 //  COMMAND CODES — App → Device (0x10..0x1F)
@@ -329,6 +335,15 @@ class BinaryCodec {
                     if (!n) break; p += n;
                     addParam(msg,"text",txt);
                 }
+                break;
+#endif
+
+#if INSTANTIOT_WIDGETS_BARCHART
+            // BarChart : display pur, l'app n'envoie jamais rien au
+            // device → pas de décodage côté device. Le case existe
+            // pour ne pas tomber dans le default si un payload
+            // BarChart arrive par erreur (frame mal routée).
+            case TYPE_BARCHART:
                 break;
 #endif
         }
