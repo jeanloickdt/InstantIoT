@@ -45,6 +45,9 @@ public:
         #if INSTANTIOT_WIDGETS_ADVANCEDCHART
         for (uint8_t i = 0; i < _chartCount; i++) delete _charts[i];
         #endif
+        #if INSTANTIOT_WIDGETS_BARCHART
+        for (uint8_t i = 0; i < _barChartCount; i++) delete _barCharts[i];
+        #endif
         #if INSTANTIOT_WIDGETS_TEXT
         for (uint8_t i = 0; i < _textCount; i++) delete _texts[i];
         #endif
@@ -202,6 +205,19 @@ public:
     }
     #endif
 
+    #if INSTANTIOT_WIDGETS_BARCHART
+    BarChartWidget& barChart(const char* id) {
+        for (uint8_t i = 0; i < _barChartCount; i++)
+            if (strcmp(_barCharts[i]->getId(), id) == 0) return *_barCharts[i];
+        if (_barChartCount < INSTANTIOT_MAX_WIDGETS) {
+            _barCharts[_barChartCount] = new BarChartWidget(id, *this);
+            return *_barCharts[_barChartCount++];
+        }
+        static BarChartWidget dummy("__dummy__", *this);
+        return dummy;
+    }
+    #endif
+
     #if INSTANTIOT_WIDGETS_TEXT
     TextWidget& text(const char* id) {
         for (uint8_t i = 0; i < _textCount; i++)
@@ -268,6 +284,9 @@ protected:
     #endif
     #if INSTANTIOT_WIDGETS_ADVANCEDCHART
     AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS]; uint8_t _chartCount = 0;
+    #endif
+    #if INSTANTIOT_WIDGETS_BARCHART
+    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS]; uint8_t _barChartCount = 0;
     #endif
     #if INSTANTIOT_WIDGETS_TEXT
     TextWidget* _texts[INSTANTIOT_MAX_WIDGETS]; uint8_t _textCount = 0;
