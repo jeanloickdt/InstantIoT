@@ -51,6 +51,15 @@
   #define INSTANTIOT_RECONNECT_BACKOFF_MAX_MS 30000
 #endif
 
+// Jitter ± appliqué au backoff pour éviter le "thundering herd" :
+// si N devices d'un fleet redémarrent en même temps (coupure
+// d'électricité, reboot serveur), sans jitter ils retentent tous
+// en synchro → noient le serveur. Avec jitter (±25% par défaut),
+// les retries se désynchronisent naturellement.
+#ifndef INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT
+  #define INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT 25
+#endif
+
 namespace InstantIoT {
 
 class WiFiServerClient_ESP32 : public ITransport {
@@ -109,29 +118,36 @@ public:
     }
 
     void poll() override {
-        // WiFi dropped → reconnect
+        // WiFi dropped → reconnect (with backoff)
         if (WiFi.status() != WL_CONNECTED) {
             if (client_) client_.stop();
             if (millis() < nextRetryAt_) return;
 
-            IIOT_LOG("[WiFiServer] WiFi lost, reconnecting...");
+            retryAttempt_++;
+            IIOT_LOG_VAL("[WiFiServer] WiFi lost — reconnect attempt #", retryAttempt_);
             if (!connectWiFi()) {
                 scheduleRetry();
                 return;
             }
+            // WiFi rétabli — reset l'attempt count, on essaie TCP
+            // dans le bloc suivant. Le backoff TCP utilise sa propre
+            // séquence (le compteur partagé est OK pour V1).
         }
 
-        // TCP dropped → reconnect with backoff
+        // TCP dropped → reconnect (with backoff)
         if (!client_.connected()) {
             if (client_) client_.stop();
             if (millis() < nextRetryAt_) return;
 
-            IIOT_LOG("[WiFiServer] Reconnecting to server...");
+            retryAttempt_++;
+            IIOT_LOG_VAL("[WiFiServer] TCP reconnect attempt #", retryAttempt_);
             if (!connectServer()) {
                 scheduleRetry();
                 return;
             }
+            // SUCCESS : reset complet du backoff + compteur
             backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
+            retryAttempt_ = 0;
         }
     }
 
@@ -243,11 +259,39 @@ private:
         return true;
     }
 
-    // ----- Backoff -----
+    // ----- Backoff avec jitter -----
+    //
+    // Calcule le prochain retry = backoffMs_ ± jitter%, puis double
+    // backoffMs_ pour la prochaine fois (cap à MAX). Le jitter
+    // désynchronise les retries d'un fleet de devices (cf. constante
+    // INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT).
+    //
+    // Log un warn quand on atteint le cap MAX — signe d'un problème
+    // persistant (serveur down, WiFi config foireuse, etc.) que le
+    // maker doit investiguer.
     void scheduleRetry() {
-        nextRetryAt_ = millis() + backoffMs_;
-        uint32_t next = backoffMs_ * 2;
-        if (next > INSTANTIOT_RECONNECT_BACKOFF_MAX_MS) {
+        uint32_t base = backoffMs_;
+        // Jitter : random() ∈ [-pct, +pct] de base
+        // random() est seedé par esp_random() côté ESP32 → différent
+        // par device, donc désynchronisation naturelle d'un fleet.
+        int32_t jitterRange = (int32_t)(base * INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT) / 100;
+        int32_t jitter = (jitterRange > 0) ? (int32_t)random(-jitterRange, jitterRange + 1) : 0;
+        int32_t actualDelay = (int32_t)base + jitter;
+        if (actualDelay < 100) actualDelay = 100;  // floor : évite spin
+
+        nextRetryAt_ = millis() + (uint32_t)actualDelay;
+
+        IIOT_LOG_2("[WiFiServer] Next retry in ", actualDelay, "ms (base ", base);
+
+        // Double pour la prochaine, cap à MAX
+        uint32_t next = base * 2;
+        if (next >= INSTANTIOT_RECONNECT_BACKOFF_MAX_MS) {
+            if (base < INSTANTIOT_RECONNECT_BACKOFF_MAX_MS) {
+                IIOT_LOG_VAL(
+                    "[WiFiServer] Reached max backoff — persistent issue, attempt #",
+                    retryAttempt_
+                );
+            }
             next = INSTANTIOT_RECONNECT_BACKOFF_MAX_MS;
         }
         backoffMs_ = next;
@@ -262,7 +306,8 @@ private:
     WiFiClient  client_;
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
-    uint32_t    heartbeatMs_;  // 0 = legacy, >0 = annoncé au serveur
+    uint32_t    retryAttempt_ = 0;  // monotonic counter pour debug logs
+    uint32_t    heartbeatMs_;       // 0 = legacy, >0 = annoncé au serveur
 };
 
 } // namespace InstantIoT
