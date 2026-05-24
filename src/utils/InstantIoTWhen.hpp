@@ -121,12 +121,12 @@
         REG(id, &FN);                                                      \
     static void FN(const InstantIoT::SegmentedSwitchEvent& e)
 
-#define IAdvancedChart(id) _IIO_ICH_IMPL(id, _IIO_UID(_iioChF_), _IIO_UID(_iioChR_))
-#define _IIO_ICH_IMPL(id, FN, REG)                                         \
-    static void FN(const InstantIoT::WidgetRequest&);                      \
-    static InstantIoT::WidgetRegistrar<InstantIoT::WidgetRequest>          \
+#define IEmergencyButton(id) _IIO_IEMB_IMPL(id, _IIO_UID(_iioEmF_), _IIO_UID(_iioEmR_))
+#define _IIO_IEMB_IMPL(id, FN, REG)                                        \
+    static void FN(const InstantIoT::EmergencyButtonEvent&);               \
+    static InstantIoT::WidgetRegistrar<InstantIoT::EmergencyButtonEvent>   \
         REG(id, &FN);                                                      \
-    static void FN(const InstantIoT::WidgetRequest& e)
+    static void FN(const InstantIoT::EmergencyButtonEvent& e)
 
 // ============================================================
 // 🧩 Prédicats par type (overloadés) — permettent un `WHEN_RELEASED`
@@ -173,9 +173,9 @@ inline bool _whenSelectionChanged(const SegmentedSwitchEvent& e) { return e.kind
 inline bool _whenSegmentSelected(const SegmentedSwitchEvent& e)  { return e.kind == SegmentedEventKind::SegmentSelected; }
 inline bool _whenSegmentDeselected(const SegmentedSwitchEvent& e){ return e.kind == SegmentedEventKind::SegmentDeselected; }
 
-// ── AdvancedChart (WidgetRequest) ────────────────────────
-inline bool _whenRequestData(const WidgetRequest& e)       { return e.requestType && strcmp(e.requestType, "requestdata") == 0; }
-inline bool _whenRequestRefresh(const WidgetRequest& e)    { return e.requestType && strcmp(e.requestType, "requestrefresh") == 0; }
+// ── EmergencyButton ──────────────────────────────────────
+inline bool _whenTriggered(const EmergencyButtonEvent& e)  { return e.kind == EmergencyEventKind::Trigger; }
+inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == EmergencyEventKind::Reset; }
 
 } // namespace InstantIoT
 
@@ -262,7 +262,7 @@ inline bool _whenRequestRefresh(const WidgetRequest& e)    { return e.requestTyp
         if (int var_idx = e.selectedIndex; true)
 
 // ============================================================
-// 📊 ADVANCED CHART (WidgetRequest)
+// 🚨 EMERGENCY BUTTON
 // ============================================================
-#define WHEN_REQUEST_DATA    if (InstantIoT::_whenRequestData(e))
-#define WHEN_REQUEST_REFRESH if (InstantIoT::_whenRequestRefresh(e))
+#define WHEN_TRIGGERED  if (InstantIoT::_whenTriggered(e))
+#define WHEN_RESET      if (InstantIoT::_whenReset(e))

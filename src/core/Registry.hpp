@@ -79,7 +79,6 @@ __attribute__((weak)) void onSwitchEvent(const SwitchEvent& e);
 __attribute__((weak)) void onJoystickEvent(const JoystickEvent& e);
 __attribute__((weak)) void onDirectionPadEvent(const DirectionPadEvent& e);
 __attribute__((weak)) void onSegmentedSwitchEvent(const SegmentedSwitchEvent& e);
-__attribute__((weak)) void onWidgetRequest(const WidgetRequest& e);
 
 namespace InstantIoT {
 
@@ -132,10 +131,8 @@ public:
             // ── HorizontalSlider ──────────────────────────────
             case TYPE_HSLIDER: {
                 HorizontalSliderEvent e;
-                e.widgetId   = widgetId;
-                e.value      = msg.getParamFloat("value", 0.0f);
-                e.startValue = msg.getParamFloat("startValue", 0.0f);
-                e.finalValue = msg.getParamFloat("finalValue", 0.0f);
+                e.widgetId = widgetId;
+                e.value    = msg.getParamFloat("value", 0.0f);
                 switch (eventCode) {
                     case CMD_VALUECHANGING: e.kind = SliderEventKind::ValueChanging; break;
                     case CMD_VALUECHANGED:  e.kind = SliderEventKind::ValueChanged;  break;
@@ -151,10 +148,8 @@ public:
             // ── VerticalSlider ────────────────────────────────
             case TYPE_VSLIDER: {
                 VerticalSliderEvent e;
-                e.widgetId   = widgetId;
-                e.value      = msg.getParamFloat("value", 0.0f);
-                e.startValue = msg.getParamFloat("startValue", 0.0f);
-                e.finalValue = msg.getParamFloat("finalValue", 0.0f);
+                e.widgetId = widgetId;
+                e.value    = msg.getParamFloat("value", 0.0f);
                 switch (eventCode) {
                     case CMD_VALUECHANGING: e.kind = SliderEventKind::ValueChanging; break;
                     case CMD_VALUECHANGED:  e.kind = SliderEventKind::ValueChanged;  break;
@@ -263,21 +258,20 @@ public:
                 return;
             }
 
-            // ── AdvancedChart requestData/requestRefresh ──────
-            case TYPE_ADVANCEDCHART: {
-                if (eventCode == 0x10 || eventCode == 0x11) {
-                    WidgetRequest e;
-                    e.widgetId    = widgetId;
-                    e.requestType = (eventCode == 0x10) ? "requestdata" : "requestrefresh";
-                    onWidgetRequest(e);
-                    InstantIoT::dispatchToHandlers(e);
+            // ── EmergencyButton ───────────────────────────────
+            case TYPE_EMERGENCYBUTTON: {
+                EmergencyButtonEvent e;
+                e.widgetId = widgetId;
+                switch (eventCode) {
+                    case CMD_EMERGENCY_TRIGGER: e.kind = EmergencyEventKind::Trigger; break;
+                    case CMD_EMERGENCY_RESET:   e.kind = EmergencyEventKind::Reset;   break;
+                    default: return;
                 }
+                onEmergencyButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
-            // ── EmergencyButton ───────────────────────────────
-            // Note: EmergencyButton n'est pas dans le protocole v1
-            // mais gardé pour compatibilité
             default:
                 return;
         }
