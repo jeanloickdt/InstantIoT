@@ -53,6 +53,7 @@ static const uint8_t TYPE_SWITCH           = 0x0D;
 static const uint8_t TYPE_DIRECTIONPAD     = 0x0E;
 static const uint8_t TYPE_TEXT             = 0x0F;
 static const uint8_t TYPE_BARCHART          = 0x10;
+static const uint8_t TYPE_EMERGENCYBUTTON   = 0x11;
 
 // Service frame : heartbeat périodique émis par le device en mode
 // Server TCP. Le serveur reçoit → ne dispatch pas aux apps, reset
@@ -90,7 +91,6 @@ static const uint8_t CMD_PRESS             = 0x01;
 static const uint8_t CMD_RELEASE           = 0x02;
 static const uint8_t CMD_LONGPRESS         = 0x03;
 static const uint8_t CMD_TOGGLE            = 0x04;
-static const uint8_t CMD_SETTOGGLESTATE    = 0x10;
 static const uint8_t CMD_POSCHANGED        = 0x01;
 static const uint8_t CMD_RELEASED          = 0x02;
 static const uint8_t CMD_TURNON            = 0x01;
@@ -106,6 +106,10 @@ static const uint8_t CMD_VALUECHANGING     = 0x10;
 static const uint8_t CMD_VALUECHANGED      = 0x11;
 static const uint8_t CMD_DRAGSTARTED       = 0x12;
 static const uint8_t CMD_DRAGENDED         = 0x13;
+
+// EmergencyButton (TYPE_EMERGENCYBUTTON) — App → Device
+static const uint8_t CMD_EMERGENCY_TRIGGER = 0x01;  // no payload
+static const uint8_t CMD_EMERGENCY_RESET   = 0x02;  // no payload
 
 // ============================================================
 //  CRC-8/SMBUS poly=0x07
@@ -223,7 +227,7 @@ class BinaryCodec {
 #if INSTANTIOT_WIDGETS_SIMPLEBUTTON || INSTANTIOT_WIDGETS_ADVANCEDBUTTON
             case TYPE_SIMPLEBUTTON:
             case TYPE_ADVANCEDBUTTON:
-                if ((eventCode == CMD_TOGGLE || eventCode == CMD_SETTOGGLESTATE) && p < len)
+                if (eventCode == CMD_TOGGLE && p < len)
                     addParamBool(msg, "state", payload[p++] != 0);
                 break;
 #endif
@@ -346,6 +350,12 @@ class BinaryCodec {
             case TYPE_BARCHART:
                 break;
 #endif
+
+            // EmergencyButton : CMD_EMERGENCY_TRIGGER / CMD_EMERGENCY_RESET
+            // n'ont pas de payload — rien à décoder, le dispatch lit
+            // uniquement l'eventCode dans Registry.
+            case TYPE_EMERGENCYBUTTON:
+                break;
         }
     }
 
