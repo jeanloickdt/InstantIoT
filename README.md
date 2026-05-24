@@ -2,18 +2,22 @@
 
 **Drag-and-drop IoT dashboards for ESP32, ESP8266 and Arduino Uno R4 WiFi.**
 
-Connect your Arduino to the [InstantIoT mobile app](https://instantiot.io) via WiFi or Bluetooth. Build interactive dashboards in minutes.
+Connect your Arduino to the [InstantIoT mobile app](https://instantiot.io) over Wi-Fi — directly, or through a self-hosted InstantIoT Server. Build interactive dashboards in minutes.
 
 ---
 
 ## Features
 
-- 🔌 **Multiple transports** — WiFi SoftAP, Bluetooth Classic (ESP32), BLE (ESP32), SoftwareSerial
-- 🧩 **16 widgets** — Buttons, Sliders, Joystick, D-Pad, LED, Gauge, Metric, Chart, and more
-- ✨ **Clean DSL** — `ON_PRESS("btn1") { ... }` style macros
-- ⚡ **Binary protocol** — 5x smaller and faster than JSON
-- 📱 **Local-first** — direct device-to-app communication, no subscription
+- 🔌 **Two active Wi-Fi transports** — Wi-Fi SoftAP (the board hosts its own Wi-Fi) and Wi-Fi client to a self-hosted InstantIoT Server (multi-device, history)
+- 🧩 **17 widgets** — Buttons (simple, advanced, emergency), Sliders, Switch, Joystick, D-Pad, Segmented Switch, LED, Gauge, Metric, Bar Chart, Advanced Chart, H/V Level meters, Text
+- ✨ **Declarative DSL** — `ISimpleButton("btn1") { WHEN_PRESSED { ... } }` blocks at file scope, no boilerplate event handlers
+- ⚡ **Binary protocol** — about 5× smaller and faster than JSON
+- 📱 **Self-hosted by design** — connects directly to your phone, or to your own InstantIoT Server for multi-device and history
 - 🔍 **Auto platform detection** — include the header, the library handles the rest
+
+> Bluetooth Classic, BLE and SoftwareSerial transports ship in source as
+> **preview** — the code is there but the mobile app does not currently
+> expose them. See [Preview transports](#preview-transports-not-yet-exposed-by-the-mobile-app) below.
 
 ---
 
@@ -31,25 +35,23 @@ Download the latest release and extract to your Arduino `libraries/` folder.
 
 ## Supported Platforms
 
-| Platform | WiFi | Bluetooth Classic | BLE | Serial |
-|----------|------|-------------------|-----|--------|
-| ESP32 | ✅ | ✅ | ✅ experimental | — |
-| ESP8266 | ✅ | — | — | ✅ |
-| Arduino Uno R4 WiFi | ✅ | — | — | — |
-| Arduino Uno / Mega / Nano | — | — | — | ✅ experimental |
-
-> Serial transport requires an external HC-05 or HC-06 Bluetooth module.
+| Platform | Wi-Fi SoftAP | Wi-Fi → Server |
+|----------|--------------|----------------|
+| ESP32 | ✅ | ✅ |
+| ESP8266 | ✅ | ✅ |
+| Arduino Uno R4 WiFi | ✅ | ✅ |
 
 ---
 
-## Supported Transports
+## Active Transports
 
-| Transport | Header |
-|-----------|--------|
-| WiFi SoftAP | `InstantIoTWiFiAP.hpp` |
-| Bluetooth Classic (ESP32) | `InstantIoTBluetoothESP32SPP.hpp` |
-| BLE NimBLE (ESP32) | `InstantIoTBluetoothBLE.hpp` |
-| SoftwareSerial | `InstantIoTSerial.hpp` |
+These transports are end-to-end supported by both the library and the
+InstantIoT mobile app.
+
+| Transport | Header | Use case |
+|-----------|--------|----------|
+| Wi-Fi SoftAP | `InstantIoTWiFiAP.hpp` | The board hosts its own Wi-Fi; the phone joins it. No router. |
+| Wi-Fi → InstantIoT Server | `InstantIoTWiFiServer.hpp` | The board connects as a TCP client to a self-hosted InstantIoT Server (multi-device, history). |
 
 ---
 
@@ -57,18 +59,20 @@ Download the latest release and extract to your Arduino `libraries/` folder.
 
 ### Control (App → Arduino)
 
+The library uses a **declarative DSL**: each widget gets its own `I<Widget>("id") { ... }`
+block at file scope, with `WHEN_*` clauses inside. No `void onXxxEvent(...)` boilerplate.
+
 ```cpp
 #include <InstantIoTWiFiAP.hpp>
 
 InstantIoTWiFiAP instant("InstantIoT", "12345678");
 
-void onSimpleButtonEvent(const SimpleButtonEvent& e) {
-    ON_PRESS("btn1") {
-        digitalWrite(LED_BUILTIN, HIGH);
-    }
-    ON_RELEASE("btn1") {
-        digitalWrite(LED_BUILTIN, LOW);
-    }
+// Declare the button handler at file scope — the library picks it up automatically.
+ISimpleButton("btn1") {
+    WHEN_PRESSED        { digitalWrite(LED_BUILTIN, HIGH); }
+    WHEN_RELEASED       { digitalWrite(LED_BUILTIN, LOW); }
+    WHEN_LONG_PRESSED   { Serial.println("btn1 held"); }
+    WHEN_TOGGLED(isOn)  { Serial.print("btn1 toggled → "); Serial.println(isOn); }
 }
 
 void setup() {
@@ -119,17 +123,24 @@ void loop() {
 
 ### Controls (App → Arduino)
 
-| Widget | Callback | Key Macros |
-|--------|----------|------------|
-| SimpleButton | `onSimpleButtonEvent` | `ON_PRESS`, `ON_RELEASE`, `ON_LONG_PRESS` |
-| AdvancedButton | `onAdvancedButtonEvent` | `ON_PRESS`, `ON_RELEASE`, `ON_LONG_PRESS` |
-| EmergencyButton | `onEmergencyButtonEvent` | `ON_TRIGGER`, `ON_RESET` |
-| HorizontalSlider | `onHorizontalSliderEvent` | `ON_VALUE_CHANGING`, `ON_VALUE_CHANGED` |
-| VerticalSlider | `onVerticalSliderEvent` | `ON_VALUE_CHANGING`, `ON_VALUE_CHANGED` |
-| Switch | `onSwitchEvent` | `ON_TURN_ON`, `ON_TURN_OFF` |
-| Joystick | `onJoystickEvent` | `ON_JOYSTICK(id, x, y)` |
-| DirectionPad | `onDirectionPadEvent` | `ON_DPAD_UP`, `ON_DPAD_DOWN`, `ON_DPAD_LEFT`, `ON_DPAD_RIGHT` |
-| SegmentedSwitch | `onSegmentedSwitchEvent` | `ON_SELECTION_CHANGED` |
+Each control widget has a dedicated `I<Widget>("id") { ... }` block.
+Inside, use the `WHEN_*` clauses that apply to that widget type.
+
+| Widget | Block | `WHEN_*` clauses inside the block |
+|--------|-------|-----------------------------------|
+| SimpleButton | `ISimpleButton("id") { … }` | `WHEN_PRESSED`, `WHEN_RELEASED`, `WHEN_LONG_PRESSED`, `WHEN_TOGGLED(isOn)` |
+| AdvancedButton | `IAdvancedButton("id") { … }` | `WHEN_PRESSED`, `WHEN_RELEASED`, `WHEN_LONG_PRESSED`, `WHEN_TOGGLED(isOn)` |
+| HorizontalSlider | `IHorizontalSlider("id") { … }` | `WHEN_CHANGING(v)`, `WHEN_CHANGED(v)` |
+| VerticalSlider | `IVerticalSlider("id") { … }` | `WHEN_CHANGING(v)`, `WHEN_CHANGED(v)` |
+| Switch | `ISwitch("id") { … }` | `WHEN_TURNED_ON`, `WHEN_TURNED_OFF`, `WHEN_TOGGLED(isOn)`, `WHEN_SWITCH_SET(isOn)` |
+| Joystick | `IJoystick("id") { … }` | `WHEN_MOVED(x, y)`, `WHEN_RELEASED` |
+| DirectionPad | `IDirectionPad("id") { … }` | `WHEN_PAD_PRESSED(btn)`, `WHEN_PAD_RELEASED(btn)`, `WHEN_PAD_LONG_PRESSED(btn)` |
+| SegmentedSwitch | `ISegmentedSwitch("id") { … }` | `WHEN_SELECTION_CHANGED(idx)`, `WHEN_SEGMENT_SELECTED(idx)`, `WHEN_SEGMENT_DESELECTED(idx)` |
+| EmergencyButton | `IEmergencyButton("id") { … }` | `WHEN_TRIGGERED`, `WHEN_RESET` |
+
+> All blocks are declared at **file scope**, not inside `setup()` or `loop()`.
+>
+> The legacy `void onEmergencyButtonEvent(const EmergencyButtonEvent& e) { ON_TRIGGER("id") { … } ON_RESET("id") { … } }` handler style still works for backwards compatibility.
 
 ### Displays (Arduino → App)
 
@@ -141,6 +152,7 @@ void loop() {
 | HorizontalLevel | `instant.hLevel("id").update(75.0f, 0.0f, 100.0f)` |
 | VerticalLevel | `instant.vLevel("id").update(75.0f, 0.0f, 100.0f)` |
 | AdvancedChart | `instant.chart("id").addPoint("series1", value)` |
+| BarChart | `instant.barChart("id").setBar(0, 42.0f)` — or `setValues(values, count)` |
 | Text | `instant.text("id").setText("Hello!")` |
 
 ---
@@ -200,6 +212,23 @@ Disable unused widgets to save Flash and RAM:
 
 ---
 
+## Preview transports (not yet exposed by the mobile app)
+
+The library also ships source code for three additional transports that
+are **not currently wired into the InstantIoT mobile app**. The headers
+are in the source tree, they compile, and the on-the-wire protocol is the
+same; but until the app exposes a selector for them, an end-to-end
+connection is not possible. They are kept here so the work is not lost
+and so contributors can experiment.
+
+| Transport | Header | Extra setup |
+|-----------|--------|-------------|
+| Bluetooth Classic (ESP32, SPP) | `InstantIoTBluetoothESP32SPP.hpp` | none |
+| BLE (ESP32, NimBLE) | `InstantIoTBluetoothBLE.hpp` | install [`NimBLE-Arduino`](https://github.com/h2zero/NimBLE-Arduino) from the Library Manager |
+| SoftwareSerial (HC-05 / HC-06) | `InstantIoTSerial.hpp` | external Bluetooth-Serial module wired to the board |
+
+---
+
 ## License
 
-MIT License — Copyright (c) 2025 JeanLoick DT
+MIT License — Copyright (c) 2026 Djoufack Tsobeng Jean Loick — see [`LICENSE`](LICENSE).
