@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Arduino IDE temp
+*.elf
+*.bin
+*.hex
+*.eep
+*.cof
+*.lst
+*.lss
+*.sym
+*.map
+*.o
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml

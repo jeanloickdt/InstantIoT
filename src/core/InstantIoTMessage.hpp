@@ -76,9 +76,7 @@ struct HorizontalSliderEvent {
     const char* widgetId;
     SliderEventKind kind;
     float value;
-    float startValue;
-    float finalValue;
-    
+
     bool isValueChanging() const { return kind == SliderEventKind::ValueChanging; }
     bool isValueChanged() const { return kind == SliderEventKind::ValueChanged; }
     bool isDragStarted() const { return kind == SliderEventKind::DragStarted; }
@@ -89,9 +87,7 @@ struct VerticalSliderEvent {
     const char* widgetId;
     SliderEventKind kind;
     float value;
-    float startValue;
-    float finalValue;
-    
+
     bool isValueChanging() const { return kind == SliderEventKind::ValueChanging; }
     bool isValueChanged() const { return kind == SliderEventKind::ValueChanged; }
     bool isDragStarted() const { return kind == SliderEventKind::DragStarted; }
@@ -201,15 +197,6 @@ struct SegmentedSwitchEvent {
     bool isSegmentDeselected() const { return kind == SegmentedEventKind::SegmentDeselected; }
 };
 
-// ============================================================
-// 📊 GENERIC WIDGET REQUEST
-// ============================================================
-
-struct WidgetRequest {
-    const char* widgetId;
-    const char* requestType;
-};
-
 } // namespace InstantIoT
 
 // ============================================================
@@ -225,7 +212,6 @@ using SwitchEvent = InstantIoT::SwitchEvent;
 using JoystickEvent = InstantIoT::JoystickEvent;
 using DirectionPadEvent = InstantIoT::DirectionPadEvent;
 using SegmentedSwitchEvent = InstantIoT::SegmentedSwitchEvent;
-using WidgetRequest = InstantIoT::WidgetRequest;
 
 using ButtonEventKind = InstantIoT::ButtonEventKind;
 using EmergencyEventKind = InstantIoT::EmergencyEventKind;

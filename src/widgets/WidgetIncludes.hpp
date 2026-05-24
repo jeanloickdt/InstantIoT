@@ -46,6 +46,10 @@
     #include "displays/AdvancedChart.hpp"
 #endif
 
+#ifdef INSTANTIOT_WIDGETS_BARCHART
+    #include "displays/BarChart.hpp"
+#endif
+
 
 #ifdef INSTANTIOT_WIDGETS_TEXT
     #include "displays/Text.hpp"
@@ -57,3 +61,4 @@
 // ============================================================
 
 #include "../utils/InstantIoTMacros.hpp"
+#include "../utils/InstantIoTWhen.hpp"
