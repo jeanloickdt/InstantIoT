@@ -10,7 +10,7 @@
  *   - Joystick         (joy1)   : WHEN_MOVED / RELEASED
  *   - DirectionPad     (pad1)   : WHEN_PAD_PRESSED / PAD_RELEASED
  *   - SegmentedSwitch  (mode1)  : WHEN_SELECTION_CHANGED / SEGMENT_SELECTED
- *   - AdvancedChart    (chart1) : WHEN_REQUEST_DATA / REQUEST_REFRESH
+ *   - EmergencyButton  (emg1)   : WHEN_TRIGGERED / WHEN_RESET
  *
  * Board : ESP32
  *************************************************************/
@@ -132,16 +132,15 @@ ISegmentedSwitch("mode1") {
 };
 
 // ══════════════════════════════════════════════════════════════
-//  ADVANCED CHART (requestData / requestRefresh)
+//  EMERGENCY BUTTON (trigger / reset)
 // ══════════════════════════════════════════════════════════════
 
-IAdvancedChart("chart1") {
-    WHEN_REQUEST_DATA {
-        Serial.println("chart1 requestData → push historical series here");
-        // ex: instant.chart("chart1").addPoint("s1", ...);
+IEmergencyButton("emg1") {
+    WHEN_TRIGGERED {
+        Serial.println("emg1 TRIGGERED → kill switch");
     }
-    WHEN_REQUEST_REFRESH {
-        Serial.println("chart1 requestRefresh → re-send latest points");
+    WHEN_RESET {
+        Serial.println("emg1 RESET → resume normal operation");
     }
 };
 
