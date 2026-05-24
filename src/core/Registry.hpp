@@ -9,8 +9,62 @@
  */
 
 #include <Arduino.h>
+#include <string.h>
 #include "InstantIoTMessage.hpp"
 #include "BinaryCodec.hpp"
+
+// ============================================================
+// 📚 PER-WIDGET HANDLER REGISTRY (used by I<Widget>(id) macros)
+//
+// Ces templates permettent d'enregistrer un handler par widget id
+// via des macros style :
+//
+//   ISimpleButton("btn1") { WHEN_TOGGLED(on) { ... } };
+//
+// Chaque bloc devient :
+//   - 1 fonction static void _fn(const EventT&)
+//   - 1 WidgetRegistrar<EventT> global statique qui attache son nœud
+//     à la liste chaînée au démarrage (ctor avant setup())
+//
+// RAM : 12 B par bloc (ESP32, 3 ptrs × 4 B). Pas de heap.
+// Coût dispatch : 1 strcmp par handler enregistré du type concerné.
+// ============================================================
+namespace InstantIoT {
+
+template<typename EventT>
+struct WidgetHandler {
+    const char* widgetId;
+    void (*fn)(const EventT&);
+    WidgetHandler<EventT>* next;
+};
+
+template<typename EventT>
+inline WidgetHandler<EventT>*& handlerListHead() {
+    static WidgetHandler<EventT>* head = nullptr;
+    return head;
+}
+
+template<typename EventT>
+struct WidgetRegistrar {
+    WidgetHandler<EventT> node;
+    WidgetRegistrar(const char* id, void (*fn)(const EventT&)) {
+        node.widgetId = id;
+        node.fn       = fn;
+        node.next     = handlerListHead<EventT>();
+        handlerListHead<EventT>() = &node;
+    }
+};
+
+template<typename EventT>
+inline void dispatchToHandlers(const EventT& e) {
+    for (auto* h = handlerListHead<EventT>(); h; h = h->next) {
+        if (h->widgetId && e.widgetId && strcmp(h->widgetId, e.widgetId) == 0) {
+            h->fn(e);
+        }
+    }
+}
+
+} // namespace InstantIoT
 
 // ============================================================
 // 🔗 WEAK CALLBACK DECLARATIONS
@@ -25,7 +79,6 @@ __attribute__((weak)) void onSwitchEvent(const SwitchEvent& e);
 __attribute__((weak)) void onJoystickEvent(const JoystickEvent& e);
 __attribute__((weak)) void onDirectionPadEvent(const DirectionPadEvent& e);
 __attribute__((weak)) void onSegmentedSwitchEvent(const SegmentedSwitchEvent& e);
-__attribute__((weak)) void onWidgetRequest(const WidgetRequest& e);
 
 namespace InstantIoT {
 
@@ -54,6 +107,7 @@ public:
                     default: return;
                 }
                 onSimpleButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -70,16 +124,15 @@ public:
                     default: return;
                 }
                 onAdvancedButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
             // ── HorizontalSlider ──────────────────────────────
             case TYPE_HSLIDER: {
                 HorizontalSliderEvent e;
-                e.widgetId   = widgetId;
-                e.value      = msg.getParamFloat("value", 0.0f);
-                e.startValue = msg.getParamFloat("startValue", 0.0f);
-                e.finalValue = msg.getParamFloat("finalValue", 0.0f);
+                e.widgetId = widgetId;
+                e.value    = msg.getParamFloat("value", 0.0f);
                 switch (eventCode) {
                     case CMD_VALUECHANGING: e.kind = SliderEventKind::ValueChanging; break;
                     case CMD_VALUECHANGED:  e.kind = SliderEventKind::ValueChanged;  break;
@@ -88,16 +141,15 @@ public:
                     default: return;
                 }
                 onHorizontalSliderEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
             // ── VerticalSlider ────────────────────────────────
             case TYPE_VSLIDER: {
                 VerticalSliderEvent e;
-                e.widgetId   = widgetId;
-                e.value      = msg.getParamFloat("value", 0.0f);
-                e.startValue = msg.getParamFloat("startValue", 0.0f);
-                e.finalValue = msg.getParamFloat("finalValue", 0.0f);
+                e.widgetId = widgetId;
+                e.value    = msg.getParamFloat("value", 0.0f);
                 switch (eventCode) {
                     case CMD_VALUECHANGING: e.kind = SliderEventKind::ValueChanging; break;
                     case CMD_VALUECHANGED:  e.kind = SliderEventKind::ValueChanged;  break;
@@ -106,6 +158,7 @@ public:
                     default: return;
                 }
                 onVerticalSliderEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -133,6 +186,7 @@ public:
                     default: return;
                 }
                 onSwitchEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -153,6 +207,7 @@ public:
                     default: return;
                 }
                 onJoystickEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -179,6 +234,7 @@ public:
                     default: return;
                 }
                 onDirectionPadEvent(e);
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
@@ -198,23 +254,24 @@ public:
                     default: return;
                 }
                 onSegmentedSwitchEvent(e);
-                return;
-            }
-
-            // ── AdvancedChart requestData/requestRefresh ──────
-            case TYPE_ADVANCEDCHART: {
-                if (eventCode == 0x10 || eventCode == 0x11) {
-                    WidgetRequest e;
-                    e.widgetId    = widgetId;
-                    e.requestType = (eventCode == 0x10) ? "requestdata" : "requestrefresh";
-                    onWidgetRequest(e);
-                }
+                InstantIoT::dispatchToHandlers(e);
                 return;
             }
 
             // ── EmergencyButton ───────────────────────────────
-            // Note: EmergencyButton n'est pas dans le protocole v1
-            // mais gardé pour compatibilité
+            case TYPE_EMERGENCYBUTTON: {
+                EmergencyButtonEvent e;
+                e.widgetId = widgetId;
+                switch (eventCode) {
+                    case CMD_EMERGENCY_TRIGGER: e.kind = EmergencyEventKind::Trigger; break;
+                    case CMD_EMERGENCY_RESET:   e.kind = EmergencyEventKind::Reset;   break;
+                    default: return;
+                }
+                onEmergencyButtonEvent(e);
+                InstantIoT::dispatchToHandlers(e);
+                return;
+            }
+
             default:
                 return;
         }

@@ -46,12 +46,37 @@
     #define INSTANTIOT_MAX_WIDGETS 16
 #endif
 
+// ─── Tailles buffers par plateforme ────────────────────
+// Ajustés selon la SRAM disponible — plus la cible a de RAM, plus
+// on offre de marge pour les widgets aux payloads longs (Text avec
+// chaînes longues, Chart avec multi-séries, etc.).
+//
+// Les valeurs ci-dessous sont les DEFAULTS — l'user peut overrider
+// avant d'inclure la lib (ex: -DINSTANT_RX_BUFFER_SIZE=4096) si
+// il a un cas spécifique.
+//
+//   ESP32   : 320 KB SRAM → 2048/1024 (large marge)
+//   R4 WiFi : 32 KB SRAM → 1024/512   (confortable)
+//   ESP8266 : ~80 KB user → 1024/512  (confortable)
+//   Autres  : 2-8 KB tipiquement → 512/256 (Uno classic, défensif)
 #ifndef INSTANT_RX_BUFFER_SIZE
-    #define INSTANT_RX_BUFFER_SIZE 512
+    #if defined(INSTANTIOT_PLATFORM_ESP32)
+        #define INSTANT_RX_BUFFER_SIZE 2048
+    #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
+        #define INSTANT_RX_BUFFER_SIZE 1024
+    #else
+        #define INSTANT_RX_BUFFER_SIZE 512
+    #endif
 #endif
 
 #ifndef INSTANT_TX_BUFFER_SIZE
-    #define INSTANT_TX_BUFFER_SIZE 256
+    #if defined(INSTANTIOT_PLATFORM_ESP32)
+        #define INSTANT_TX_BUFFER_SIZE 1024
+    #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
+        #define INSTANT_TX_BUFFER_SIZE 512
+    #else
+        #define INSTANT_TX_BUFFER_SIZE 256
+    #endif
 #endif
 
 // ============================================================
@@ -81,6 +106,10 @@
 
 #ifndef INSTANTIOT_WIDGETS_ADVANCEDCHART
     #define INSTANTIOT_WIDGETS_ADVANCEDCHART 1
+#endif
+
+#ifndef INSTANTIOT_WIDGETS_BARCHART
+    #define INSTANTIOT_WIDGETS_BARCHART 1
 #endif
 
 #ifndef INSTANTIOT_WIDGETS_TEXT

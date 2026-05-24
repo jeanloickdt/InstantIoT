@@ -24,4 +24,3 @@ void onSwitchEvent(const SwitchEvent& e) { (void)e; }
 void onJoystickEvent(const JoystickEvent& e) { (void)e; }
 void onDirectionPadEvent(const DirectionPadEvent& e) { (void)e; }
 void onSegmentedSwitchEvent(const SegmentedSwitchEvent& e) { (void)e; }
-void onWidgetRequest(const WidgetRequest& e) { (void)e; }
