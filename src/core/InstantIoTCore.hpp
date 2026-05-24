@@ -45,6 +45,9 @@ public:
         #if INSTANTIOT_WIDGETS_ADVANCEDCHART
         for (uint8_t i = 0; i < _chartCount; i++) delete _charts[i];
         #endif
+        #if INSTANTIOT_WIDGETS_BARCHART
+        for (uint8_t i = 0; i < _barChartCount; i++) delete _barCharts[i];
+        #endif
         #if INSTANTIOT_WIDGETS_TEXT
         for (uint8_t i = 0; i < _textCount; i++) delete _texts[i];
         #endif
@@ -69,6 +72,28 @@ public:
         if (!_initialized) return;
         _transport.poll();
         readLoop();
+        heartbeatTick();
+    }
+
+    // ════════════════════════════════════════════════════════
+    // 💓 HEARTBEAT
+    // ════════════════════════════════════════════════════════
+    //
+    // Configure l'émission périodique de trames `TYPE_HEARTBEAT` (0xFE)
+    // pour signaler la présence du device au serveur en mode TCP.
+    // Le serveur en parallèle set son `soTimeout = heartbeatMs × 2.5` :
+    // si aucune trame (widget OU heartbeat) reçue dans cette fenêtre,
+    // il déclare le device offline et broadcast aux apps.
+    //
+    // `intervalMs = 0` désactive l'émission (legacy, utile pour les
+    // modes BLE / WiFi-AP où le heartbeat n'a pas de sens).
+    //
+    // Le paramètre `intervalMs` doit **matcher** celui passé au
+    // transport au handshake — la façade `InstantIoTWiFiServer` s'en
+    // occupe automatiquement.
+    void setHeartbeat(uint32_t intervalMs) {
+        _heartbeatMs = intervalMs;
+        _lastHeartbeatSent = 0;  // force une émission rapide après set
     }
 
     bool connected() override {
@@ -180,6 +205,19 @@ public:
     }
     #endif
 
+    #if INSTANTIOT_WIDGETS_BARCHART
+    BarChartWidget& barChart(const char* id) {
+        for (uint8_t i = 0; i < _barChartCount; i++)
+            if (strcmp(_barCharts[i]->getId(), id) == 0) return *_barCharts[i];
+        if (_barChartCount < INSTANTIOT_MAX_WIDGETS) {
+            _barCharts[_barChartCount] = new BarChartWidget(id, *this);
+            return *_barCharts[_barChartCount++];
+        }
+        static BarChartWidget dummy("__dummy__", *this);
+        return dummy;
+    }
+    #endif
+
     #if INSTANTIOT_WIDGETS_TEXT
     TextWidget& text(const char* id) {
         for (uint8_t i = 0; i < _textCount; i++)
@@ -210,6 +248,25 @@ protected:
 
     bool _initialized;
 
+    // ─── Heartbeat state (server mode) ────────────────────
+    uint32_t _heartbeatMs       = 0;   // 0 = disabled
+    uint32_t _lastHeartbeatSent = 0;
+
+    /**
+     * À appeler dans `loop()` : envoie une trame `TYPE_HEARTBEAT`
+     * si l'intervalle configuré est écoulé. No-op si `_heartbeatMs == 0`
+     * ou si le transport n'est pas connecté.
+     */
+    void heartbeatTick() {
+        if (_heartbeatMs == 0) return;
+        if (!_transport.connected()) return;
+        uint32_t now = millis();
+        if (now - _lastHeartbeatSent < _heartbeatMs) return;
+        _lastHeartbeatSent = now;
+        // WID vide + TYPE_HEARTBEAT + EVENT 0 + pas de payload
+        sendBinary("", TYPE_HEARTBEAT, 0);
+    }
+
     #if INSTANTIOT_WIDGETS_LED
     LedWidget* _leds[INSTANTIOT_MAX_WIDGETS]; uint8_t _ledCount = 0;
     #endif
@@ -227,6 +284,9 @@ protected:
     #endif
     #if INSTANTIOT_WIDGETS_ADVANCEDCHART
     AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS]; uint8_t _chartCount = 0;
+    #endif
+    #if INSTANTIOT_WIDGETS_BARCHART
+    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS]; uint8_t _barChartCount = 0;
     #endif
     #if INSTANTIOT_WIDGETS_TEXT
     TextWidget* _texts[INSTANTIOT_MAX_WIDGETS]; uint8_t _textCount = 0;
@@ -254,13 +314,15 @@ protected:
     }
 
     void extractFrames() {
+        // Header = AA + VER + LEN(2) = 4 bytes. Min frame = header + CRC = 5 bytes.
         while (_rxPos >= 5) {
             if (_rxBuffer[0] != 0xAA) { shiftBuffer(1); continue; }
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
-            if (len > sizeof(_rxBuffer) - 6) { shiftBuffer(1); continue; }  // sanity guard
-            uint16_t frameSize = 5 + len + 1;
+            // sanity guard : header(4) + body(len) + crc(1) doit tenir dans le buffer
+            if (len > sizeof(_rxBuffer) - 5) { shiftBuffer(1); continue; }
+            uint16_t frameSize = 4 + len + 1;  // header(4) + body(len) + crc(1)
 
             if (_rxPos < frameSize) break;
 
