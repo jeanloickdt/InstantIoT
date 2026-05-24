@@ -4,7 +4,7 @@
 > (ESP32 / ESP8266 / Uno R4 WiFi) to the InstantIoT mobile app using a
 > compact binary protocol (`iWidgets v1`).
 >
-> No dynamic memory, no JSON, no cloud. Everything fits in a few KB of
+> No dynamic memory, no JSON, fully static allocation. Everything fits in a few KB of
 > Flash and ~100 B of RAM plus a fixed-size buffer.
 >
 > Read this end to end (~10 min) before contributing.
@@ -23,7 +23,7 @@ InstantIoTWiFiAP instant("DeviceName", "12345678");
 ISimpleButton("btn1") {                    // declare handlers at file scope
     WHEN_PRESSED  { digitalWrite(LED_BUILTIN, HIGH); }
     WHEN_RELEASED { digitalWrite(LED_BUILTIN, LOW); }
-};
+}
 
 void setup() { instant.begin(); }
 void loop()  { instant.loop(); }
@@ -120,7 +120,7 @@ src/
 │
 └─ utils/
     ├─ InstantIoTMacros.hpp             legacy DSL: void onXxxEvent + ON_* macros
-    ├─ InstantIoTWhen.hpp               modern DSL: I<Widget>("id"){ WHEN_* … };
+    ├─ InstantIoTWhen.hpp               modern DSL: I<Widget>("id"){ WHEN_* … }
     ├─ InstantIoTDebug.hpp              IIOT_LOG (compiled out if !INSTANTIOT_DEBUG)
     ├─ InstantIoTTimer.hpp              non-blocking timing helpers
     └─ InstantIoTColor.hpp              rgb / hex color helpers
@@ -141,14 +141,14 @@ ISimpleButton("btn1") {
     WHEN_RELEASED       { … }
     WHEN_LONG_PRESSED   { … }
     WHEN_TOGGLED(isOn)  { … }
-};
+}
 ```
 
-`InstantIoTWhen.hpp` expands `I<Widget>(id)` into:
-- a static function that handles the events for that widget
+`InstantIoTWhen.hpp` expands `I<Widget>(id) { … }` into:
+- a static function definition that handles the events for that widget
+  (the user's `{ … }` becomes the function body)
 - a `WidgetRegistrar<EventT>` instance whose constructor adds itself to a
   global intrusive linked list **before `setup()` runs**
-- (the trailing `;` is the instance declaration)
 
 The blocks must live at **file scope**, not inside `setup()` or `loop()`.
 
@@ -169,8 +169,9 @@ default in `Registry.cpp`. When the user defines one in their sketch,
 the linker keeps the user's version.
 
 Both DSLs coexist: `WidgetRegistry::dispatch()` calls the weak callback
-**first** and then walks the handler list. The legacy style is the only
-option today for `EmergencyButton` (no `IEmergencyButton` block yet).
+**first** and then walks the handler list. You can mix both styles in the
+same sketch — for example use modern `I<Widget>` blocks for new widgets
+while keeping an existing `void onSimpleButtonEvent(…)` from older code.
 
 ---
 
