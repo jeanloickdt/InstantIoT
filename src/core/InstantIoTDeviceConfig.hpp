@@ -1,9 +1,9 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v1.2.0
+ * ⚡ InstantIoT Library v1.2.1
  * 
- * InstantIoTDeviceConfig.hpp - Configuration et identité du device
+ * InstantIoTDeviceConfig.hpp - Device configuration and identity
  * 
  * Copyright (c) 2025 InstantIoT
  * MIT License
@@ -15,10 +15,10 @@
 namespace InstantIoT {
 
 /**
- * @brief Configuration du device InstantIoT
- * 
- * Contient les identifiants nécessaires pour la communication
- * avec l'application mobile.
+ * @brief InstantIoT device configuration
+ *
+ * Contains the identifiers needed for communication
+ * with the mobile application.
  */
 class DeviceConfig {
 private:
@@ -28,7 +28,7 @@ private:
     
 public:
     DeviceConfig() {
-        // Valeurs par défaut
+        // Default values
         strcpy(_dashboardId, "default");
         generateDeviceId();
         strcpy(_deviceName, "InstantIoT Device");
@@ -39,7 +39,7 @@ public:
     // ════════════════════════════════════════════════════════
     
     /**
-     * @brief Définit l'ID du dashboard
+     * @brief Sets the dashboard ID
      */
     DeviceConfig& setDashboardId(const char* id) {
         if (id) {
@@ -50,7 +50,7 @@ public:
     }
     
     /**
-     * @brief Définit l'ID du device
+     * @brief Sets the device ID
      */
     DeviceConfig& setDeviceId(const char* id) {
         if (id) {
@@ -61,7 +61,7 @@ public:
     }
     
     /**
-     * @brief Définit le nom du device (affiché dans l'app)
+     * @brief Sets the device name (displayed in the app)
      */
     DeviceConfig& setDeviceName(const char* name) {
         if (name) {
@@ -81,7 +81,7 @@ public:
     
 private:
     /**
-     * @brief Génère un ID device unique basé sur le MAC/chip ID
+     * @brief Generates a unique device ID based on the MAC/chip ID
      */
     void generateDeviceId() {
         #if defined(INSTANTIOT_PLATFORM_ESP32)

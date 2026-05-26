@@ -1,31 +1,31 @@
 #pragma once
 /**
  * ============================================================
- * ☁️  InstantIoTWiFiServer.hpp — Façade mode Server
+ * ☁️  InstantIoTWiFiServer.hpp — Server mode facade
  * ============================================================
  *
- * Le device ESP32 se connecte en WiFi Station au routeur puis
- * ouvre une session TCP vers un InstantIoT Server distant.
+ * The ESP32 device connects in WiFi Station mode to the router then
+ * opens a TCP session to a remote InstantIoT Server.
  *
  * Supported platforms:
- *   - ESP32  (autres plateformes à venir)
+ *   - ESP32  (other platforms coming soon)
  *
  * Usage:
  *   #include <InstantIoTWiFiServer.hpp>
  *
  *   InstantIoTWiFiServer instant(
- *       "192.168.1.42",   // IP du serveur
- *       9001,             // port TCP du serveur
- *       "DEVICE_TOKEN"    // token fourni à la création du device
+ *       "192.168.1.42",   // server IP
+ *       9001,             // server TCP port
+ *       "DEVICE_TOKEN"    // token provided when the device was created
  *   );
  *
  *   void setup() {
  *       Serial.begin(115200);
- *       // Optionnel : change l'intervalle heartbeat (défaut 5000ms).
- *       // Le serveur adapte son timeout de détection offline à ≈ 2.5×
- *       // cette valeur (min 2s, max 2min).
+ *       // Optional: change heartbeat interval (default 5000ms).
+ *       // The server adapts its offline detection timeout to ≈ 2.5×
+ *       // this value (min 2s, max 2min).
  *       instant.setHeartbeat(5000);
- *       instant.begin("MyWiFi", "MyPassword");  // credentials WiFi
+ *       instant.begin("MyWiFi", "MyPassword");  // WiFi credentials
  *   }
  *
  *   void loop() {
@@ -53,23 +53,23 @@ public:
     ) : InstantIoT::InstantIoTCoreBase(_transportImpl)
       , _transportImpl(serverIp, serverPort, token)
     {
-        // Heartbeat actif par défaut en mode server (5s).
-        // Plumbing les deux couches : l'intervalle est envoyé au
-        // serveur dans le handshake (→ soTimeout adaptatif) ET
-        // utilisé par `loop()` pour émettre les trames TYPE_HEARTBEAT.
+        // Heartbeat active by default in server mode (5s).
+        // Plumbing both layers: the interval is sent to the
+        // server in the handshake (→ adaptive soTimeout) AND
+        // used by `loop()` to emit TYPE_HEARTBEAT frames.
         setHeartbeat(5000);
     }
 
-    // ----- Heartbeat — à appeler avant begin() pour l'annoncer -----
+    // ----- Heartbeat — call before begin() to announce it -----
     //
-    // Valeurs recommandées : 2000–30000 ms.
-    // Serveur clampe à [2s, 120s]. Valeur 0 désactive (mode legacy).
+    // Recommended values: 2000–30000 ms.
+    // Server clamps to [2s, 120s]. Value 0 disables (legacy mode).
     void setHeartbeat(uint32_t intervalMs) {
         _transportImpl.setHeartbeat(intervalMs);
         InstantIoT::InstantIoTCoreBase::setHeartbeat(intervalMs);
     }
 
-    // ----- Connexion : WiFi puis TCP + handshake -----
+    // ----- Connection: WiFi then TCP + handshake -----
     bool begin(const char* ssid, const char* pass) {
         _transportImpl.setCredentials(ssid, pass);
         return InstantIoT::InstantIoTCoreBase::begin();

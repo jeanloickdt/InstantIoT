@@ -3,14 +3,14 @@
 /*************************************************************
  * ⚡ InstantIoT Library v1.1.0
  *
- * WidgetIncludes.hpp - Inclusion conditionnelle des widgets
+ * WidgetIncludes.hpp - Conditional widget inclusion
  *
- * Les widgets sont inclus en fonction des #define:
+ * Widgets are included based on #defines:
  *   #define INSTANTIOT_WIDGETS_LED
  *   #define INSTANTIOT_WIDGETS_GAUGE
  *   etc.
  *
- * Si aucun #define, tous les widgets sont inclus.
+ * If no #define, all widgets are included.
  *
  * Copyright (c) 2025 InstantIoT
  * MIT License
@@ -57,7 +57,7 @@
 
 // ============================================================
 // 🎮 CONTROLS (App → Device)
-// Pas de classe — gérés par Registry.hpp + macros DSL
+// No class — handled by Registry.hpp + DSL macros
 // ============================================================
 
 #include "../utils/InstantIoTMacros.hpp"

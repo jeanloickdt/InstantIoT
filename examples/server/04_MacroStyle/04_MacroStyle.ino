@@ -1,11 +1,11 @@
 /*************************************************************
  * InstantIoT — Example: Macro-style declarative handlers
  *
- * Démontre la syntaxe ISimpleButton / IAdvancedButton / IJoystick
- * avec les WHEN_* (C++17+). Chaque bloc est déclaré au scope
- * fichier — aucun `void onXxxEvent(...)` à écrire.
+ * Demonstrates the ISimpleButton / IAdvancedButton / IJoystick syntax
+ * with the WHEN_* macros (C++17+). Each block is declared at file
+ * scope — no `void onXxxEvent(...)` to write.
  *
- * Widgets à créer dans l'app avec ces IDs :
+ * Widgets to create in the app with these IDs:
  *   - SimpleButton     id="btn1"   (TOGGLE mode)
  *   - SimpleButton     id="btn2"   (MOMENTARY mode)
  *   - AdvancedButton   id="relay1"
@@ -27,7 +27,7 @@ const char* DEVICE_TOKEN   = "PASTE_YOUR_DEVICE_TOKEN";
 
 InstantIoTWiFiServer instant(SERVER_IP, SERVER_PORT, DEVICE_TOKEN);
 
-// ── Bouton btn1 (TOGGLE) — pilote la LED via WHEN_TOGGLED ────
+// ── Button btn1 (TOGGLE) — drives the LED via WHEN_TOGGLED ───
 ISimpleButton("btn1") {
     WHEN_TOGGLED(isOn) {
         analogWrite(LED_PIN, isOn ? 255 : 0);
@@ -36,14 +36,14 @@ ISimpleButton("btn1") {
     }
 };
 
-// ── Bouton btn2 (MOMENTARY) — press/release/longpress ───────
+// ── Button btn2 (MOMENTARY) — press/release/longpress ───────
 ISimpleButton("btn2") {
     WHEN_PRESSED       { Serial.println("btn2 pressed"); }
     WHEN_RELEASED      { Serial.println("btn2 released"); }
     WHEN_LONG_PRESSED  { Serial.println("btn2 long-pressed"); }
 };
 
-// ── AdvancedButton relay1 — coexistence type distinct ───────
+// ── AdvancedButton relay1 — distinct type coexistence ───────
 IAdvancedButton("relay1") {
     WHEN_TOGGLED(on) {
         digitalWrite(RELAY_PIN, on ? HIGH : LOW);
@@ -51,7 +51,7 @@ IAdvancedButton("relay1") {
     }
 };
 
-// ── Joystick joy1 — WHEN_MOVED capture x/y, WHEN_RELEASED ───
+// ── Joystick joy1 — WHEN_MOVED captures x/y, WHEN_RELEASED ──
 IJoystick("joy1") {
     WHEN_MOVED(x, y) {
         Serial.print("joy1 → x="); Serial.print(x, 1);

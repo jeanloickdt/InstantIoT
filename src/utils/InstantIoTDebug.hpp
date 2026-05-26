@@ -3,9 +3,9 @@
 /*************************************************************
  * ⚡ InstantIoT Library v1.1.0
  * 
- * InstantIoTDebug.hpp - Système de debug portable
- * 
- * Niveaux:
+ * InstantIoTDebug.hpp - Portable debug system
+ *
+ * Levels:
  * 0 = OFF (aucun log)
  * 1 = ERROR
  * 2 = WARN
@@ -37,7 +37,7 @@
 #endif
 
 // ============================================================
-// 🎨 COULEURS ANSI (pour terminaux supportés)
+// 🎨 ANSI COLORS (for supported terminals)
 // ============================================================
 
 #ifdef INSTANTIOT_DEBUG_COLORS
@@ -57,7 +57,7 @@
 #endif
 
 // ============================================================
-// 📝 MACROS DE LOG
+// 📝 LOG MACROS
 // ============================================================
 
 #if INSTANTIOT_DEBUG_LEVEL >= 1
@@ -114,7 +114,7 @@
 // 🔧 HELPERS
 // ============================================================
 
-// Log hexdump (niveau VERBOSE)
+// Hexdump log (VERBOSE level)
 #if INSTANTIOT_DEBUG_LEVEL >= 5
     inline void INSTANTIOT_LOG_HEXDUMP(const char* label, const uint8_t* data, size_t len) {
         INSTANTIOT_DEBUG_SERIAL.printf("[VERB]  %s (%d bytes): ", label, len);
@@ -128,7 +128,7 @@
     #define INSTANTIOT_LOG_HEXDUMP(label, data, len) ((void)0)
 #endif
 
-// Assert avec message
+// Assert with message
 #ifdef INSTANTIOT_DEBUG
     #define INSTANTIOT_ASSERT(cond, msg) \
         do { \
@@ -141,7 +141,7 @@
     #define INSTANTIOT_ASSERT(cond, msg) ((void)0)
 #endif
 
-// Mesure de temps
+// Time measurement
 #ifdef INSTANTIOT_DEBUG
     #define INSTANTIOT_TIME_START(name) unsigned long _timer_##name = micros()
     #define INSTANTIOT_TIME_END(name) \

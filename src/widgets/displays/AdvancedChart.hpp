@@ -42,7 +42,7 @@ public:
      *   [seriesId_len:u8 | seriesId_bytes | count:u16_LE | points×float_LE]
      */
     AdvancedChartWidget& setSeriesData(const char* seriesId, const float* points, uint16_t count) {
-        // Bornes raisonnables : ne pas dépasser le buffer TX
+        // Reasonable bounds: do not exceed TX buffer
         if (count > 200) count = 200; // 200 * 4 + ~32 = ~832 bytes max payload
         uint8_t buf[1024];
         size_t p = 0;

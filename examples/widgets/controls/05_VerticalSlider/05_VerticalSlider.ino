@@ -1,7 +1,7 @@
 /*************************************************************
  * TEST: VerticalSlider
  * 
- * Events reçus de l'app (payload: value)
+ * Events received from the app (payload: value)
  * - valuechanged
  * - valuechanging
  * - dragstarted
@@ -25,7 +25,7 @@ void onVerticalSliderEvent(const VerticalSliderEvent& e) {
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== TEST: VerticalSlider ===");
-    Serial.println("Widget requis: VerticalSlider id='slider1'");
+    Serial.println("Required widget: VerticalSlider id='slider1'");
     instant.begin();
     Serial.print("IP: ");
     Serial.println(instant.getIP());

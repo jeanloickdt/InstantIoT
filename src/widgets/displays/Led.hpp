@@ -17,7 +17,7 @@ public:
     LedWidget& Off()    { sendBinary(0x02); return *this; }
     LedWidget& toggle() { sendBinary(0x03); return *this; }
 
-    // Alias lowercase pour compatibilité exemples
+    // Lowercase aliases for example compatibility
     LedWidget& on()     { return On(); }
     LedWidget& off()    { return Off(); }
     LedWidget& turnOn() { return On(); }
@@ -29,7 +29,7 @@ public:
         return *this;
     }
 
-    // Alias — setIntensity accepte float 0.0..1.0 ou 0..100
+    // Alias — setIntensity accepts float 0.0..1.0 or 0..100
     LedWidget& setIntensity(float value) {
         uint8_t v = (uint8_t)(value <= 1.0f ? value * 100 : value);
         return setBrightness(v);
@@ -46,7 +46,7 @@ public:
         return setColor((rgb>>16)&0xFF, (rgb>>8)&0xFF, rgb&0xFF);
     }
 
-    // Alias setColors — dans le proto v1 on envoie juste la couleur led
+    // Alias setColors — in proto v1 we only send the led color
     LedWidget& setColors(uint32_t led, uint32_t /*halo*/, uint32_t /*rays*/) {
         return setColor(led);
     }
@@ -59,7 +59,7 @@ public:
     }
 
     // ── showHalo / showRays ───────────────────────────────────
-    // Non supporté en protocole binaire v1 — no-op pour compatibilité
+    // Not supported in binary protocol v1 — no-op for compatibility
     LedWidget& showHalo(bool) { return *this; }
     LedWidget& showRays(bool) { return *this; }
 };

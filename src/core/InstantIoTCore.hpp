@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 🔄 InstantIoTCore.hpp - Boucle principale — protocole binaire v1
+ * 🔄 InstantIoTCore.hpp - Main loop — binary protocol v1
  * ============================================================
  */
 
@@ -79,21 +79,21 @@ public:
     // 💓 HEARTBEAT
     // ════════════════════════════════════════════════════════
     //
-    // Configure l'émission périodique de trames `TYPE_HEARTBEAT` (0xFE)
-    // pour signaler la présence du device au serveur en mode TCP.
-    // Le serveur en parallèle set son `soTimeout = heartbeatMs × 2.5` :
-    // si aucune trame (widget OU heartbeat) reçue dans cette fenêtre,
-    // il déclare le device offline et broadcast aux apps.
+    // Configures the periodic emission of `TYPE_HEARTBEAT` (0xFE) frames
+    // to signal the device's presence to the server in TCP mode.
+    // The server in parallel sets its `soTimeout = heartbeatMs × 2.5`:
+    // if no frame (widget OR heartbeat) is received within this window,
+    // it declares the device offline and broadcasts to apps.
     //
-    // `intervalMs = 0` désactive l'émission (legacy, utile pour les
-    // modes BLE / WiFi-AP où le heartbeat n'a pas de sens).
+    // `intervalMs = 0` disables emission (legacy, useful for
+    // BLE / WiFi-AP modes where heartbeat has no meaning).
     //
-    // Le paramètre `intervalMs` doit **matcher** celui passé au
-    // transport au handshake — la façade `InstantIoTWiFiServer` s'en
-    // occupe automatiquement.
+    // The `intervalMs` parameter must **match** the one passed to the
+    // transport at handshake — the `InstantIoTWiFiServer` facade
+    // handles it automatically.
     void setHeartbeat(uint32_t intervalMs) {
         _heartbeatMs = intervalMs;
-        _lastHeartbeatSent = 0;  // force une émission rapide après set
+        _lastHeartbeatSent = 0;  // force a quick emission after set
     }
 
     bool connected() override {
@@ -253,9 +253,9 @@ protected:
     uint32_t _lastHeartbeatSent = 0;
 
     /**
-     * À appeler dans `loop()` : envoie une trame `TYPE_HEARTBEAT`
-     * si l'intervalle configuré est écoulé. No-op si `_heartbeatMs == 0`
-     * ou si le transport n'est pas connecté.
+     * To be called in `loop()`: sends a `TYPE_HEARTBEAT` frame
+     * if the configured interval has elapsed. No-op if `_heartbeatMs == 0`
+     * or if the transport is not connected.
      */
     void heartbeatTick() {
         if (_heartbeatMs == 0) return;
@@ -263,7 +263,7 @@ protected:
         uint32_t now = millis();
         if (now - _lastHeartbeatSent < _heartbeatMs) return;
         _lastHeartbeatSent = now;
-        // WID vide + TYPE_HEARTBEAT + EVENT 0 + pas de payload
+        // Empty WID + TYPE_HEARTBEAT + EVENT 0 + no payload
         sendBinary("", TYPE_HEARTBEAT, 0);
     }
 
@@ -293,7 +293,7 @@ protected:
     #endif
 
     // ════════════════════════════════════════════════════════
-    // 📥 LECTURE — réassemblage trames binaires
+    // 📥 READ — binary frame reassembly
     // ════════════════════════════════════════════════════════
 
     void readLoop() {
@@ -320,7 +320,7 @@ protected:
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
-            // sanity guard : header(4) + body(len) + crc(1) doit tenir dans le buffer
+            // sanity guard: header(4) + body(len) + crc(1) must fit in the buffer
             if (len > sizeof(_rxBuffer) - 5) { shiftBuffer(1); continue; }
             uint16_t frameSize = 4 + len + 1;  // header(4) + body(len) + crc(1)
 

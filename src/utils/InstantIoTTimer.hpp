@@ -1,22 +1,22 @@
 #pragma once
 /**
  * ============================================================
- * ⏱️ InstantIoTTimer.hpp - Gestionnaire de timers non-bloquants
+ * ⏱️ InstantIoTTimer.hpp - Non-blocking timer manager
  * ============================================================
- * 
+ *
  * Usage:
  *   InstantTimer timers;
- *   
+ *
  *   void setup() {
- *       timers.every(1000, []{ Serial.println("Chaque seconde"); });
- *       timers.once(5000, []{ Serial.println("Une seule fois"); });
- *       timers.times(500, []{ Serial.println("3 fois"); }, 3);
+ *       timers.every(1000, []{ Serial.println("Every second"); });
+ *       timers.once(5000, []{ Serial.println("Once only"); });
+ *       timers.times(500, []{ Serial.println("3 times"); }, 3);
  *   }
- *   
+ *
  *   void loop() {
  *       timers.run();
  *   }
- * 
+ *
  * ============================================================
  */
 
@@ -35,60 +35,60 @@ public:
     using Fn = void (*)();
 
     // ============================================================
-    // 🎯 API FLUIDE POUR PLANIFICATION
+    // 🎯 FLUENT API FOR SCHEDULING
     // ============================================================
-    
+
     /**
-     * Exécute une fonction à intervalles réguliers (infini)
-     * @param ms Intervalle en millisecondes
-     * @param fn Fonction à appeler
-     * @return ID du timer (-1 si erreur)
+     * Runs a function at regular intervals (infinite)
+     * @param ms Interval in milliseconds
+     * @param fn Function to call
+     * @return Timer ID (-1 on error)
      */
-    int every(uint32_t ms, Fn fn) { 
-        return schedule(ms, fn, 0, true); 
+    int every(uint32_t ms, Fn fn) {
+        return schedule(ms, fn, 0, true);
     }
-    
+
     /**
-     * Exécute une fonction une seule fois après un délai
-     * @param ms Délai en millisecondes
-     * @param fn Fonction à appeler
-     * @return ID du timer (-1 si erreur)
+     * Runs a function once after a delay
+     * @param ms Delay in milliseconds
+     * @param fn Function to call
+     * @return Timer ID (-1 on error)
      */
-    int once(uint32_t ms, Fn fn) { 
-        return schedule(ms, fn, 1, true); 
+    int once(uint32_t ms, Fn fn) {
+        return schedule(ms, fn, 1, true);
     }
-    
+
     /**
-     * Exécute une fonction N fois à intervalles réguliers
-     * @param ms Intervalle en millisecondes
-     * @param fn Fonction à appeler
-     * @param n Nombre de répétitions
-     * @return ID du timer (-1 si erreur)
+     * Runs a function N times at regular intervals
+     * @param ms Interval in milliseconds
+     * @param fn Function to call
+     * @param n Number of repetitions
+     * @return Timer ID (-1 on error)
      */
-    int times(uint32_t ms, Fn fn, uint16_t n) { 
-        return schedule(ms, fn, n, true); 
+    int times(uint32_t ms, Fn fn, uint16_t n) {
+        return schedule(ms, fn, n, true);
     }
 
     // ============================================================
-    // 🔧 CONTRÔLE DES TIMERS
+    // 🔧 TIMER CONTROL
     // ============================================================
-    
+
     /**
-     * Active ou désactive un timer
+     * Enables or disables a timer
      */
     bool enable(int id, bool en = true) {
         if (!valid(id) || !tasks_[id].inUse) {
 #if INSTANT_DEBUG
             Serial.print(F("[Timer] ⚠️ Enable impossible: id="));
             Serial.print(id);
-            Serial.println(F(" invalide"));
+            Serial.println(F(" invalid"));
 #endif
             return false;
         }
         tasks_[id].active = en;
 #if INSTANT_DEBUG
         Serial.print(F("[Timer] "));
-        Serial.print(en ? F("✅ Activé") : F("⏸️ Désactivé"));
+        Serial.print(en ? F("✅ Enabled") : F("⏸️ Disabled"));
         Serial.print(F(" timer id="));
         Serial.println(id);
 #endif
@@ -96,42 +96,42 @@ public:
     }
 
     /**
-     * Désactive un timer (raccourci)
+     * Disables a timer (shortcut)
      */
-    bool disable(int id) { 
-        return enable(id, false); 
+    bool disable(int id) {
+        return enable(id, false);
     }
 
     /**
-     * Annule et libère un timer
+     * Cancels and releases a timer
      */
     bool cancel(int id) {
         if (!valid(id) || !tasks_[id].inUse) {
 #if INSTANT_DEBUG
             Serial.print(F("[Timer] ⚠️ Cancel impossible: id="));
             Serial.print(id);
-            Serial.println(F(" invalide"));
+            Serial.println(F(" invalid"));
 #endif
             return false;
         }
 #if INSTANT_DEBUG
         Serial.print(F("[Timer] ❌ Timer id="));
         Serial.print(id);
-        Serial.println(F(" annulé"));
+        Serial.println(F(" cancelled"));
 #endif
         tasks_[id] = Task{};
         return true;
     }
 
     /**
-     * Change l'intervalle d'un timer existant
+     * Changes the interval of an existing timer
      */
     bool changeInterval(int id, uint32_t ms) {
         if (!valid(id) || !tasks_[id].inUse) {
 #if INSTANT_DEBUG
             Serial.print(F("[Timer] ⚠️ ChangeInterval impossible: id="));
             Serial.print(id);
-            Serial.println(F(" invalide"));
+            Serial.println(F(" invalid"));
 #endif
             return false;
         }
@@ -139,7 +139,7 @@ public:
 #if INSTANT_DEBUG
         Serial.print(F("[Timer] ⏱️ Timer id="));
         Serial.print(id);
-        Serial.print(F(" → nouvel interval="));
+        Serial.print(F(" → new interval="));
         Serial.print(ms);
         Serial.println(F(" ms"));
 #endif
@@ -147,72 +147,72 @@ public:
     }
 
     /**
-     * Force l'exécution immédiate d'un timer
+     * Forces immediate execution of a timer
      */
     bool executeNow(int id) {
         if (!valid(id) || !tasks_[id].inUse) {
 #if INSTANT_DEBUG
             Serial.print(F("[Timer] ⚠️ ExecuteNow impossible: id="));
             Serial.print(id);
-            Serial.println(F(" invalide"));
+            Serial.println(F(" invalid"));
 #endif
             return false;
         }
         tasks_[id].nextAt = millis();
 #if INSTANT_DEBUG
-        Serial.print(F("[Timer] ⚡ Exécution immédiate forcée: id="));
+        Serial.print(F("[Timer] ⚡ Forced immediate execution: id="));
         Serial.println(id);
 #endif
         return true;
     }
 
     // ============================================================
-    // 🔄 BOUCLE PRINCIPALE
+    // 🔄 MAIN LOOP
     // ============================================================
-    
+
     /**
-     * Exécute les timers - appeler dans loop()
+     * Runs the timers - call inside loop()
      */
     void run() {
         if (running_) {
 #if INSTANT_DEBUG
-            Serial.println(F("[Timer] 🔒 Réentrance bloquée"));
+            Serial.println(F("[Timer] 🔒 Reentrance blocked"));
 #endif
-            return; // 🛡️ Anti-réentrance
+            return; // 🛡️ Anti-reentrance
         }
-        
+
         running_ = true;
 
         const uint32_t now = millis();
         for (int i = 0; i < INSTANT_TIMERS_MAX; i++) {
             Task& t = tasks_[i];
-            
+
             if (!t.inUse || !t.active || !t.fn) continue;
             if ((int32_t)(now - t.nextAt) < 0) continue;
 
-            // ⏰ Planifier la prochaine exécution
+            // ⏰ Schedule the next execution
             if (t.interval > 0) {
-                do { 
-                    t.nextAt += t.interval; 
+                do {
+                    t.nextAt += t.interval;
                 } while ((int32_t)(now - t.nextAt) >= 0);
             } else {
-                t.nextAt = now + 1; // 🛡️ Sécurité si interval==0
+                t.nextAt = now + 1; // 🛡️ Safety if interval==0
             }
 
 #if INSTANT_DEBUG
-            Serial.print(F("[Timer] 🔔 Exécution timer id="));
+            Serial.print(F("[Timer] 🔔 Executing timer id="));
             Serial.println(i);
 #endif
 
             Fn callback = t.fn;
             callback();
 
-            // 📉 Décrémenter et libérer si terminé
+            // 📉 Decrement and release if finished
             if (t.remaining > 0 && --t.remaining == 0) {
 #if INSTANT_DEBUG
                 Serial.print(F("[Timer] ✅ Timer id="));
                 Serial.print(i);
-                Serial.println(F(" terminé"));
+                Serial.println(F(" finished"));
 #endif
                 t = Task{};
             }
@@ -222,11 +222,11 @@ public:
     }
 
     // ============================================================
-    // 📊 STATISTIQUES
+    // 📊 STATISTICS
     // ============================================================
-    
+
     /**
-     * Nombre de timers actifs
+     * Number of active timers
      */
     int activeCount() const {
         int count = 0;
@@ -235,9 +235,9 @@ public:
         }
         return count;
     }
-    
+
     /**
-     * Nombre de slots utilisés
+     * Number of used slots
      */
     int usedCount() const {
         int count = 0;
@@ -246,9 +246,9 @@ public:
         }
         return count;
     }
-    
+
     /**
-     * Nombre de slots libres
+     * Number of free slots
      */
     int freeCount() const {
         return INSTANT_TIMERS_MAX - usedCount();
@@ -259,13 +259,13 @@ private:
         Fn       fn        = nullptr;
         uint32_t interval  = 0;
         uint32_t nextAt    = 0;
-        uint16_t remaining = 0;   // 0 = infini
+        uint16_t remaining = 0;   // 0 = infinite
         bool     active    = false;
         bool     inUse     = false;
     };
 
     Task tasks_[INSTANT_TIMERS_MAX];
-    bool running_ = false; // 🔒 Protection boucles imbriquées
+    bool running_ = false; // 🔒 Protection against nested loops
 
     int schedule(uint32_t ms, Fn fn, uint16_t repeat, bool en) {
         if (!fn) {
@@ -277,15 +277,15 @@ private:
 
         if (ms == 0) {
 #if INSTANT_DEBUG
-            Serial.println(F("[Timer] ⚠️ Schedule avec ms=0, forcé à 1ms"));
+            Serial.println(F("[Timer] ⚠️ Schedule with ms=0, forced to 1ms"));
 #endif
-            ms = 1; // 🛡️ Sécurité
+            ms = 1; // 🛡️ Safety
         }
 
         const int id = firstFree();
         if (id < 0) {
 #if INSTANT_DEBUG
-            Serial.println(F("[Timer] ❌ Plus de slots disponibles!"));
+            Serial.println(F("[Timer] ❌ No more slots available!"));
 #endif
             return -1;
         }
@@ -298,7 +298,7 @@ private:
         tasks_[id].inUse     = true;
 
 #if INSTANT_DEBUG
-        Serial.print(F("[Timer] ➕ Timer créé: id="));
+        Serial.print(F("[Timer] ➕ Timer created: id="));
         Serial.print(id);
         Serial.print(F(" interval="));
         Serial.print(ms);
@@ -316,7 +316,7 @@ private:
         return -1;
     }
 
-    static inline bool valid(int id) { 
-        return id >= 0 && id < INSTANT_TIMERS_MAX; 
+    static inline bool valid(int id) {
+        return id >= 0 && id < INSTANT_TIMERS_MAX;
     }
 };

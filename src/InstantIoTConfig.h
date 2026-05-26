@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * ⚙️ InstantIoTConfig.h - Configuration globale
+ * ⚙️ InstantIoTConfig.h - Global configuration
  * ============================================================
  *
  * Supported platforms:
@@ -13,7 +13,7 @@
  */
 
 // ============================================================
-// 🔍 DÉTECTION AUTOMATIQUE DE PLATEFORME
+// 🔍 AUTOMATIC PLATFORM DETECTION
 // ============================================================
 
 #if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
@@ -23,7 +23,7 @@
 #elif defined(ARDUINO_UNOWIFIR4)
     #define INSTANTIOT_PLATFORM_R4
 #else
-    #warning "InstantIoT: Plateforme non officielle (ESP32, ESP8266 ou Arduino Uno R4 WiFi recommandé)"
+    #warning "InstantIoT: Unofficial platform (ESP32, ESP8266 or Arduino Uno R4 WiFi recommended)"
 #endif
 
 // ============================================================
@@ -35,7 +35,7 @@
 #endif
 
 // ============================================================
-// 📏 TAILLES
+// 📏 SIZES
 // ============================================================
 
 #ifndef INSTANTIOT_MAX_WIDGET_ID_LENGTH
@@ -46,19 +46,19 @@
     #define INSTANTIOT_MAX_WIDGETS 16
 #endif
 
-// ─── Tailles buffers par plateforme ────────────────────
-// Ajustés selon la SRAM disponible — plus la cible a de RAM, plus
-// on offre de marge pour les widgets aux payloads longs (Text avec
-// chaînes longues, Chart avec multi-séries, etc.).
+// ─── Buffer sizes per platform ─────────────────────────
+// Adjusted based on available SRAM — the more RAM the target has,
+// the more headroom we provide for widgets with long payloads (Text
+// with long strings, Chart with multi-series, etc.).
 //
-// Les valeurs ci-dessous sont les DEFAULTS — l'user peut overrider
-// avant d'inclure la lib (ex: -DINSTANT_RX_BUFFER_SIZE=4096) si
-// il a un cas spécifique.
+// The values below are the DEFAULTS — the user can override
+// before including the lib (e.g. -DINSTANT_RX_BUFFER_SIZE=4096) if
+// they have a specific case.
 //
-//   ESP32   : 320 KB SRAM → 2048/1024 (large marge)
-//   R4 WiFi : 32 KB SRAM → 1024/512   (confortable)
-//   ESP8266 : ~80 KB user → 1024/512  (confortable)
-//   Autres  : 2-8 KB tipiquement → 512/256 (Uno classic, défensif)
+//   ESP32   : 320 KB SRAM → 2048/1024 (large headroom)
+//   R4 WiFi : 32 KB SRAM → 1024/512   (comfortable)
+//   ESP8266 : ~80 KB user → 1024/512  (comfortable)
+//   Others  : 2-8 KB typically → 512/256 (Uno classic, defensive)
 #ifndef INSTANT_RX_BUFFER_SIZE
     #if defined(INSTANTIOT_PLATFORM_ESP32)
         #define INSTANT_RX_BUFFER_SIZE 2048
@@ -80,7 +80,7 @@
 #endif
 
 // ============================================================
-// 🎛️ WIDGETS ACTIVÉS
+// 🎛️ ENABLED WIDGETS
 // ============================================================
 
 // ── Display (Device → App) ────────────────────────────────

@@ -1,7 +1,7 @@
 /*************************************************************
  * TEST: SegmentedSwitch
  * 
- * Events reçus de l'app:
+ * Events received from the app:
  * - selectionchanged (payload: selectedIds, count)
  * - segmentselected (payload: segmentId)
  * - segmentdeselected (payload: segmentId)
@@ -36,7 +36,7 @@ void onSegmentedSwitchEvent(const SegmentedSwitchEvent& e) {
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== TEST: SegmentedSwitch ===");
-    Serial.println("Widget requis: SegmentedSwitch id='seg1'");
+    Serial.println("Required widget: SegmentedSwitch id='seg1'");
     instant.begin();
     Serial.print("IP: ");
     Serial.println(instant.getIP());

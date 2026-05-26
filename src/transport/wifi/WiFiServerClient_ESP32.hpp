@@ -1,25 +1,25 @@
 #pragma once
 /**
  * ============================================================
- * 🌐 WiFiServerClient_ESP32.hpp — Transport client TCP vers InstantIoT Server
+ * 🌐 WiFiServerClient_ESP32.hpp — TCP client transport to InstantIoT Server
  * ============================================================
  *
- * Mode "Server" : l'ESP32 se connecte en WiFi Station au routeur
- * puis ouvre une connexion TCP vers un InstantIoT Server distant.
+ * "Server" mode: the ESP32 connects in WiFi Station mode to the router
+ * then opens a TCP connection to a remote InstantIoT Server.
  *
- * Handshake : [PAYLOAD_LEN(1B) | PAYLOAD_BYTES]
- *   payload = "token" (legacy) ou "token:heartbeatMs" (avec heartbeat).
- *   Exemple : "abc-123-def:5000" (heartbeat 5s).
- * Ensuite : trames binaires iWidgets v1 standard.
+ * Handshake: [PAYLOAD_LEN(1B) | PAYLOAD_BYTES]
+ *   payload = "token" (legacy) or "token:heartbeatMs" (with heartbeat).
+ *   Example: "abc-123-def:5000" (heartbeat 5s).
+ * Then: standard iWidgets v1 binary frames.
  *
- * Heartbeat : côté lib, la **façade** `InstantIoTWiFiServer` appelle
- * `setHeartbeat(ms)` sur ce transport (default 5000ms). La valeur est
- * envoyée au serveur au handshake — le serveur set son soTimeout à
- * `heartbeat × 2.5` et déclare le device offline si rien reçu dans
- * cette fenêtre. L'émission périodique des trames `TYPE_HEARTBEAT`
- * (0xFE) est gérée dans `InstantIoTCoreBase::loop()`.
+ * Heartbeat: on the lib side, the **facade** `InstantIoTWiFiServer` calls
+ * `setHeartbeat(ms)` on this transport (default 5000ms). The value is
+ * sent to the server in the handshake — the server sets its soTimeout to
+ * `heartbeat × 2.5` and declares the device offline if nothing is received
+ * within that window. The periodic emission of `TYPE_HEARTBEAT` (0xFE)
+ * frames is handled in `InstantIoTCoreBase::loop()`.
  *
- * Reconnexion auto (WiFi + TCP) avec backoff exponentiel
+ * Auto reconnection (WiFi + TCP) with exponential backoff
  * (1s → 2s → 4s → … max 30s).
  *
  * Copyright (c) 2025 InstantIoT — MIT License
@@ -51,11 +51,11 @@
   #define INSTANTIOT_RECONNECT_BACKOFF_MAX_MS 30000
 #endif
 
-// Jitter ± appliqué au backoff pour éviter le "thundering herd" :
-// si N devices d'un fleet redémarrent en même temps (coupure
-// d'électricité, reboot serveur), sans jitter ils retentent tous
-// en synchro → noient le serveur. Avec jitter (±25% par défaut),
-// les retries se désynchronisent naturellement.
+// ± jitter applied to the backoff to avoid the "thundering herd":
+// if N devices in a fleet restart at the same time (power
+// outage, server reboot), without jitter they all retry
+// in sync → flood the server. With jitter (±25% by default),
+// retries desynchronize naturally.
 #ifndef INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT
   #define INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT 25
 #endif
@@ -76,16 +76,16 @@ public:
       , pass_(nullptr)
       , nextRetryAt_(0)
       , backoffMs_(INSTANTIOT_RECONNECT_BACKOFF_MIN_MS)
-      , heartbeatMs_(0)  // 0 = legacy handshake (pas d'annonce)
+      , heartbeatMs_(0)  // 0 = legacy handshake (no announcement)
     {}
 
     // ============================================================
-    // 💓 Heartbeat — appelé par la façade avant begin()
+    // 💓 Heartbeat — called by the facade before begin()
     // ============================================================
     //
-    // Configure l'intervalle heartbeat annoncé au serveur dans le
-    // handshake. Le serveur adapte son soTimeout (= heartbeat × 2.5).
-    // `0` = ne pas annoncer (legacy mode, serveur fallback 90s).
+    // Configures the heartbeat interval announced to the server in the
+    // handshake. The server adapts its soTimeout (= heartbeat × 2.5).
+    // `0` = do not announce (legacy mode, server fallback 90s).
     void setHeartbeat(uint32_t intervalMs) {
         heartbeatMs_ = intervalMs;
     }
@@ -93,7 +93,7 @@ public:
     uint32_t getHeartbeat() const { return heartbeatMs_; }
 
     // ============================================================
-    // 🔑 Credentials WiFi — appelé par la façade avant begin()
+    // 🔑 WiFi credentials — called by the facade before begin()
     // ============================================================
     void setCredentials(const char* ssid, const char* pass) {
         ssid_ = ssid;
@@ -129,9 +129,9 @@ public:
                 scheduleRetry();
                 return;
             }
-            // WiFi rétabli — reset l'attempt count, on essaie TCP
-            // dans le bloc suivant. Le backoff TCP utilise sa propre
-            // séquence (le compteur partagé est OK pour V1).
+            // WiFi restored — reset the attempt count, we try TCP
+            // in the next block. TCP backoff uses its own
+            // sequence (the shared counter is OK for V1).
         }
 
         // TCP dropped → reconnect (with backoff)
@@ -145,7 +145,7 @@ public:
                 scheduleRetry();
                 return;
             }
-            // SUCCESS : reset complet du backoff + compteur
+            // SUCCESS: full reset of backoff + counter
             backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
             retryAttempt_ = 0;
         }
@@ -225,14 +225,14 @@ private:
 
         // Handshake: [PAYLOAD_LEN | PAYLOAD_BYTES]
         //   payload = "token"           (legacy, heartbeatMs_ = 0)
-        //   payload = "token:heartbeat"  (heartbeat activé)
+        //   payload = "token:heartbeat"  (heartbeat enabled)
         if (!token_) {
             IIOT_LOG("[WiFiServer] Missing device token");
             client_.stop();
             return false;
         }
 
-        // Construit le payload (max 255 bytes length-prefixed)
+        // Build the payload (max 255 bytes length-prefixed)
         char payload[288];
         int written = 0;
         if (heartbeatMs_ > 0) {
@@ -259,31 +259,31 @@ private:
         return true;
     }
 
-    // ----- Backoff avec jitter -----
+    // ----- Backoff with jitter -----
     //
-    // Calcule le prochain retry = backoffMs_ ± jitter%, puis double
-    // backoffMs_ pour la prochaine fois (cap à MAX). Le jitter
-    // désynchronise les retries d'un fleet de devices (cf. constante
+    // Computes the next retry = backoffMs_ ± jitter%, then doubles
+    // backoffMs_ for next time (cap at MAX). Jitter
+    // desynchronizes retries across a device fleet (cf. constant
     // INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT).
     //
-    // Log un warn quand on atteint le cap MAX — signe d'un problème
-    // persistant (serveur down, WiFi config foireuse, etc.) que le
-    // maker doit investiguer.
+    // Logs a warning when the MAX cap is reached — a sign of a
+    // persistent issue (server down, broken WiFi config, etc.) that
+    // the maker should investigate.
     void scheduleRetry() {
         uint32_t base = backoffMs_;
-        // Jitter : random() ∈ [-pct, +pct] de base
-        // random() est seedé par esp_random() côté ESP32 → différent
-        // par device, donc désynchronisation naturelle d'un fleet.
+        // Jitter: random() ∈ [-pct, +pct] of base
+        // random() is seeded by esp_random() on ESP32 → different
+        // per device, hence natural desynchronization of a fleet.
         int32_t jitterRange = (int32_t)(base * INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT) / 100;
         int32_t jitter = (jitterRange > 0) ? (int32_t)random(-jitterRange, jitterRange + 1) : 0;
         int32_t actualDelay = (int32_t)base + jitter;
-        if (actualDelay < 100) actualDelay = 100;  // floor : évite spin
+        if (actualDelay < 100) actualDelay = 100;  // floor: avoid spin
 
         nextRetryAt_ = millis() + (uint32_t)actualDelay;
 
         IIOT_LOG_2("[WiFiServer] Next retry in ", actualDelay, "ms (base ", base);
 
-        // Double pour la prochaine, cap à MAX
+        // Double for the next, cap at MAX
         uint32_t next = base * 2;
         if (next >= INSTANTIOT_RECONNECT_BACKOFF_MAX_MS) {
             if (base < INSTANTIOT_RECONNECT_BACKOFF_MAX_MS) {
@@ -306,8 +306,8 @@ private:
     WiFiClient  client_;
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
-    uint32_t    retryAttempt_ = 0;  // monotonic counter pour debug logs
-    uint32_t    heartbeatMs_;       // 0 = legacy, >0 = annoncé au serveur
+    uint32_t    retryAttempt_ = 0;  // monotonic counter for debug logs
+    uint32_t    heartbeatMs_;       // 0 = legacy, >0 = announced to server
 };
 
 } // namespace InstantIoT
