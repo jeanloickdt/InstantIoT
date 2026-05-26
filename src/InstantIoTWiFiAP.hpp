@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📱 InstantIoTWiFiAP.hpp - Façade WiFi Access Point
+ * 📱 InstantIoTWiFiAP.hpp - WiFi Access Point facade
  * ============================================================
  *
  * Supported platforms:

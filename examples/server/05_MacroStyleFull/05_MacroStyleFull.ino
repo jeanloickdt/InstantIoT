@@ -1,7 +1,7 @@
 /*************************************************************
  * InstantIoT — Example: Macro-style FULL widget coverage
  *
- * Démontre ALL les blocs I<Widget> + WHEN_* de la lib :
+ * Demonstrates ALL the I<Widget> + WHEN_* blocks in the lib:
  *   - SimpleButton     (btn1)   : WHEN_TOGGLED / PRESSED / RELEASED / LONG_PRESSED
  *   - AdvancedButton   (relay1) : WHEN_TOGGLED
  *   - HorizontalSlider (dim1)   : WHEN_CHANGING / CHANGED

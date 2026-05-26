@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📡 SoftAP_ESP8266.hpp - Transport WiFi SoftAP ESP8266
+ * 📡 SoftAP_ESP8266.hpp - WiFi SoftAP transport for ESP8266
  * ============================================================
  */
 
@@ -51,13 +51,13 @@ public:
     }
 
     void poll() override {
-        // Vérifier si client déconnecté
+        // Check if client disconnected
         if (_client && !_client.connected()) {
             _client.stop();
             IIOT_LOG("[SoftAP-8266] Client disconnected");
         }
 
-        // Accepter nouveau client
+        // Accept new client
         WiFiClient newClient = _server.accept();
         if (newClient) {
             if (_client) _client.stop();

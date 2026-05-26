@@ -1,10 +1,10 @@
 #pragma once
 /**
  * ============================================================
- * 🚚 Transport.h - Interface transport abstraite
+ * 🚚 Transport.h - Abstract transport interface
  * ============================================================
- * 
- * Interface commune pour tous les transports :
+ *
+ * Common interface for all transports:
  * - WiFi SoftAP (ESP32, ESP8266, UNO R4)
  * - WiFi Station
  * - Bluetooth BLE
@@ -18,7 +18,7 @@
 #include <string.h>
 
 /**
- * Interface de transport abstraite
+ * Abstract transport interface
  */
 struct ITransport {
     
@@ -29,13 +29,13 @@ struct ITransport {
     // ============================================================
     
     /**
-     * Initialise le transport
-     * @return true si succès
+     * Initializes the transport
+     * @return true on success
      */
     virtual bool begin() = 0;
     
     /**
-     * Appelé dans loop() pour gérer les connexions
+     * Called in loop() to handle connections
      */
     virtual void poll() = 0;
     
@@ -44,38 +44,38 @@ struct ITransport {
     // ============================================================
     
     /**
-     * @return true si un client est connecté
+     * @return true if a client is connected
      */
     virtual bool connected() = 0;
     
     /**
-     * @return Nombre de bytes disponibles en lecture
+     * @return Number of bytes available to read
      */
     virtual int available() = 0;
     
     // ============================================================
-    // 📥 LECTURE
+    // 📥 READ
     // ============================================================
-    
+
     /**
-     * Lit des données depuis le transport
-     * 
-     * @param buf Buffer destination
-     * @param len Taille max à lire
-     * @return Nombre de bytes lus, -1 si erreur
+     * Reads data from the transport
+     *
+     * @param buf Destination buffer
+     * @param len Max size to read
+     * @return Number of bytes read, -1 on error
      */
     virtual int read(uint8_t* buf, size_t len) = 0;
     
     // ============================================================
-    // 📤 ÉCRITURE
+    // 📤 WRITE
     // ============================================================
-    
+
     /**
-     * Écrit des données vers le transport
-     * 
-     * @param buf Buffer source
-     * @param len Taille à écrire
-     * @return Nombre de bytes écrits
+     * Writes data to the transport
+     *
+     * @param buf Source buffer
+     * @param len Size to write
+     * @return Number of bytes written
      */
     virtual size_t write(const uint8_t* buf, size_t len) = 0;
     

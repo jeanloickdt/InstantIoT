@@ -1,26 +1,26 @@
 #pragma once
 /**
  * ============================================================
- *  BinaryCodec.hpp — Codec binaire iWidgets v1
+ *  BinaryCodec.hpp — iWidgets v1 binary codec
  * ============================================================
  *
- * Protocole :
+ * Protocol:
  *   AA | VER | LEN(2B LE) | DEV_COUNT | [DEV_LEN|DEV]×N
  *      | WID_LEN | WID | TYPE | EVENT | PAYLOAD | CRC8
  *
- * Pas de numéro de séquence — tous les transports supportés
- * (TCP/WebSocket/BT RFCOMM/BT BLE/Serial) garantissent un
- * ordonnancement fiable sans duplication. Un SEQ applicatif
- * n'apporterait aucune robustesse et causait des drops après
- * redémarrage de l'app ou du device (compteurs désynchronisés).
+ * No sequence number — all supported transports
+ * (TCP/WebSocket/BT RFCOMM/BT BLE/Serial) guarantee reliable
+ * ordering without duplication. An application-level SEQ
+ * would bring no robustness and caused drops after
+ * app or device restart (desynchronized counters).
  *
- * Convention codes EVENT :
- *   0x01..0x0E = Device → App (events push)
- *   0x10..0x1F = App → Device (commands reçues)
+ * EVENT code convention:
+ *   0x01..0x0E = Device → App (push events)
+ *   0x10..0x1F = App → Device (received commands)
  *
  * CRC-8/SMBUS poly=0x07
- * Strings : uint8 LEN + octets
- * Floats  : IEEE 754 little-endian
+ * Strings: uint8 LEN + bytes
+ * Floats : IEEE 754 little-endian
  *
  * Copyright (c) 2025 InstantIoT — MIT License
  * ============================================================
@@ -55,10 +55,10 @@ static const uint8_t TYPE_TEXT             = 0x0F;
 static const uint8_t TYPE_BARCHART          = 0x10;
 static const uint8_t TYPE_EMERGENCYBUTTON   = 0x11;
 
-// Service frame : heartbeat périodique émis par le device en mode
-// Server TCP. Le serveur reçoit → ne dispatch pas aux apps, reset
-// simplement son soTimeout. Format : WID_LEN=0, TYPE=0xFE, EVENT=0,
-// payload vide.
+// Service frame: periodic heartbeat emitted by the device in
+// TCP Server mode. The server receives → does not dispatch to apps,
+// simply resets its soTimeout. Format: WID_LEN=0, TYPE=0xFE, EVENT=0,
+// empty payload.
 static const uint8_t TYPE_HEARTBEAT         = 0xFE;
 
 // ============================================================
@@ -127,7 +127,7 @@ static uint8_t crc8(const uint8_t* data, size_t len) {
 }
 
 // ============================================================
-//  PRIMITIFS — little-endian
+//  PRIMITIVES — little-endian
 // ============================================================
 
 static void writeU16LE(uint8_t* buf, uint16_t val) {
@@ -343,17 +343,17 @@ class BinaryCodec {
 #endif
 
 #if INSTANTIOT_WIDGETS_BARCHART
-            // BarChart : display pur, l'app n'envoie jamais rien au
-            // device → pas de décodage côté device. Le case existe
-            // pour ne pas tomber dans le default si un payload
-            // BarChart arrive par erreur (frame mal routée).
+            // BarChart: pure display, the app never sends anything to
+            // the device → no decoding on the device side. The case exists
+            // to avoid falling into the default if a BarChart payload
+            // arrives by mistake (misrouted frame).
             case TYPE_BARCHART:
                 break;
 #endif
 
-            // EmergencyButton : CMD_EMERGENCY_TRIGGER / CMD_EMERGENCY_RESET
-            // n'ont pas de payload — rien à décoder, le dispatch lit
-            // uniquement l'eventCode dans Registry.
+            // EmergencyButton: CMD_EMERGENCY_TRIGGER / CMD_EMERGENCY_RESET
+            // have no payload — nothing to decode, the dispatch only reads
+            // the eventCode in Registry.
             case TYPE_EMERGENCYBUTTON:
                 break;
         }
@@ -367,7 +367,7 @@ public:
     }
 
     // ============================================================
-    //  ENCODE — bytes payload → trame binaire complète
+    //  ENCODE — payload bytes → complete binary frame
     // ============================================================
 
     size_t encode(
@@ -422,7 +422,7 @@ public:
     }
 
     // ============================================================
-    //  DECODE — trame binaire → DecodedMessage
+    //  DECODE — binary frame → DecodedMessage
     // ============================================================
 
     bool decode(
@@ -443,7 +443,7 @@ public:
 
         if (length < (size_t)(4 + len + 1)) return false;
 
-        // CRC — couvre le body (après le header fixe de 4 octets)
+        // CRC — covers the body (after the fixed 4-byte header)
         if (crc8(buffer + 4, len) != buffer[4 + len]) {
             IIOT_LOG("[BinaryCodec] CRC mismatch");
             return false;

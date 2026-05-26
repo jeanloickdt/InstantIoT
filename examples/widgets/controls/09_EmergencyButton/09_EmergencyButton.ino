@@ -1,7 +1,7 @@
 /*************************************************************
  * TEST: EmergencyButton
  * 
- * Events reçus de l'app:
+ * Events received from the app:
  * - trigger
  * - reset
  *************************************************************/
@@ -22,7 +22,7 @@ void onEmergencyButtonEvent(const EmergencyButtonEvent& e) {
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== TEST: EmergencyButton ===");
-    Serial.println("Widget requis: EmergencyButton id='emer1'");
+    Serial.println("Required widget: EmergencyButton id='emer1'");
     instant.begin();
     Serial.print("IP: ");
     Serial.println(instant.getIP());

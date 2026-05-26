@@ -1,12 +1,12 @@
 #pragma once
 /**
  * ============================================================
- * 📡 SoftAP_ESP32.hpp - Transport WiFi SoftAP ESP32
+ * 📡 SoftAP_ESP32.hpp - WiFi SoftAP transport for ESP32
  * ============================================================
  */
 
 #if !defined(ARDUINO_ARCH_ESP32) && !defined(ESP32)
-#  error "SoftAP_ESP32.hpp nécessite une cible ESP32"
+#  error "SoftAP_ESP32.hpp requires an ESP32 target"
 #endif
 
 #include <Arduino.h>

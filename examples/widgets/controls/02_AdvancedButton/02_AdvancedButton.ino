@@ -1,11 +1,11 @@
 /*************************************************************
  * TEST: AdvancedButton
  * 
- * Events reçus de l'app:
+ * Events received from the app:
  * - press
  * - release
  * - longpress
- * - toggle (avec isOn)
+ * - toggle (with isOn)
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>
@@ -34,7 +34,7 @@ void onAdvancedButtonEvent(const AdvancedButtonEvent& e) {
 void setup() {
     Serial.begin(115200);
     Serial.println("\n=== TEST: AdvancedButton ===");
-    Serial.println("Widget requis: AdvancedButton id='btn1'");
+    Serial.println("Required widget: AdvancedButton id='btn1'");
     instant.begin();
     Serial.print("IP: ");
     Serial.println(instant.getIP());
