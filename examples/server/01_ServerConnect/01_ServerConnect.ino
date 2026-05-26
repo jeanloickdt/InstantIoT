@@ -50,9 +50,9 @@ void setup() {
     Serial.print(":");         Serial.println(SERVER_PORT);
     Serial.print("Token:   "); Serial.println(DEVICE_TOKEN);
 
-    // Optionnel : override l'intervalle heartbeat (défaut 5000ms).
-    // Le serveur adapte son timeout de détection offline à ≈ 2.5× cette
-    // valeur (clampé entre 2s et 120s). 0 = désactive (mode legacy).
+    // Optional: override the heartbeat interval (default 5000ms).
+    // The server adapts its offline detection timeout to ≈ 2.5× this
+    // value (clamped between 2s and 120s). 0 = disable (legacy mode).
     // instant.setHeartbeat(5000);
 
     if (!instant.begin(WIFI_SSID, WIFI_PASS)) {

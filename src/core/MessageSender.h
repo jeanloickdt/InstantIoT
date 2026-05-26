@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📤 MessageSender.h — Interface d'envoi binaire iWidgets v1
+ * 📤 MessageSender.h — iWidgets v1 binary send interface
  * ============================================================
  */
 
@@ -13,14 +13,14 @@ public:
     virtual ~IMessageSender() = default;
 
     /**
-     * Envoie une trame binaire iWidgets v1
+     * Sends an iWidgets v1 binary frame
      *
-     * @param widgetId   Protocol ID du widget (ex: "led1")
-     * @param typeCode   Code TYPE (ex: TYPE_LED = 0x0C)
-     * @param eventCode  Code EVENT (ex: EV_SETCOLOR = 0x05)
-     * @param payloadBytes Bytes du payload (nullptr si aucun)
-     * @param payloadLen   Taille du payload
-     * @return true si envoyé
+     * @param widgetId   Widget protocol ID (e.g. "led1")
+     * @param typeCode   TYPE code (e.g. TYPE_LED = 0x0C)
+     * @param eventCode  EVENT code (e.g. EV_SETCOLOR = 0x05)
+     * @param payloadBytes Payload bytes (nullptr if none)
+     * @param payloadLen   Payload size
+     * @return true if sent
      */
     virtual bool sendBinary(
         const char* widgetId,
@@ -31,7 +31,7 @@ public:
     ) = 0;
 
     /**
-     * @return true si un client est connecté
+     * @return true if a client is connected
      */
     virtual bool connected() = 0;
 };

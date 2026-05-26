@@ -3,7 +3,7 @@
 /*************************************************************
  * ⚡ InstantIoT Library v1.1.0
  * 
- * InstantIoTMessage.hpp - Structures de messages
+ * InstantIoTMessage.hpp - Message structures
  *************************************************************/
 
 #include <Arduino.h>
@@ -128,8 +128,8 @@ enum class JoystickEventKind : uint8_t {
 struct JoystickEvent {
     const char* widgetId;
     JoystickEventKind kind;
-    float x;    // -1.0 à 1.0
-    float y;    // -1.0 à 1.0
+    float x;    // -1.0 to 1.0
+    float y;    // -1.0 to 1.0
     
     bool isPositionChanged() const { return kind == JoystickEventKind::PositionChanged; }
     bool isReleased() const { return kind == JoystickEventKind::Released; }
@@ -188,8 +188,8 @@ struct SegmentedSwitchEvent {
     const char* widgetId;
     SegmentedEventKind kind;
     int selectedIndex;
-    const char* segmentId;      // ID du segment concerné
-    const char* selectedIds;    // IDs sélectionnés (multi-select)
+    const char* segmentId;      // ID of the segment concerned
+    const char* selectedIds;    // selected IDs (multi-select)
     int count;
     
     bool isSelectionChanged() const { return kind == SegmentedEventKind::SelectionChanged; }

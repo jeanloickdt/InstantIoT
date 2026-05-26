@@ -1,10 +1,10 @@
 #pragma once
 /**
  * ============================================================
- * 📋 Registry.hpp - Dispatch des événements widgets
+ * 📋 Registry.hpp - Widget event dispatch
  *
- * Travaille directement avec les codes uint8 du protocole
- * binaire iWidgets v1 — zéro strcmp, zéro strings.
+ * Works directly with the uint8 codes of the iWidgets v1
+ * binary protocol — zero strcmp, zero strings.
  * ============================================================
  */
 
@@ -16,18 +16,18 @@
 // ============================================================
 // 📚 PER-WIDGET HANDLER REGISTRY (used by I<Widget>(id) macros)
 //
-// Ces templates permettent d'enregistrer un handler par widget id
-// via des macros style :
+// These templates allow registering a handler per widget id
+// via style macros:
 //
 //   ISimpleButton("btn1") { WHEN_TOGGLED(on) { ... } };
 //
-// Chaque bloc devient :
-//   - 1 fonction static void _fn(const EventT&)
-//   - 1 WidgetRegistrar<EventT> global statique qui attache son nœud
-//     à la liste chaînée au démarrage (ctor avant setup())
+// Each block becomes:
+//   - 1 static function void _fn(const EventT&)
+//   - 1 static global WidgetRegistrar<EventT> that attaches its node
+//     to the linked list at startup (ctor before setup())
 //
-// RAM : 12 B par bloc (ESP32, 3 ptrs × 4 B). Pas de heap.
-// Coût dispatch : 1 strcmp par handler enregistré du type concerné.
+// RAM: 12 B per block (ESP32, 3 ptrs × 4 B). No heap.
+// Dispatch cost: 1 strcmp per registered handler of the relevant type.
 // ============================================================
 namespace InstantIoT {
 
@@ -278,8 +278,8 @@ public:
     }
 
     // ════════════════════════════════════════════════════════
-    // Surcharge string → conservée pour compatibilité
-    // mais délègue vers la version uint8
+    // String overload → kept for compatibility
+    // but delegates to the uint8 version
     // ════════════════════════════════════════════════════════
     static void dispatch(
         const char* widgetType,
@@ -287,8 +287,8 @@ public:
         const char* event,
         const DecodedMessage& msg
     ) {
-        // Cette surcharge ne devrait plus être appelée en mode binaire
-        // mais on la garde pour ne pas casser d'éventuels usages legacy
+        // This overload should no longer be called in binary mode
+        // but we keep it so as not to break any legacy usages
         (void)widgetType; (void)widgetId; (void)event; (void)msg;
     }
 };

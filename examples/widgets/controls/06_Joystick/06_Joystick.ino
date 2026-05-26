@@ -7,17 +7,17 @@
  * Board : ESP32
  *
  * Wiring:
- *   Servo   → GPIO13 (signal jaune/orange)
+ *   Servo   → GPIO13 (yellow/orange signal)
  *   LED R   → GPIO25 → 220Ω → GND
  *   LED G   → GPIO26 → 220Ω → GND
  *   LED Y   → GPIO27 → 220Ω → GND
  *
  * Behavior:
  *   X axis  → servo angle 0..180°
- *   Y > 0   → LED verte (avant)
- *   Y < 0   → LED rouge (arrière)
- *   Neutre  → LED jaune
- *   Release → servo centre + LED jaune
+ *   Y > 0   → green LED (forward)
+ *   Y < 0   → red LED (backward)
+ *   Neutral → yellow LED
+ *   Release → servo center + yellow LED
  *************************************************************/
 
 #include <InstantIoTWiFiAP.hpp>

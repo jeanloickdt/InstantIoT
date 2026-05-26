@@ -1,10 +1,10 @@
 /*************************************************************
- * ⚡ InstantIoT Library v1.2.0
+ * ⚡ InstantIoT Library v1.2.1
  * 
- * Registry.cpp - Implémentations par défaut des callbacks
- * 
- * Ces fonctions sont weak et seront remplacées si l'utilisateur
- * les définit dans son sketch.
+ * Registry.cpp - Default callback implementations
+ *
+ * These functions are weak and will be replaced if the user
+ * defines them in their sketch.
  * 
  * Copyright (c) 2025 InstantIoT
  * MIT License
@@ -12,8 +12,8 @@
 
 #include "Registry.hpp"
 
-// Implémentations par défaut (vides)
-// L'utilisateur peut les overrider en définissant sa propre version
+// Default implementations (empty)
+// The user can override them by defining their own version
 
 void onSimpleButtonEvent(const SimpleButtonEvent& e) { (void)e; }
 void onAdvancedButtonEvent(const AdvancedButtonEvent& e) { (void)e; }

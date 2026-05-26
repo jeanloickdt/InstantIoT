@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v1.2.0
+ * ⚡ InstantIoT Library v1.2.1
  * 
  * Codec.h — Structure DecodedMessage
  * 
@@ -17,16 +17,16 @@
 namespace InstantIoT {
 
 /**
- * Message décodé depuis une trame binaire iWidgets v1
+ * Message decoded from an iWidgets v1 binary frame
  */
 struct DecodedMessage {
     const char* dashboardId;
     const char* deviceId;
     const char* widgetId;
-    const char* widgetType;  // non utilisé en binaire — conservé pour compatibilité Registry
-    const char* event;       // non utilisé en binaire — conservé pour compatibilité Registry
+    const char* widgetType;  // unused in binary — kept for Registry compatibility
+    const char* event;       // unused in binary — kept for Registry compatibility
 
-    // Payload décodé (jusqu'à 8 paramètres clé/valeur)
+    // Decoded payload (up to 8 key/value parameters)
     struct Param {
         const char* key;
         const char* value;

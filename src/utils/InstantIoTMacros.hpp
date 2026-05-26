@@ -3,7 +3,7 @@
 /*************************************************************
  * ⚡ InstantIoT Library v1.1.0
  * 
- * InstantIoTMacros.hpp — DSL fluide pour les callbacks
+ * InstantIoTMacros.hpp — Fluent DSL for callbacks
  * 
  * Usage:
  * 
@@ -32,12 +32,12 @@
 #include <string.h>
 
 // ============================================================
-// 🔍 HELPERS INTERNES
+// 🔍 INTERNAL HELPERS
 // ============================================================
 
 #define _INSTANTIOT_IS_ID(e, id_str) (strcmp((e).widgetId, (id_str)) == 0)
 
-// Comptage d'arguments (1, 2, ou 3)
+// Argument count (1, 2, or 3)
 #define _INSTANTIOT_ARG_COUNT(...) _INSTANTIOT_ARG_COUNT_IMPL(__VA_ARGS__, 3, 2, 1, 0)
 #define _INSTANTIOT_ARG_COUNT_IMPL(_1, _2, _3, N, ...) N
 
@@ -60,7 +60,7 @@
 #define ON_TOGGLE(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::ButtonEventKind::Toggle)
 
-// Avec capture de isOn
+// With capture of isOn
 #define ON_TOGGLE_STATE(id, var_isOn) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::ButtonEventKind::Toggle) \
         if (bool var_isOn = e.isOn; true)
@@ -79,11 +79,11 @@
 // 🎚️ SLIDERS (Horizontal & Vertical)
 // ============================================================
 
-// Version simple
+// Simple version
 #define _ON_VALUE_CHANGED_1(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SliderEventKind::ValueChanged)
 
-// Version avec capture
+// Version with capture
 #define _ON_VALUE_CHANGED_2(id, var_value) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SliderEventKind::ValueChanged) \
         if (float var_value = e.value; true)
@@ -91,7 +91,7 @@
 #define _ON_VALUE_CHANGED_DISPATCH(N) _INSTANTIOT_CONCAT(_ON_VALUE_CHANGED_, N)
 #define ON_VALUE_CHANGED(...) _ON_VALUE_CHANGED_DISPATCH(_INSTANTIOT_ARG_COUNT(__VA_ARGS__))(__VA_ARGS__)
 
-// ValueChanging (temps réel pendant drag)
+// ValueChanging (real-time during drag)
 #define _ON_VALUE_CHANGING_1(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SliderEventKind::ValueChanging)
 
@@ -113,26 +113,26 @@
 // 🔘 SWITCH
 // ============================================================
 
-// Détecte ON (turnon OU setvalue avec isOn=true)
+// Detects ON (turnon OR setvalue with isOn=true)
 #define ON_TURN_ON(id) \
     if (_INSTANTIOT_IS_ID(e, id) && (e.kind == InstantIoT::SwitchEventKind::TurnOn || (e.kind == InstantIoT::SwitchEventKind::SetValue && e.isOn)))
 
-// Détecte OFF (turnoff OU setvalue avec isOn=false)
+// Detects OFF (turnoff OR setvalue with isOn=false)
 #define ON_TURN_OFF(id) \
     if (_INSTANTIOT_IS_ID(e, id) && (e.kind == InstantIoT::SwitchEventKind::TurnOff || (e.kind == InstantIoT::SwitchEventKind::SetValue && !e.isOn)))
 
-// Détecte toggle explicite
+// Detects explicit toggle
 #define ON_SWITCH_TOGGLE(id) \
     if (_INSTANTIOT_IS_ID(e, id) && \
         (e.kind == InstantIoT::SwitchEventKind::Toggle || \
          e.kind == InstantIoT::SwitchEventKind::SetValue))
 
-// Avec capture de l'état (pour setvalue)
+// With state capture (for setvalue)
 #define ON_SWITCH_VALUE(id, var_isOn) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SwitchEventKind::SetValue) \
         if (bool var_isOn = e.isOn; true)
 
-// Alternative simple : juste vérifie isOn (marche avec tous les events)
+// Simple alternative: just checks isOn (works with all events)
 #define ON_SWITCH_ON(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.isOn)
 
@@ -143,11 +143,11 @@
 // 🕹️ JOYSTICK
 // ============================================================
 
-// Version simple
+// Simple version
 #define _ON_JOYSTICK_1(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::JoystickEventKind::PositionChanged)
 
-// Version avec capture x, y (technique C++17 if-init)
+// Version with x, y capture (C++17 if-init technique)
 #define _ON_JOYSTICK_3(id, var_x, var_y) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::JoystickEventKind::PositionChanged) \
         if (float var_x = e.x, var_y = e.y; true)
@@ -216,7 +216,7 @@
 #define ON_DPAD_CENTER_LONG(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.button == InstantIoT::DPadButton::Center && e.kind == InstantIoT::DPadEventKind::LongPress)
 
-// Générique
+// Generic
 #define ON_DPAD(id, btn) \
     if (_INSTANTIOT_IS_ID(e, id) && e.button == InstantIoT::DPadButton::btn && e.kind == InstantIoT::DPadEventKind::Press)
 
@@ -230,11 +230,11 @@
 // 🔀 SEGMENTED SWITCH
 // ============================================================
 
-// Version simple
+// Simple version
 #define _ON_SELECTION_CHANGED_1(id) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SegmentedEventKind::SelectionChanged)
 
-// Version avec capture de l'index
+// Version with index capture
 #define _ON_SELECTION_CHANGED_2(id, var_index) \
     if (_INSTANTIOT_IS_ID(e, id) && e.kind == InstantIoT::SegmentedEventKind::SelectionChanged) \
         if (int var_index = e.selectedIndex; true)

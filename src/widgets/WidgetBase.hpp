@@ -21,7 +21,7 @@ public:
     virtual uint8_t getTypeCode() const = 0;
 
 protected:
-    // Envoi binaire direct — utilisé par les widgets
+    // Direct binary send — used by widgets
     bool sendBinary(
         uint8_t eventCode,
         const uint8_t* payload = nullptr,
