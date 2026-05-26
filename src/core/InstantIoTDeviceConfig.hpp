@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v1.1.0
+ * ⚡ InstantIoT Library v1.2.0
  * 
  * InstantIoTDeviceConfig.hpp - Configuration et identité du device
  * 
