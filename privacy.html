@@ -1,0 +1,223 @@
+<div class="privacy-policy-container">
+<style>
+.privacy-policy-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    line-height: 1.7;
+    color: #333;
+}
+.privacy-policy-container h1 { color: #6C63FF; margin-bottom: 10px; font-size: 1.8em; }
+.privacy-policy-container .last-updated { color: #666; font-size: 0.9em; margin-bottom: 30px; }
+.privacy-policy-container h2 {
+    color: #1f2937;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    border-bottom: 2px solid #6C63FF;
+    padding-bottom: 5px;
+}
+.privacy-policy-container p { margin-bottom: 15px; color: #4b5563; }
+.privacy-policy-container ul, .privacy-policy-container ol { margin-left: 20px; margin-bottom: 15px; }
+.privacy-policy-container li { margin-bottom: 8px; color: #4b5563; }
+.privacy-policy-container .highlight {
+    background-color: #f0f0ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #6C63FF;
+    margin: 20px 0;
+    color: #4b5563;
+}
+.privacy-policy-container .highlight strong { color: #1f2937; }
+.privacy-policy-container blockquote {
+    background-color: #f0f0ff;
+    padding: 12px 18px;
+    border-left: 4px solid #6C63FF;
+    margin: 20px 0;
+    border-radius: 6px;
+    color: #1f2937;
+    font-weight: 600;
+}
+.privacy-policy-container .contact {
+    background-color: #f9fafb;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 30px;
+}
+.privacy-policy-container .contact p, .privacy-policy-container .contact li { color: #4b5563; }
+.privacy-policy-container a { color: #6C63FF; text-decoration: none; }
+.privacy-policy-container a:hover { text-decoration: underline; }
+.privacy-policy-container table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+.privacy-policy-container th, .privacy-policy-container td {
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: top;
+    color: #4b5563;
+}
+.privacy-policy-container th { background-color: #f0f0ff; color: #1f2937; }
+.privacy-policy-container code {
+    background-color: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    font-size: 0.92em;
+    color: #1f2937;
+}
+.privacy-policy-container strong { color: #1f2937; }
+</style>
+
+<h1>Privacy Policy — InstantIoT</h1>
+<p class="last-updated"><strong>Last updated:</strong> May 26, 2026</p>
+
+<div class="highlight">
+<strong>TL;DR</strong>
+<ul>
+<li>You can use InstantIoT without giving us any personal data.</li>
+<li>Your IoT data stays where you want it — on your phone (Direct Mode) or on a server you host yourself (Server Mode). It never reaches us.</li>
+<li>Crash and basic usage analytics via Firebase are opt-in and can be disabled at any time. They are technical, anonymous, and never include the content of your projects or sensor readings.</li>
+<li>No advertising. No data selling. No third-party tracking SDKs beyond Firebase Crashlytics and Firebase Analytics, both opt-in.</li>
+</ul>
+</div>
+
+<h2>1. Who we are</h2>
+<p>InstantIoT is built and maintained by <strong>Djoufack Tsobeng Jean Loick</strong> (the "Maintainer"), operating under the brand <strong>InstantIoT</strong>.</p>
+<ul>
+<li>Contact: <a href="mailto:bonjour@jeanloickdt.com">bonjour@jeanloickdt.com</a></li>
+<li>Support: <a href="mailto:rejoindre@instantiot.io">rejoindre@instantiot.io</a></li>
+<li>Website: <a href="https://instantiot.io">https://instantiot.io</a></li>
+</ul>
+<p>This Privacy Policy covers the entire InstantIoT ecosystem:</p>
+<ol>
+<li>The <strong>InstantIoT mobile app</strong> for Android and iOS.</li>
+<li>The <strong>InstantIoT Server</strong>, an open-source (AGPLv3) self-hosted relay you can install on your own machine.</li>
+<li>The <strong>InstantIoT Arduino library</strong> (MIT), which runs on your ESP32 / ESP8266 / Arduino Uno R4 WiFi boards.</li>
+</ol>
+<p>The Maintainer is the data controller for the limited diagnostic data described in Section 4 (Firebase). The Maintainer is <strong>not</strong> a controller or processor for the data you exchange between your phone, your board, and your self-hosted server in normal use — that data flows between systems you own.</p>
+
+<h2>2. What InstantIoT does</h2>
+<p>InstantIoT lets you build dashboards on your phone to control and monitor IoT devices (typically Arduino / ESP32 boards) over Wi-Fi or Bluetooth. There are two ways to connect:</p>
+<ul>
+<li><strong>Direct Mode</strong> — your phone talks to a board directly. The board hosts its own Wi-Fi network (SoftAP), your phone joins it, no router or server in the middle.</li>
+<li><strong>Server Mode</strong> — your phone and your boards both connect to an InstantIoT Server that you install yourself (on a computer, a Raspberry Pi, anywhere). Multi-device, time-series history, web admin. The server runs entirely on your infrastructure; we do not host it.</li>
+</ul>
+<p>In both modes, your project, your devices, and your sensor data stay on systems <strong>you own</strong>.</p>
+
+<h2>3. Data we do NOT collect</h2>
+<p>We do not, in any operating mode:</p>
+<ul>
+<li>Ask you for an email, name, phone number, or address.</li>
+<li>Send your IoT widgets, project configurations, dashboards, sensor readings, or device tokens to any server we operate.</li>
+<li>Use advertising IDs or run advertising SDKs.</li>
+<li>Sell or share data with brokers, advertisers, or analytics resellers.</li>
+<li>Track you across other apps or websites.</li>
+</ul>
+
+<h2>4. Data we DO collect (opt-in, via Firebase)</h2>
+<p>The mobile app integrates <strong>Firebase Crashlytics</strong> and <strong>Firebase Analytics</strong> from Google to help us catch bugs and understand how the app is used at an aggregate level. Both are <strong>opt-in</strong>: when you first launch the app, you are asked to accept the Privacy Policy and Terms of Service; analytics collection only starts after that explicit acceptance. You can disable analytics at any time from the Resources screen in the app.</p>
+<p>When enabled, Firebase may collect:</p>
+<ul>
+<li><strong>Crash reports</strong> — stack traces of app crashes, the device model, the OS version, the app version. Used to fix bugs.</li>
+<li><strong>Anonymous usage events</strong> — for example: "the user opened Direct Mode", "the user added a widget", "the user signed in to a server". No content. No personally identifiable information.</li>
+<li><strong>Pseudonymous device identifier</strong> issued by Firebase — used to deduplicate sessions, not linked to any user account on our side.</li>
+</ul>
+<p>We do not link Firebase data to your IoT activity. Firebase data is processed by Google under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
+<p>To disable analytics and crash reporting:</p>
+<blockquote>Mobile app → Resources tab → Settings → Analytics opt-in: OFF</blockquote>
+<p>Disabling stops further collection. Past anonymous data already on Firebase is automatically deleted after Firebase's standard retention window (typically 14 months for Analytics, 90 days for Crashlytics events).</p>
+
+<h2>5. Data stored locally on your device</h2>
+<p>The mobile app stores the following on your phone, using Android DataStore / iOS UserDefaults and Room SQLite:</p>
+<ul>
+<li>Projects and dashboards you create</li>
+<li>Widget configurations and their last-known values (for restoring state)</li>
+<li>Connection settings (Wi-Fi SSIDs you joined for SoftAP devices, server addresses, JWT tokens for the servers you signed into)</li>
+<li>App preferences (theme, language, analytics opt-in)</li>
+</ul>
+<p>This data stays on your device. Uninstalling the app removes it. You can also clear it from Android Settings → Apps → InstantIoT → Storage → Clear data.</p>
+
+<h2>6. Data on your self-hosted InstantIoT Server (Server Mode)</h2>
+<p>If you choose Server Mode, you install and run the <strong>InstantIoT Server</strong> yourself. The server stores, on its own machine:</p>
+<ul>
+<li>A SQLite database with: user accounts (you create them), projects, devices, widget definitions, time-series history of sensor values.</li>
+<li>A JWT secret used to sign authentication tokens.</li>
+<li>Automatic SQLite backups in a folder under your home directory.</li>
+</ul>
+<p><strong>The Maintainer never sees this data.</strong> You are the data controller for everything on your self-hosted server. Anyone you give access to that server can see what is on it; secure it accordingly.</p>
+<p>The server is open source under <strong>GNU AGPLv3</strong>. You can audit it. Source: <a href="https://github.com/jeanloickdt/instantiot-server" target="_blank" rel="noopener">https://github.com/jeanloickdt/instantiot-server</a></p>
+
+<h2>7. Data flowing on your Arduino board</h2>
+<p>The InstantIoT Arduino library, running on your board, transmits widget commands and sensor values over Wi-Fi or Bluetooth to either:</p>
+<ul>
+<li>Your phone (Direct Mode), or</li>
+<li>Your self-hosted InstantIoT Server (Server Mode).</li>
+</ul>
+<p>It does not connect to any other endpoint. The library is open source under <strong>MIT</strong>. Source: <a href="https://github.com/jeanloickdt/InstantIoT" target="_blank" rel="noopener">https://github.com/jeanloickdt/InstantIoT</a></p>
+
+<h2>8. Permissions used by the mobile app</h2>
+<p>The app requests the following permissions, only when needed:</p>
+
+<p><strong>Android</strong></p>
+<ul>
+<li><strong>Bluetooth</strong> (<code>BLUETOOTH_SCAN</code> / <code>BLUETOOTH_CONNECT</code> and legacy variants on Android ≤ 11) — to discover and pair with Bluetooth-capable boards (preview feature).</li>
+<li><strong>Wi-Fi</strong> (<code>ACCESS_WIFI_STATE</code>, <code>CHANGE_WIFI_STATE</code>, <code>NEARBY_WIFI_DEVICES</code> on Android 13+) — to scan for and join the SoftAP Wi-Fi networks broadcast by your boards.</li>
+<li><strong>Network</strong> (<code>INTERNET</code>, <code>ACCESS_NETWORK_STATE</code>, <code>CHANGE_NETWORK_STATE</code>) — required to reach your local Wi-Fi devices and any InstantIoT Server you connect to.</li>
+<li><strong>Location</strong> (<code>ACCESS_COARSE_LOCATION</code> on Android ≤ 12, <code>ACCESS_FINE_LOCATION</code>) — Android requires location permission to obtain Wi-Fi scan results on Android 12 and below. We <strong>do not access, store, or transmit your physical location</strong>; we only need the scan results.</li>
+<li><strong>POST_NOTIFICATIONS</strong> (Android 13+) — to show local notifications when your boards trigger alerts (e.g. an Emergency Button event).</li>
+</ul>
+
+<p><strong>iOS</strong></p>
+<ul>
+<li><strong>NSBluetoothAlwaysUsageDescription</strong> — for Bluetooth discovery (preview).</li>
+<li><strong>NSLocalNetworkUsageDescription</strong> — required by iOS 14+ to communicate with local devices on your Wi-Fi.</li>
+<li><strong>NSBonjourServices: <code>_instantiot._tcp</code></strong> — to discover InstantIoT Servers on your LAN via mDNS.</li>
+<li><strong><code>com.apple.developer.networking.HotspotConfiguration</code></strong> — to programmatically join the SoftAP Wi-Fi network of a board.</li>
+</ul>
+
+<p>None of these permissions are used to collect personal data; they exist only to support the app's core IoT functions.</p>
+
+<h2>9. Third-party services</h2>
+<table>
+<thead>
+<tr><th>Service</th><th>Purpose</th><th>Optional?</th><th>Where data goes</th></tr>
+</thead>
+<tbody>
+<tr><td>Firebase Crashlytics (Google)</td><td>Crash reports for bug fixing</td><td>Yes — opt-in</td><td>Google servers under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's policy</a></td></tr>
+<tr><td>Firebase Analytics (Google)</td><td>Anonymous usage events</td><td>Yes — opt-in</td><td>Same</td></tr>
+</tbody>
+</table>
+<p>The app does not embed any other third-party SDK that transmits data off-device.</p>
+
+<h2>10. Children's privacy</h2>
+<p>InstantIoT is a maker / DIY electronics tool aimed at developers and hobbyists. It does not knowingly collect personal data from children. It contains no advertising and complies with Google Play's Families program where applicable.</p>
+
+<h2>11. International users</h2>
+<p>The app can be used worldwide. Your IoT data stays on your phone and your self-hosted server, both of which are physically wherever you are. Firebase data (if you opt in) is processed by Google on infrastructure that may include the United States and the European Union; refer to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's policy</a> for details.</p>
+<p>If you are in the EU / EEA / UK, you have the right under the GDPR to access, rectify, erase, restrict, or port any personal data we hold about you. Because we only hold anonymous Firebase data (and only if you opted in), in practice the most effective way to exercise these rights is:</p>
+<ol>
+<li>Disable analytics in the app (see Section 4), which stops further collection.</li>
+<li>Email us at <a href="mailto:bonjour@jeanloickdt.com">bonjour@jeanloickdt.com</a> — we will forward Firebase deletion requests to Google if needed.</li>
+</ol>
+
+<h2>12. Security</h2>
+<ul>
+<li>The mobile app uses Android Keystore / iOS Keychain (where available) to protect server JWT tokens.</li>
+<li>The self-hosted server uses bcrypt (or equivalent) for password hashing and HS256 JWT for session tokens.</li>
+<li>TLS is supported by the server when you put it behind a reverse proxy with a certificate; in pure LAN mode, traffic is plain TCP / WebSocket within your network.</li>
+<li>Bluetooth / Wi-Fi SoftAP communications are not encrypted by default beyond the link-layer protections of those protocols. If you transmit sensitive data, prefer Server Mode behind TLS.</li>
+</ul>
+
+<h2>13. Changes to this policy</h2>
+<p>We may update this policy when the app or the ecosystem evolves. Material changes will be reflected by updating the "Last updated" date at the top, and where appropriate, surfaced in-app at the next launch. Continued use after an update constitutes acceptance.</p>
+
+<div class="contact">
+<h2>14. Contact</h2>
+<p>For any question about this policy, your data, or to exercise a privacy right:</p>
+<p><strong>Maintainer:</strong> Djoufack Tsobeng Jean Loick</p>
+<p><strong>General contact:</strong> <a href="mailto:bonjour@jeanloickdt.com">bonjour@jeanloickdt.com</a></p>
+<p><strong>App support:</strong> <a href="mailto:rejoindre@instantiot.io">rejoindre@instantiot.io</a></p>
+<p>The terms governing the use of the app are available at <a href="https://instantiot.io/terms-of-service/">https://instantiot.io/terms-of-service/</a>.</p>
+</div>
+
+</div>
