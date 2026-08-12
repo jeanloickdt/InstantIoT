@@ -154,6 +154,15 @@ private:
             }
             delay(100);
         }
+        // WiFiS3 annonce WL_CONNECTED AVANT la fin du DHCP → attendre une IP
+        // valide, sinon la connexion serveur part sans réseau (0.0.0.0).
+        while (WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+            if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
+                IIOT_LOG("[WiFiR4] No DHCP IP (still 0.0.0.0)");
+                return false;
+            }
+            delay(100);
+        }
         IIOT_LOG_VAL("[WiFiR4] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -161,7 +170,10 @@ private:
     bool connectServer() {
         IIOT_LOG_2("[WiFiR4] TCP connecting: ", serverIp_, ":", serverPort_);
 
-        client_.setConnectionTimeout(INSTANTIOT_TCP_CONNECT_TIMEOUT_MS);
+        // NB : on n'appelle PAS setConnectionTimeout() — un timeout non nul
+        // fait basculer WiFiClient::connect() sur la commande modem
+        // _CLIENTCONNECT (capricieuse) au lieu de _CLIENTCONNECTNAME, le
+        // chemin standard fiable de WiFiS3. Laisser le défaut (0).
         if (!client_.connect(serverIp_, serverPort_)) {
             IIOT_LOG("[WiFiR4] TCP connect FAILED");
             return false;
