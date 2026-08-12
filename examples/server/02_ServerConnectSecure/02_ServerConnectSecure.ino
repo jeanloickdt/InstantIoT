@@ -13,7 +13,8 @@
  *   4. Library sends TYPE_HEARTBEAT frames periodically
  *   5. Local blink: built-in LED + log state every 2s
  *
- * Board : ESP32 only (does TLS comfortably)
+ * Boards: ESP32 and Arduino Uno R4 WiFi (both do TLS; on the R4
+ *         the TLS runs on the onboard ESP32-S3 modem)
  *
  * Before flashing, replace:
  *   WIFI_SSID, WIFI_PASS   → your router
@@ -32,7 +33,10 @@ const char* WIFI_PASS = "MyPassword";
 const char* SERVER_HOST  = "instantiot.cloud";   // hostname, pas une IP
 const char* DEVICE_TOKEN = "PASTE_TOKEN_HERE";
 
-#define LED_PIN 2  // Built-in LED on most ESP32 dev boards
+#ifndef LED_BUILTIN
+  #define LED_BUILTIN 2   // fallback for ESP32 boards without it defined
+#endif
+#define LED_PIN LED_BUILTIN  // ESP32 ≈ 2, Uno R4 WiFi = 13
 
 // Port 9443 par défaut (portier TLS du cloud). Validation du serveur
 // contre les racines Let's Encrypt embarquées.

@@ -8,7 +8,8 @@
  * opens a TCP session to a remote InstantIoT Server.
  *
  * Supported platforms:
- *   - ESP32  (other platforms coming soon)
+ *   - ESP32
+ *   - Arduino Uno R4 WiFi (via WiFiS3)
  *
  * Usage:
  *   #include <InstantIoTWiFiServer.hpp>
@@ -39,8 +40,12 @@
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     #include "transport/wifi/WiFiServerClient_ESP32.hpp"
+    namespace InstantIoT { using InstantWiFiServerTransport = WiFiServerClient_ESP32; }
+#elif defined(ARDUINO_UNOWIFIR4)
+    #include "transport/wifi/WiFiServerClient_R4.hpp"
+    namespace InstantIoT { using InstantWiFiServerTransport = WiFiServerClient_R4; }
 #else
-    #error "InstantIoTWiFiServer: currently only ESP32 is supported"
+    #error "InstantIoTWiFiServer: supported on ESP32 and Arduino Uno R4 WiFi"
 #endif
 
 class InstantIoTWiFiServer : public InstantIoT::InstantIoTCoreBase {
@@ -88,7 +93,5 @@ public:
     bool        isWiFiConnected() const { return _transportImpl.isWiFiConnected(); }
 
 private:
-#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
-    InstantIoT::WiFiServerClient_ESP32 _transportImpl;
-#endif
+    InstantIoT::InstantWiFiServerTransport _transportImpl;
 };
