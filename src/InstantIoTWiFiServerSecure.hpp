@@ -9,7 +9,8 @@
  * InstantIoT Cloud. Le token et les données ne transitent jamais en
  * clair sur internet (jalon M2).
  *
- * Plateformes : ESP32 (l'ESP32 fait le TLS confortablement).
+ * Plateformes : ESP32 et Arduino Uno R4 WiFi. Les deux font le TLS ;
+ * sur le R4 il est déporté sur le modem ESP32-S3 embarqué.
  *
  * Usage :
  *   #include <InstantIoTWiFiServerSecure.hpp>
@@ -39,8 +40,12 @@
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     #include "transport/wifi/WiFiServerClientSecure_ESP32.hpp"
+    namespace InstantIoT { using InstantWiFiSecureTransport = WiFiServerClientSecure_ESP32; }
+#elif defined(ARDUINO_UNOWIFIR4)
+    #include "transport/wifi/WiFiServerClientSecure_R4.hpp"
+    namespace InstantIoT { using InstantWiFiSecureTransport = WiFiServerClientSecure_R4; }
 #else
-    #error "InstantIoTWiFiServerSecure: TLS cloud mode is ESP32-only"
+    #error "InstantIoTWiFiServerSecure: TLS cloud mode is supported on ESP32 and Arduino Uno R4 WiFi"
 #endif
 
 // Port TLS device par défaut du cloud InstantIoT (portier caddy-l4).
@@ -91,5 +96,5 @@ public:
     bool        isWiFiConnected() const { return _transportImpl.isWiFiConnected(); }
 
 private:
-    InstantIoT::WiFiServerClientSecure_ESP32 _transportImpl;
+    InstantIoT::InstantWiFiSecureTransport _transportImpl;
 };
