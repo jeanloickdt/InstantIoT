@@ -67,7 +67,10 @@ public:
       , token_(token)
       , ssid_(nullptr)
       , pass_(nullptr)
-      , caCert_(INSTANTIOT_LE_ROOT_CAS)  // validation par défaut (Let's Encrypt)
+      , caCert_(INSTANTIOT_LE_ROOT_X1)   // défaut R4 : X1 SEUL — le modem WiFiS3
+                                         // n'accepte qu'un cert ; X1 suffit car la
+                                         // chaîne de instantiot.cloud remonte à X1.
+                                         // (X1+X2 concaténés échouent sur le modem.)
       , nextRetryAt_(0)
       , backoffMs_(INSTANTIOT_RECONNECT_BACKOFF_MIN_MS)
       , heartbeatMs_(0)
@@ -168,6 +171,15 @@ private:
             }
             delay(100);
         }
+        // WiFiS3 annonce WL_CONNECTED AVANT la fin du DHCP → attendre une IP
+        // valide, sinon le TLS part sans réseau (localIP == 0.0.0.0).
+        while (WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+            if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
+                IIOT_LOG("[WiFiR4Sec] No DHCP IP (still 0.0.0.0)");
+                return false;
+            }
+            delay(100);
+        }
         IIOT_LOG_VAL("[WiFiR4Sec] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -177,8 +189,9 @@ private:
 
         // Confiance : racine(s) embarquée(s), ou bundle modem si nullptr.
         client_.setCACert(caCert_);
-        client_.setConnectionTimeout(INSTANTIOT_TCP_CONNECT_TIMEOUT_MS);
-
+        // NB : PAS de setConnectionTimeout() — un timeout non nul bascule
+        // connect() sur la commande modem _CLIENTCONNECT (capricieuse) au
+        // lieu de _CLIENTCONNECTNAME (le chemin fiable de WiFiS3).
         if (!client_.connect(serverIp_, serverPort_)) {
             IIOT_LOG("[WiFiR4Sec] TLS connect FAILED (check CA / port / hostname)");
             return false;
