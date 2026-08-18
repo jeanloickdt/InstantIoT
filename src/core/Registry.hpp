@@ -12,6 +12,7 @@
 #include <string.h>
 #include "InstantIoTMessage.hpp"
 #include "BinaryCodec.hpp"
+#include "SignalEvents.hpp"
 
 // ============================================================
 // 📚 PER-WIDGET HANDLER REGISTRY (used by I<Widget>(id) macros)
