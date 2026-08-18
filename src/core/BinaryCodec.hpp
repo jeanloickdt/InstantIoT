@@ -61,6 +61,13 @@ static const uint8_t TYPE_EMERGENCYBUTTON   = 0x11;
 // empty payload.
 static const uint8_t TYPE_HEARTBEAT         = 0xFE;
 
+// InstantIoT 2.0 — the value path. Free: widget types stop at 0x11.
+static const uint8_t TYPE_SIGNAL            = 0x20;
+static const uint8_t SIGNAL_TAG_BOOL        = 0x01;
+static const uint8_t SIGNAL_TAG_INT         = 0x02;
+static const uint8_t SIGNAL_TAG_FLOAT       = 0x03;
+static const uint8_t SIGNAL_TAG_STRING      = 0x04;
+
 // ============================================================
 //  EVENT CODES — Device → App (0x01..0x0E)
 // ============================================================
@@ -416,6 +423,63 @@ public:
         buffer[pos++] = 0xAA;
         buffer[pos++] = 0x01;
         writeU16LE(buffer + pos, len); pos += 2;
+        memcpy(buffer + pos, body, b); pos += b;
+        buffer[pos++] = crc;
+        return pos;
+    }
+
+    // ============================================================
+    //  ENCODE — SIGNAL (InstantIoT 2.0)
+    // ============================================================
+
+    /**
+     * A SIGNAL frame: `InstantIoT.write(I0, 23.4)` on the wire.
+     *
+     * It rides the layout that already exists — a new TYPE code, exactly how
+     * the heartbeat has always cohabited — so gesture frames are untouched and
+     * the server's parser needs no fork.
+     *
+     *   AA | VER | LEN | DEV_COUNT=0 | WID_LEN=1 | addr | TYPE | TAG | value | CRC
+     *
+     * Two slots are reused rather than added: the address takes the WID field
+     * on ONE byte, and the type tag takes the EVENT field. Zero extra byte, and
+     * the whole frame is 14 bytes for a float against 19 for a named widget.
+     *
+     * The board never writes its own id here — DEV_COUNT is 0. The connection
+     * is already authenticated by the device token, so repeating the identity
+     * on every frame would buy nothing and cost bytes.
+     */
+    size_t encodeSignal(
+        uint8_t* buffer,
+        size_t bufferSize,
+        uint8_t address,
+        uint8_t typeTag,
+        const uint8_t* payloadBytes = nullptr,
+        size_t payloadLen = 0
+    ) {
+        uint8_t body[64];
+        size_t b = 0;
+
+        body[b++] = 0;          // DEV_COUNT — the relay knows the board
+        body[b++] = 1;          // WID_LEN — the address is one byte
+        body[b++] = address;
+        body[b++] = TYPE_SIGNAL;
+        body[b++] = typeTag;
+
+        if (payloadBytes && payloadLen > 0) {
+            if (b + payloadLen > sizeof(body)) return 0;
+            memcpy(body + b, payloadBytes, payloadLen);
+            b += payloadLen;
+        }
+
+        uint8_t crc = crc8(body, b);
+        size_t frameSize = 4 + b + 1;
+        if (frameSize > bufferSize) return 0;
+
+        size_t pos = 0;
+        buffer[pos++] = 0xAA;
+        buffer[pos++] = 0x01;
+        writeU16LE(buffer + pos, (uint16_t)b); pos += 2;
         memcpy(buffer + pos, body, b); pos += b;
         buffer[pos++] = crc;
         return pos;
