@@ -1,14 +1,14 @@
 /*************************************************************
- * InstantIoT — Example: signals, both directions
+ * InstantIoT — Example: signals, both directions (Cloud / TLS)
  *
  * A thermostat, complete: the board reports the temperature it
- * measures, and obeys the setpoint the app writes back.
+ * measures, and obeys the setpoint written from the app.
  *
  * The point of the example is the second half. A setpoint is a
  * STATE, not a gesture — so the server stores it and replays it
  * on connect. Unplug the board, plug it back in tomorrow: the
- * ISignal(I5) block runs again with the value that was set, with
- * nobody's phone open and nothing saved in EEPROM.
+ * ISignal(I5, …) block runs again with the value that was set,
+ * with nobody's phone open and nothing saved in EEPROM.
  *
  * Signals to declare in the app, on THIS board:
  *   I0  float   measure   "Température"
@@ -16,45 +16,54 @@
  *   I6  bool    setpoint  "Pompe"
  *   I7  string  setpoint  "Mode"
  *
- * Board : ESP32
+ * Before flashing, replace:
+ *   WIFI_SSID, WIFI_PASS   → your router
+ *   SERVER_HOST            → your cloud hostname (NOT a raw IP:
+ *                            the hostname is needed for SNI)
+ *   DEVICE_TOKEN           → token from the cloud panel
+ *
+ * Self-hosted instead? Two lines change and nothing else:
+ *   #include <InstantIoTWiFiServer.hpp>
+ *   InstantIoTWiFiServer instant(SERVER_IP, 9001, DEVICE_TOKEN);
+ *
+ * Boards: ESP32, Arduino Uno R4 WiFi
  *************************************************************/
 
-#include <InstantIoTWiFiServer.hpp>
+#include <InstantIoTWiFiServerSecure.hpp>
 
-const char* WIFI_SSID      = "YOUR_WIFI_SSID";
-const char* WIFI_PASS      = "YOUR_WIFI_PASSWORD";
-const char* SERVER_IP      = "192.168.1.42";
-const uint16_t SERVER_PORT = 9001;
-const char* DEVICE_TOKEN   = "PASTE_YOUR_DEVICE_TOKEN";
+const char* WIFI_SSID    = "MyWiFi";
+const char* WIFI_PASS    = "MyPassword";
+const char* SERVER_HOST  = "instantiot.cloud";   // hostname, pas une IP
+const char* DEVICE_TOKEN = "PASTE_TOKEN_HERE";
 
 #define SENSOR_PIN 34
 #define PUMP_PIN    4
 
-InstantIoTWiFiServer instant(SERVER_IP, SERVER_PORT, DEVICE_TOKEN);
+// Port 9443 par défaut, identité du serveur vérifiée contre les
+// racines Let's Encrypt embarquées.
+InstantIoTWiFiServerSecure instant(SERVER_HOST, DEVICE_TOKEN);
 
 // ── Ce que le serveur écrit, la carte obéit ─────────────────
+//
+// No WHEN_ guard: a signal has one thing that can happen to it.
+// You write the type of what you receive, because the board is
+// the only place that knows what the address holds.
 
-float setpoint = 19.0;          // survives nothing here — the server does that
+float setpoint = 19.0;
 
-ISignal(I5) {
-    WHEN_WRITTEN(float target) {
-        setpoint = target;
-        Serial.print("Consigne → ");
-        Serial.println(setpoint);
-    }
+ISignal(I5, float target) {
+    setpoint = target;
+    Serial.print("Consigne → ");
+    Serial.println(setpoint);
 };
 
-ISignal(I6) {
-    WHEN_WRITTEN(bool on) {
-        digitalWrite(PUMP_PIN, on ? HIGH : LOW);
-    }
+ISignal(I6, bool on) {
+    digitalWrite(PUMP_PIN, on ? HIGH : LOW);
 };
 
-ISignal(I7) {
-    WHEN_WRITTEN(const char* mode) {
-        Serial.print("Mode → ");
-        Serial.println(mode);
-    }
+ISignal(I7, const char* mode) {
+    Serial.print("Mode → ");
+    Serial.println(mode);
 };
 
 // Optional: everything, including addresses no block above claims.
@@ -66,11 +75,14 @@ void onSignalWritten(const SignalEvent& e) {
 // ── Ce que la carte mesure, le serveur reçoit ───────────────
 
 void setup() {
+    delay(2000);
     Serial.begin(115200);
     pinMode(PUMP_PIN, OUTPUT);
 
-    instant.connectWiFi(WIFI_SSID, WIFI_PASS);
-    instant.begin();
+    if (!instant.begin(WIFI_SSID, WIFI_PASS)) {
+        Serial.println("[ERROR] connexion impossible — voir le log série");
+        // loop() keeps retrying (auto-reconnect with backoff)
+    }
 }
 
 void loop() {

@@ -337,9 +337,14 @@ The board cannot know what the server declared for an address, so `SignalValue`
 carries every reading of itself and the sketch picks one:
 
 ```cpp
-ISignal(I5) { WHEN_WRITTEN(float target) { … } };
-ISignal(I6) { WHEN_WRITTEN(bool on)      { … } };
+ISignal(I5, float target) { … };
+ISignal(I6, bool on)      { … };
 ```
+
+The block becomes an ordinary function of that type, and a generated
+trampoline converts the value on the way in. No `WHEN_` guard: a button sends
+several kinds of event to one id and must sort them, a signal has one thing
+that can happen to it.
 
 The conversion operator is a template, so any target type — `uint8_t` included
 — is an exact match rather than an ambiguity between a handful of fixed

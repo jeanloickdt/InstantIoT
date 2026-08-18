@@ -67,16 +67,19 @@ static int   i5Calls = 0;   static float i5Last = 0;
 static int   i0Calls = 0;   static bool  i0Last = false;
 static int   i5CallsSecond = 0;
 
-ISignal(I5) {
-    WHEN_WRITTEN(float target) { i5Calls++; i5Last = target; }
+ISignal(I5, float target) {
+    i5Calls++;
+    i5Last = target;
 };
 
-ISignal(I5) {
-    WHEN_WRITTEN(float target) { (void)target; i5CallsSecond++; }
+ISignal(I5, float target) {
+    (void)target;
+    i5CallsSecond++;
 };
 
-ISignal(I0) {
-    WHEN_WRITTEN(bool on) { i0Calls++; i0Last = on; }
+ISignal(I0, bool on) {
+    i0Calls++;
+    i0Last = on;
 };
 
 // A widget handler, to prove the new branch did not eat the old path.
@@ -88,8 +91,8 @@ ISimpleButton("btn1") {
 // The capture the example sketch uses for a text signal — here mostly so the
 // macro expansion for a pointer type is compiled, not only the scalar ones.
 static char i9Last[49] = {0};
-ISignal(I9) {
-    WHEN_WRITTEN(const char* mode) { strncpy(i9Last, mode, sizeof(i9Last) - 1); }
+ISignal(I9, const char* mode) {
+    strncpy(i9Last, mode, sizeof(i9Last) - 1);
 };
 
 static int weakCalls = 0;
