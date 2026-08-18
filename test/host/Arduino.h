@@ -46,11 +46,21 @@ inline char* itoa(int v, char* out, int base) {
     return out;
 }
 
-/** A Serial that only has to exist — the tests keep IIOT_DEBUG off. */
+/**
+ * A Serial that RECORDS instead of printing.
+ *
+ * The tests compile with INSTANTIOT_DEBUG on, so the library's diagnostics
+ * become assertable text rather than noise on stdout. A warning nobody can
+ * test is a warning that quietly stops being emitted.
+ */
 struct _FakeSerial {
-    void print(const char*) {}
-    void println(const char*) {}
-    template <typename T> void print(T) {}
-    template <typename T> void println(T) {}
+    std::string log;
+    void clear() { log.clear(); }
+    bool saw(const char* needle) const { return log.find(needle) != std::string::npos; }
+
+    void print(const char* s)   { if (s) log += s; }
+    void println(const char* s) { if (s) log += s; log += "\n"; }
+    template <typename T> void print(T)   {}
+    template <typename T> void println(T) { log += "\n"; }
 };
 static _FakeSerial Serial;

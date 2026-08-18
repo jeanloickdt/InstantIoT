@@ -86,9 +86,18 @@ struct SignalValue {
 
     template <typename T>
     operator T() const {
+        // A text signal read as a number would hand back 0 without a word.
+        // Nothing else can catch this: the server owns the declaration, the
+        // sketch owns the capture, and no compiler sees both.
+        if (tag == SIGNAL_TAG_STRING)
+            IIOT_LOG("[Signal] read as a number, but this signal carries text");
         return SignalCastTo<SignalIsIntegral<T>::value != 0>::template from<T>(integer, number);
     }
 
+    /**
+     * True when the signal is not zero and not empty — a meaning that holds
+     * for all four tags, which is why this one never warns.
+     */
     operator bool()        const { return flag; }
     operator const char*() const { return text(); }
     operator String()      const { return String(text()); }
