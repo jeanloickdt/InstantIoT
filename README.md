@@ -162,6 +162,47 @@ a typo takes a minute to find instead of an evening.
 > `instant.write(I0, v)` sends a value to the *system*. Both work today —
 > see `PROTOCOLE-2.0.md` in the server repository for where each belongs.
 
+### Signals (server → Arduino)
+
+The same addresses in the other direction. The app, a rule, or a schedule
+writes a value, and the board reacts:
+
+```cpp
+float setpoint = 19.0;
+
+ISignal(I5) {
+    WHEN_WRITTEN(float target) { setpoint = target; }
+};
+
+ISignal(I6) {
+    WHEN_WRITTEN(bool on) { digitalWrite(PUMP_PIN, on); }
+};
+
+ISignal(I7) {
+    WHEN_WRITTEN(const char* mode) { applyMode(mode); }
+};
+```
+
+You write the type of the capture, because the board is the only place that
+knows what the signal holds: `float`, `bool`, any integer type, or
+`const char*`. Reading a numeric signal as text says so in the debug log
+rather than handing back an empty string in silence.
+
+**A setpoint survives a reboot.** It is a state, not a gesture — so the server
+stores it and replays it the moment the board reconnects. A pump that was asked
+to run at 19 °C last Tuesday is asked again on Wednesday morning, without the
+app being open. Nothing to request, nothing to persist in EEPROM: the block
+above simply runs again on connect.
+
+For a catch-all — logging, or a board that routes addresses itself:
+
+```cpp
+void onSignalWritten(const SignalEvent& e) {
+    Serial.print("I"); Serial.print(e.address);
+    Serial.print(" = "); Serial.println((float)e.value);
+}
+```
+
 ---
 
 ## Widgets

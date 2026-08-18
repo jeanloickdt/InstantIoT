@@ -85,6 +85,13 @@ ISimpleButton("btn1") {
     WHEN_PRESSED { btnCalls++; }
 };
 
+// The capture the example sketch uses for a text signal — here mostly so the
+// macro expansion for a pointer type is compiled, not only the scalar ones.
+static char i9Last[49] = {0};
+ISignal(I9) {
+    WHEN_WRITTEN(const char* mode) { strncpy(i9Last, mode, sizeof(i9Last) - 1); }
+};
+
 static int weakCalls = 0;
 void onSignalWritten(const SignalEvent& e) { (void)e; weakCalls++; }
 
@@ -305,6 +312,14 @@ int main() {
         int before = weakCalls;
         ok(route(frame, n), "an address nobody listens to is still a valid frame");
         ok(weakCalls == before + 1, "…and reaches the catch-all, which is how you notice");
+    }
+    {
+        uint8_t frame[64];
+        const char* mode = "ECO";
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 9, SIGNAL_TAG_STRING,
+                                      (const uint8_t*)mode, strlen(mode));
+        route(frame, n);
+        ok(strcmp(i9Last, "ECO") == 0, "a text signal reaches a const char* capture");
     }
     {
         // The regression the new branch could have caused: swallowing frames
