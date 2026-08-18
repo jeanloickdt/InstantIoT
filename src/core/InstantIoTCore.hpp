@@ -424,7 +424,9 @@ protected:
 
     void processFrame(const uint8_t* data, size_t len) {
         // A signal first: its address sits where a widget id would, so the
-        // general decoder must never see this frame.
+        // general decoder must never see this frame. Today it would simply
+        // find no case for TYPE 0x20 and give up — the return is here so that
+        // stays true the day a widget type is added near that code.
         if (dispatchSignalFrame(data, len)) return;
 
         DecodedMessage msg;
