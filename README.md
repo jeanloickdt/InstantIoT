@@ -170,23 +170,20 @@ writes a value, and the board reacts:
 ```cpp
 float setpoint = 19.0;
 
-ISignal(I5) {
-    WHEN_WRITTEN(float target) { setpoint = target; }
-};
-
-ISignal(I6) {
-    WHEN_WRITTEN(bool on) { digitalWrite(PUMP_PIN, on); }
-};
-
-ISignal(I7) {
-    WHEN_WRITTEN(const char* mode) { applyMode(mode); }
-};
+ISignal(I5, float target)     { setpoint = target; };
+ISignal(I6, bool on)          { digitalWrite(PUMP_PIN, on); };
+ISignal(I7, const char* mode) { applyMode(mode); };
 ```
 
-You write the type of the capture, because the board is the only place that
-knows what the signal holds: `float`, `bool`, any integer type, or
+You write the type of what you receive, because the board is the only place
+that knows what the address holds: `float`, `bool`, any integer type, or
 `const char*`. Reading a numeric signal as text says so in the debug log
 rather than handing back an empty string in silence.
+
+There is no `WHEN_` guard here, unlike the widget blocks. A button sends
+several *kinds* of event to the same id — press, release, toggle — so its block
+has to sort them. A signal has exactly one thing that can happen to it: it was
+written.
 
 **A setpoint survives a reboot.** It is a state, not a gesture — so the server
 stores it and replays it the moment the board reconnects. A pump that was asked
