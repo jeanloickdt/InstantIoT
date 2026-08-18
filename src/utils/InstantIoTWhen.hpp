@@ -129,6 +129,37 @@
     static void FN(const InstantIoT::EmergencyButtonEvent& e)
 
 // ============================================================
+// 📶 ISignal(ref, decl) — declares a handler for a signal ADDRESS
+//
+//   ISignal(I5, float target) { setpoint = target; };
+//   ISignal(I6, bool on)      { digitalWrite(PUMP, on); };
+//   ISignal(I7, const char* mode) { applyMode(mode); };
+//
+// Keyed on `I0`..`I255` rather than on a string, so dispatch is
+// a byte compare and not a strcmp.
+//
+// There is no `WHEN_` guard here, unlike the widget blocks, and
+// the difference is not an oversight. A button sends several
+// KINDS of event to the same id — press, release, toggle — so its
+// block has to sort them. A signal has exactly one thing that can
+// happen to it: it was written. A `WHEN_WRITTEN` would announce a
+// choice that does not exist.
+//
+// The declaration is written whole because the board is the only
+// place that knows what the address holds. The block becomes an
+// ordinary function taking that type; a trampoline converts the
+// value on the way in.
+// ============================================================
+
+#define ISignal(ref, decl) \
+    _IIO_ISIGNAL_IMPL(ref, decl, _IIO_UID(_iioSigF_), _IIO_UID(_iioSigT_), _IIO_UID(_iioSigR_))
+#define _IIO_ISIGNAL_IMPL(ref, decl, FN, TRAMP, REG)                       \
+    static void FN(decl);                                                  \
+    static void TRAMP(const InstantIoT::SignalEvent& e) { FN(e.value); }   \
+    static InstantIoT::SignalRegistrar REG(ref, &TRAMP);                   \
+    static void FN(decl)
+
+// ============================================================
 // 🧩 Per-type predicates (overloaded) — enable a single
 // `WHEN_RELEASED` that works for Button and Joystick
 // ============================================================
