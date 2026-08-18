@@ -117,6 +117,51 @@ void loop() {
 }
 ```
 
+### Signals (Arduino → server) — **InstantIoT 2.0**
+
+A **signal** is a named value that lives on the server: it can be shown by
+several widgets at once, watched by a rule, and kept as history — or not.
+Where a display widget addresses a *drawing*, a signal addresses the *data*.
+
+Addresses `I0`…`I255` are provided by the library, like `A0`. You declare the
+signal once in the app; the sketch only writes to it.
+
+```cpp
+#include <InstantIoTWiFiServer.hpp>
+
+InstantIoTWiFiServer instant(SERVER_IP, SERVER_PORT, DEVICE_TOKEN);
+
+void loop() {
+    instant.loop();
+
+    instant.write(I0, readTemperature());   // float
+    instant.write(I1, digitalRead(PIN));    // bool
+    instant.write(I2, rpm);                 // int
+    instant.write(I3, "OK");                // string
+}
+```
+
+**You may call `write()` on every pass of `loop()`.** The library applies the
+platform ceiling — the same frames-per-second the server's fuse enforces — so a
+sketch without a `delay()` can no longer get itself disconnected for flooding.
+`write()` returns `false` when the ceiling swallowed the call; that is not an
+error, and most sketches ignore it.
+
+Two things the compiler catches for you:
+
+- `instant.write(IO, x)` — capital O instead of zero — **does not compile**.
+- declaring your own `I1` gives a redefinition error, not a puzzling message
+  about a string literal.
+
+And one thing the server catches: writing to an address **not declared on this
+board** is refused. It is no longer silent — the relay logs it with a count, so
+a typo takes a minute to find instead of an evening.
+
+> **Signals vs display widgets.** `instant.gauge("g1").setValue(v)` sends a value
+> to *one drawing*; nothing is stored, nothing is shared, no rule can read it.
+> `instant.write(I0, v)` sends a value to the *system*. Both work today —
+> see `PROTOCOLE-2.0.md` in the server repository for where each belongs.
+
 ---
 
 ## Widgets

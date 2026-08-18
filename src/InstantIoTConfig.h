@@ -164,3 +164,13 @@
     #define IIOT_LOG_2(m1,v1,m2,v2)
     #define IIOT_LOG_3(m1,v1,m2,v2,m3,v3)
 #endif
+// ============================================================
+//  SIGNALS (InstantIoT 2.0)
+// ============================================================
+// The ceiling a board applies to its own signal frames until the server
+// pushes the real one at connection. Same value as the server's fuse, so a
+// board that never hears from the server still behaves — and a sketch that
+// writes in loop() without a delay can no longer get itself disconnected.
+#ifndef INSTANTIOT_DEFAULT_SIGNAL_RATE
+#define INSTANTIOT_DEFAULT_SIGNAL_RATE 50
+#endif

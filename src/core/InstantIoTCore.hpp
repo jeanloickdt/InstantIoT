@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include "Transport.h"
 #include "BinaryCodec.hpp"
+#include "InstantIoTSignals.hpp"
 #include "Registry.hpp"
 #include "InstantIoTDeviceConfig.hpp"
 #include "InstantIoTMessage.hpp"
@@ -100,6 +101,28 @@ public:
         return _transport.connected();
     }
 
+    /**
+     * One place decides whether a signal frame leaves.
+     *
+     * A single global ceiling, not a per-signal budget: the constraint comes
+     * from the platform, never from the user, and one counter is all a small
+     * board should spend on it.
+     */
+    bool sendSignal(uint8_t address, uint8_t tag, const uint8_t* payload, size_t len) {
+        if (!_transport.connected()) return false;
+
+        uint32_t now = millis();
+        uint32_t minGap = 1000UL / (_signalRatePerSecond ? _signalRatePerSecond : 1);
+        if (_lastSignalAt != 0 && (now - _lastSignalAt) < minGap) return false;
+
+        size_t n = _codec.encodeSignal(_txBuffer, sizeof(_txBuffer), address, tag, payload, len);
+        if (n == 0) return false;
+        if (_transport.write(_txBuffer, n) != n) return false;
+
+        _lastSignalAt = now;
+        return true;
+    }
+
     bool sendBinary(
         const char* widgetId,
         uint8_t typeCode,
@@ -121,6 +144,60 @@ public:
 
         if (len == 0) return false;
         return _transport.write(_txBuffer, len) == len;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // 📡 SIGNALS (InstantIoT 2.0) — the value path
+    // ════════════════════════════════════════════════════════
+
+    /**
+     * Sends a measure: `InstantIoT.write(I0, readTemp())`.
+     *
+     * The sketch may call this on every pass of `loop()`. The library applies
+     * the platform ceiling — `caps["messages.perSecond"]`, the very number the
+     * server's fuse enforces — so a beginner writing in the main loop can no
+     * longer be disconnected for flooding. It is COOPERATIVE: the server never
+     * trusts it, the fuse stays.
+     *
+     * @return true when a frame actually left. `false` means the ceiling
+     *         swallowed this call, which is not an error.
+     */
+    bool write(SignalRef sig, float value) {
+        uint8_t p[4];
+        writeFloatLE(p, value);
+        return sendSignal(sig.addr, SIGNAL_TAG_FLOAT, p, 4);
+    }
+
+    bool write(SignalRef sig, bool value) {
+        uint8_t p[1] = { (uint8_t)(value ? 1 : 0) };
+        return sendSignal(sig.addr, SIGNAL_TAG_BOOL, p, 1);
+    }
+
+    bool write(SignalRef sig, int value) {
+        uint8_t p[4];
+        p[0] = (uint8_t)(value & 0xFF);
+        p[1] = (uint8_t)((value >> 8) & 0xFF);
+        p[2] = (uint8_t)((value >> 16) & 0xFF);
+        p[3] = (uint8_t)((value >> 24) & 0xFF);
+        return sendSignal(sig.addr, SIGNAL_TAG_INT, p, 4);
+    }
+
+    bool write(SignalRef sig, const char* value) {
+        if (!value) return false;
+        size_t n = strlen(value);
+        if (n > 48) n = 48;   // a signal carries a value, not a document
+        return sendSignal(sig.addr, SIGNAL_TAG_STRING, (const uint8_t*)value, n);
+    }
+
+    /**
+     * The platform ceiling, in frames per second.
+     *
+     * Compiled default until the server pushes the real one at connection
+     * (étape 4) — deliberately the same value the server's fuse uses, so a
+     * board that never hears from the server still behaves.
+     */
+    void setSignalRateLimit(uint16_t framesPerSecond) {
+        _signalRatePerSecond = framesPerSecond ? framesPerSecond : 1;
     }
 
     // ════════════════════════════════════════════════════════
@@ -245,6 +322,13 @@ protected:
     uint8_t _rxBuffer[INSTANT_RX_BUFFER_SIZE];
     size_t  _rxPos;
     uint8_t _txBuffer[INSTANT_TX_BUFFER_SIZE];
+
+    // ── Signals (2.0) ───────────────────────────────────────
+    // The platform ceiling and the single counter that applies it. One global
+    // pair, not one per address: the constraint is the platform's, and a small
+    // board should not pay a table for it.
+    uint16_t _signalRatePerSecond = INSTANTIOT_DEFAULT_SIGNAL_RATE;
+    uint32_t _lastSignalAt = 0;
 
     bool _initialized;
 
