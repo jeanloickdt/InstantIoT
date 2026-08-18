@@ -9,6 +9,7 @@
 #include "Transport.h"
 #include "BinaryCodec.hpp"
 #include "InstantIoTSignals.hpp"
+#include "SignalEvents.hpp"
 #include "Registry.hpp"
 #include "InstantIoTDeviceConfig.hpp"
 #include "InstantIoTMessage.hpp"
@@ -422,11 +423,46 @@ protected:
     }
 
     void processFrame(const uint8_t* data, size_t len) {
+        // A signal first: its address sits where a widget id would, so the
+        // general decoder must never see this frame.
+        if (dispatchSignalFrame(data, len)) return;
+
         DecodedMessage msg;
         uint8_t typeCode = 0, eventCode = 0;
         if (!_codec.decode(data, len, msg, typeCode, eventCode)) return;
         WidgetRegistry::dispatch(typeCode, msg.widgetId, eventCode, msg);
     }
+
+    /**
+     * Returns true once the frame has been recognised as a signal — whether or
+     * not a handler was listening, and whether or not the payload made sense.
+     * A malformed signal is still a signal; handing it to the widget decoder
+     * afterwards could only produce nonsense.
+     */
+    bool dispatchSignalFrame(const uint8_t* data, size_t len) {
+        uint8_t address = 0, tag = 0;
+        const uint8_t* payload = nullptr;
+        size_t payloadLen = 0;
+
+        if (!BinaryCodec::decodeSignal(data, len, address, tag, payload, payloadLen))
+            return false;
+
+        SignalEvent e;
+        e.address = address;
+        if (!decodeSignalValue(tag, payload, payloadLen, e.value,
+                               _signalText, sizeof(_signalText)))
+            return true;
+
+        onSignalWritten(e);
+        dispatchSignal(e);
+        return true;
+    }
+
+    /**
+     * Where a text payload is terminated. 48 characters is what the server
+     * accepts, so a longer one was already cut before it reached the wire.
+     */
+    char _signalText[49] = {0};
 };
 
 } // namespace InstantIoT

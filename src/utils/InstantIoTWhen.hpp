@@ -129,6 +129,21 @@
     static void FN(const InstantIoT::EmergencyButtonEvent& e)
 
 // ============================================================
+// 📶 ISignal(ref) — declares a handler for a signal ADDRESS
+//
+// Same shape as the widget blocks, but keyed on `I0`..`I255`
+// rather than on a string, so dispatch is a byte compare:
+//
+//   ISignal(I5) { WHEN_WRITTEN(float target) { … } };
+// ============================================================
+
+#define ISignal(ref) _IIO_ISIGNAL_IMPL(ref, _IIO_UID(_iioSigF_), _IIO_UID(_iioSigR_))
+#define _IIO_ISIGNAL_IMPL(ref, FN, REG)                                    \
+    static void FN(const InstantIoT::SignalEvent&);                        \
+    static InstantIoT::SignalRegistrar REG(ref, &FN);                      \
+    static void FN(const InstantIoT::SignalEvent& e)
+
+// ============================================================
 // 🧩 Per-type predicates (overloaded) — enable a single
 // `WHEN_RELEASED` that works for Button and Joystick
 // ============================================================
@@ -266,3 +281,16 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // ============================================================
 #define WHEN_TRIGGERED  if (InstantIoT::_whenTriggered(e))
 #define WHEN_RESET      if (InstantIoT::_whenReset(e))
+
+// ============================================================
+// 📶 SIGNAL
+// ============================================================
+// The declaration is written whole, because the sketch is the
+// only place that knows what the signal holds:
+//
+//   WHEN_WRITTEN(float target)   WHEN_WRITTEN(bool on)
+//   WHEN_WRITTEN(long count)     WHEN_WRITTEN(const char* mode)
+//
+// There is no kind to test: a signal that arrives was written.
+// The `if` is there only to open the scope of the capture.
+#define WHEN_WRITTEN(decl) if (decl = e.value; true)
