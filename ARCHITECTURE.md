@@ -302,6 +302,66 @@ simply produce wrong values in somebody's history, in silence.
 
 If you change `encodeSignal`, that test must change with it, deliberately.
 
+### The other direction — a signal arriving
+
+```
+_transport.read(...) → frame assembled → processFrame(data, len)
+  │
+  ├─ BinaryCodec::decodeSignal(...)  ── not a signal ──▶ the widget path, untouched
+  │      • DEV_COUNT must be 0, WID_LEN must be 1, TYPE must be 0x20
+  │      • CRC checked only once those three hold
+  │      • reads the address as the BYTE it is
+  ▼
+decodeSignalValue(tag, payload, …) → SignalValue
+  │      • int32 is kept as an integer, never round-tripped through a float
+  │      • a text is copied into the core's 49-byte buffer and terminated
+  ▼
+onSignalWritten(e)  then  dispatchSignal(e)
+       • one uint8 compare per registered block — no strcmp anywhere
+```
+
+### Why the discriminator has to come first
+
+`decode()` reads the `WID` slot with `readString`: a length byte, then that
+many bytes. A signal puts a raw address there — so `I0` would read as an empty
+string and `I4` would swallow the four bytes behind it, TYPE and TAG included.
+`decodeSignal` therefore runs first and claims the frame or declines it.
+
+Declining is the delicate part, and it rests entirely on the TYPE byte: a
+widget frame with no device list and a one-character id has *exactly* the same
+shape as a signal. That case is in the host tests.
+
+### The handler is not typed, the capture is
+
+The board cannot know what the server declared for an address, so `SignalValue`
+carries every reading of itself and the sketch picks one:
+
+```cpp
+ISignal(I5, float target) { … };
+ISignal(I6, bool on)      { … };
+```
+
+The block becomes an ordinary function of that type, and a generated
+trampoline converts the value on the way in. No `WHEN_` guard: a button sends
+several kinds of event to one id and must sort them, a signal has one thing
+that can happen to it.
+
+The conversion operator is a template, so any target type — `uint8_t` included
+— is an exact match rather than an ambiguity between a handful of fixed
+operators. `bool` and text have their own conversions: 0.5 must read as *true*
+and not truncate to 0 first, and a non-empty text is true.
+
+### Running the host tests
+
+```
+./test/host/run.sh
+```
+
+Compiles `test/host/test_signals.cpp` with g++ against a 40-line `Arduino.h`
+shim and runs it in about a second. It pins the golden frames byte for byte
+against the server's, and routes them through the real `processFrame` — not a
+copy of it, because a copy keeps passing on the day the original changes.
+
 ---
 
 ## 7. Transports — the `ITransport` contract

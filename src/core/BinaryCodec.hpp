@@ -489,6 +489,55 @@ public:
     //  DECODE — binary frame → DecodedMessage
     // ============================================================
 
+    /**
+     * A SIGNAL frame, read without the string machinery.
+     *
+     * `decode()` cannot be used for this: it reads the WID slot as a length-
+     * prefixed string, and a signal puts a raw address byte there. `I0` would
+     * be read as a zero-length string and `I4` would swallow the four bytes
+     * behind it. So the address is read here, as the byte it is.
+     *
+     * Returns false for anything that is not a well-formed signal frame —
+     * including every ordinary widget frame, which is what makes this usable
+     * as the discriminator before the general decoder.
+     */
+    static bool decodeSignal(
+        const uint8_t* buffer,
+        size_t length,
+        uint8_t& outAddress,
+        uint8_t& outTag,
+        const uint8_t*& outPayload,
+        size_t& outPayloadLen
+    ) {
+        if (!buffer || length < 6) return false;
+        if (buffer[0] != 0xAA || buffer[1] != 0x01) return false;
+
+        uint16_t len = readU16LE(buffer + 2);
+        if (length < (size_t)(4 + len + 1)) return false;
+
+        // DEV_COUNT + WID_LEN + address + TYPE + TAG
+        if (len < 5) return false;
+
+        const uint8_t* body = buffer + 4;
+
+        // Checked before the CRC so an ordinary widget frame is not charged
+        // for a checksum its own decoder is about to compute again.
+        if (body[0] != 0x00) return false;   // a signal carries no device list
+        if (body[1] != 0x01) return false;   // the address is exactly one byte
+        if (body[3] != TYPE_SIGNAL) return false;
+
+        if (crc8(body, len) != body[len]) {
+            IIOT_LOG("[Signal] CRC mismatch");
+            return false;
+        }
+
+        outAddress    = body[2];
+        outTag        = body[4];
+        outPayload    = body + 5;
+        outPayloadLen = (size_t)len - 5;
+        return true;
+    }
+
     bool decode(
         const uint8_t* buffer,
         size_t length,

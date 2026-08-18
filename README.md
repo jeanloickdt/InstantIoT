@@ -162,6 +162,57 @@ a typo takes a minute to find instead of an evening.
 > `instant.write(I0, v)` sends a value to the *system*. Both work today —
 > see `PROTOCOLE-2.0.md` in the server repository for where each belongs.
 
+### Signals (server → Arduino)
+
+The same addresses in the other direction. The app, a rule, or a schedule
+writes a value, and the board reacts:
+
+```cpp
+float setpoint = 19.0;
+
+ISignal(I5, float target)     { setpoint = target; };
+ISignal(I6, bool on)          { digitalWrite(PUMP_PIN, on); };
+ISignal(I7, const char* mode) { applyMode(mode); };
+```
+
+You write the type of what you receive: `float`, `bool`, any integer type, or
+`const char*`.
+
+**Nothing is declared in the sketch.** The label, unit, type, bounds, direction
+and history of a signal live on the server, declared once in the app. The
+sketch knows a number, the way it knows `A0`.
+
+The one consequence: the server owns the type and the sketch owns the capture,
+and no compiler sees both. Most disagreements are harmless — a `bool` read as a
+`float` gives 1.0, an `int` too. The one that lies is a **text** signal read as
+a number, which would hand back `0` looking like a real reading. That case, and
+its mirror, say so in the debug log:
+
+```
+[Signal] read as a number, but this signal carries text
+[Signal] read as text, but this signal is not a text signal
+```
+
+There is no `WHEN_` guard here, unlike the widget blocks. A button sends
+several *kinds* of event to the same id — press, release, toggle — so its block
+has to sort them. A signal has exactly one thing that can happen to it: it was
+written.
+
+**A setpoint survives a reboot.** It is a state, not a gesture — so the server
+stores it and replays it the moment the board reconnects. A pump that was asked
+to run at 19 °C last Tuesday is asked again on Wednesday morning, without the
+app being open. Nothing to request, nothing to persist in EEPROM: the block
+above simply runs again on connect.
+
+For a catch-all — logging, or a board that routes addresses itself:
+
+```cpp
+void onSignalWritten(const SignalEvent& e) {
+    Serial.print("I"); Serial.print(e.address);
+    Serial.print(" = "); Serial.println((float)e.value);
+}
+```
+
 ---
 
 ## Widgets
