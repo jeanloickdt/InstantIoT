@@ -277,6 +277,53 @@ int main() {
         ok((bool)p.value, "a bool payload of 2 is still true");
     }
 
+    section("Le desaccord entre la declaration et la capture");
+    {
+        // The server owns the type, the sketch owns the capture, and no
+        // compiler sees both. The only mismatch that lies outright is a text
+        // read as a number: it hands back 0 and looks like a real reading.
+        uint8_t frame[64];
+        const char* mode = "ECO";
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_STRING,
+                                      (const uint8_t*)mode, strlen(mode));
+        Parsed p = parse(frame, n);
+
+        Serial.clear();
+        float asFloat = p.value;
+        ok(asFloat == 0.0f, "a text read as a number gives 0…");
+        ok(Serial.saw("carries text"), "…and says so, which is the only warning there can be");
+
+        Serial.clear();
+        int asInt = p.value; (void)asInt;
+        ok(Serial.saw("carries text"), "any numeric type, not just float");
+
+        Serial.clear();
+        const char* asText = p.value; (void)asText;
+        ok(!Serial.saw("carries text") && !Serial.saw("not a text signal"),
+           "reading it the declared way stays quiet");
+
+        Serial.clear();
+        bool asBool = p.value;
+        ok(asBool && !Serial.saw("carries text"),
+           "a bool never warns: not-empty is a meaning that holds for every tag");
+    }
+    {
+        uint8_t frame[64];
+        uint8_t payload[4];
+        float v = 23.4f;
+        memcpy(payload, &v, 4);
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_FLOAT, payload, 4);
+        Parsed p = parse(frame, n);
+
+        Serial.clear();
+        float asFloat = p.value; (void)asFloat;
+        ok(!Serial.saw("carries text"), "a float read as a float says nothing");
+
+        Serial.clear();
+        const char* asText = p.value; (void)asText;
+        ok(Serial.saw("not a text signal"), "…and the mirror case warns too");
+    }
+
     section("Les charges utiles qui ne tiennent pas leur promesse");
     {
         uint8_t frame[64];

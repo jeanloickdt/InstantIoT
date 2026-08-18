@@ -175,10 +175,23 @@ ISignal(I6, bool on)          { digitalWrite(PUMP_PIN, on); };
 ISignal(I7, const char* mode) { applyMode(mode); };
 ```
 
-You write the type of what you receive, because the board is the only place
-that knows what the address holds: `float`, `bool`, any integer type, or
-`const char*`. Reading a numeric signal as text says so in the debug log
-rather than handing back an empty string in silence.
+You write the type of what you receive: `float`, `bool`, any integer type, or
+`const char*`.
+
+**Nothing is declared in the sketch.** The label, unit, type, bounds, direction
+and history of a signal live on the server, declared once in the app. The
+sketch knows a number, the way it knows `A0`.
+
+The one consequence: the server owns the type and the sketch owns the capture,
+and no compiler sees both. Most disagreements are harmless — a `bool` read as a
+`float` gives 1.0, an `int` too. The one that lies is a **text** signal read as
+a number, which would hand back `0` looking like a real reading. That case, and
+its mirror, say so in the debug log:
+
+```
+[Signal] read as a number, but this signal carries text
+[Signal] read as text, but this signal is not a text signal
+```
 
 There is no `WHEN_` guard here, unlike the widget blocks. A button sends
 several *kinds* of event to the same id — press, release, toggle — so its block
