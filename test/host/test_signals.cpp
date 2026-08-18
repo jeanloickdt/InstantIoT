@@ -13,6 +13,7 @@
 
 #include "../../src/core/BinaryCodec.hpp"
 #include "../../src/core/SignalEvents.hpp"
+#include "../../src/core/InstantIoTCore.hpp"
 #include "../../src/utils/InstantIoTWhen.hpp"
 
 using namespace InstantIoT;
@@ -78,24 +79,42 @@ ISignal(I0) {
     WHEN_WRITTEN(bool on) { i0Calls++; i0Last = on; }
 };
 
+// A widget handler, to prove the new branch did not eat the old path.
+static int btnCalls = 0;
+ISimpleButton("btn1") {
+    WHEN_PRESSED { btnCalls++; }
+};
+
 static int weakCalls = 0;
 void onSignalWritten(const SignalEvent& e) { (void)e; weakCalls++; }
 
-// ── Un routeur minimal, le même que celui du coeur ────────────────────────
+// ── Le vrai coeur, avec un transport qui ne transporte rien ───────────────
+//
+// The routing is tested through InstantIoTCoreBase::processFrame itself
+// rather than a copy of it, because a copy would keep passing on the day the
+// real one changes.
 
-static char routerText[49];
+struct NullTransport : ITransport {
+    bool   begin() override                        { return true; }
+    void   poll() override                         {}
+    bool   connected() override                    { return true; }
+    int    available() override                    { return 0; }
+    int    read(uint8_t*, size_t) override         { return 0; }
+    size_t write(const uint8_t*, size_t len) override { return len; }
+};
+
+static NullTransport nullTransport;
+
+struct TestCore : InstantIoT::InstantIoTCoreBase {
+    TestCore() : InstantIoTCoreBase(nullTransport) {}
+    using InstantIoTCoreBase::processFrame;
+};
+
+static TestCore core;
 static bool route(const uint8_t* frame, size_t len) {
-    uint8_t address = 0, tag = 0;
-    const uint8_t* payload = nullptr;
-    size_t payloadLen = 0;
-    if (!BinaryCodec::decodeSignal(frame, len, address, tag, payload, payloadLen)) return false;
-    SignalEvent e;
-    e.address = address;
-    if (!decodeSignalValue(tag, payload, payloadLen, e.value, routerText, sizeof(routerText)))
-        return true;
-    onSignalWritten(e);
-    dispatchSignal(e);
-    return true;
+    int before = weakCalls;
+    core.processFrame(frame, len);
+    return weakCalls > before;
 }
 
 int main() {
@@ -228,6 +247,19 @@ int main() {
         ok(!(bool)p.value, "0.0 is false");
     }
     {
+        // The one reading the numeric conversion cannot express: a text is
+        // true when there is text. Without a bool conversion of its own, an
+        // empty string and "MAINTENANCE" would both be false.
+        uint8_t frame[64];
+        const char* msg = "MAINTENANCE";
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_STRING,
+                                      (const uint8_t*)msg, strlen(msg));
+        ok((bool)parse(frame, n).value, "a text signal with text in it is true");
+
+        n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_STRING, (const uint8_t*)"", 0);
+        ok(!(bool)parse(frame, n).value, "…and an empty one is false");
+    }
+    {
         uint8_t frame[64];
         uint8_t two[1] = {2};   // anything non-zero
         size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_BOOL, two, 1);
@@ -273,6 +305,16 @@ int main() {
         int before = weakCalls;
         ok(route(frame, n), "an address nobody listens to is still a valid frame");
         ok(weakCalls == before + 1, "…and reaches the catch-all, which is how you notice");
+    }
+    {
+        // The regression the new branch could have caused: swallowing frames
+        // that were never signals in the first place.
+        btnCalls = 0;
+        uint8_t frame[128];
+        size_t n = codec.encode(frame, sizeof(frame), "dev1", "btn1",
+                                TYPE_SIMPLEBUTTON, CMD_PRESS);
+        core.processFrame(frame, n);
+        ok(btnCalls == 1, "a button press still reaches its block, through the same core");
     }
 
     printf("\n%d checks, %d failure%s\n", checks, failures, failures == 1 ? "" : "s");
