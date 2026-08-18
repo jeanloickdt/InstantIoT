@@ -19,3 +19,7 @@ build/
 .idea/
 .vscode/
 *.iml
+
+# Croquis de travail locaux — jamais dans le depot : ils contiennent
+# des identifiants WiFi et des jetons d appareil reels.
+sketches/
