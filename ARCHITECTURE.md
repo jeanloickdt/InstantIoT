@@ -242,6 +242,68 @@ the widget id (fixed-size `char[]`) and the sender reference.
 
 ---
 
+## 6bis. The value path — signals (InstantIoT 2.0)
+
+A signal carries **data**, not a drawing. The two paths never meet: a display
+widget addresses a widget id, a signal addresses one byte.
+
+```
+User code
+  │
+  ▼
+instant.write(I0, 23.4f)
+  │
+  ▼
+InstantIoTCoreBase::write(SignalRef, float)
+   • packs the value LE into a 4-byte buffer
+  │
+  ▼
+InstantIoTCoreBase::sendSignal(address, tag, payload, len)
+   • THE CEILING — one global counter, not a table per address:
+     the constraint comes from the platform, and a small board
+     should not pay a table for it. Returns false, silently, when
+     the call arrives too soon.
+  │
+  ▼
+BinaryCodec::encodeSignal(buffer, address, tag, payload, len)
+   • _transport.write(...)
+```
+
+### Why a second encoder
+
+`BinaryCodec::encode` writes the widget id with `writeString`, which is
+length-prefixed and NUL-terminated. An address of value 0 would be an empty
+string. `encodeSignal` exists for that one reason: it lays the address down as
+a raw byte.
+
+### The frame — it rides the layout that already exists
+
+```
+AA | VER | LEN | DEV_COUNT=0 | WID_LEN=1 | addr | TYPE=0x20 | TAG | value | CRC
+```
+
+Nothing forked. `TYPE_SIGNAL` is a new type code, exactly how `TYPE_HEARTBEAT`
+(0xFE) has always cohabited, so **gesture frames are untouched** and the
+server's parser needs no branch of its own to stay valid.
+
+Two slots are reused rather than added: the address takes `WID` on one byte,
+the type tag takes `EVENT`. Zero extra byte — 14 bytes for a float, against 19
+for the same measure named `"gauge1"`.
+
+`DEV_COUNT` is 0: the board never repeats its own identity, since the
+connection is already authenticated by its token.
+
+### The contract is pinned by a test on the other side
+
+The server repository holds a golden test asserting the exact 14 bytes of
+`write(I5, 23.4f)`. The two repositories are compiled by different toolchains;
+nothing else would catch a reordered field or a flipped endianness — both would
+simply produce wrong values in somebody's history, in silence.
+
+If you change `encodeSignal`, that test must change with it, deliberately.
+
+---
+
 ## 7. Transports — the `ITransport` contract
 
 ```cpp
