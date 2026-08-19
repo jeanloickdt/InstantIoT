@@ -428,6 +428,7 @@ protected:
         // find no case for TYPE 0x20 and give up — the return is here so that
         // stays true the day a widget type is added near that code.
         if (dispatchSignalFrame(data, len)) return;
+        if (dispatchEventFrame(data, len)) return;
 
         DecodedMessage msg;
         uint8_t typeCode = 0, eventCode = 0;
@@ -459,6 +460,59 @@ protected:
         dispatchSignal(e);
         return true;
     }
+
+    /**
+     * Un EVENT adressé par octet.
+     *
+     * Le type de widget ne vient PAS de la trame : il vient de la table que
+     * les blocs du croquis ont remplie au démarrage. `ISimpleButton(I5)` a
+     * inscrit « à l'adresse 5 vit un bouton », et c'est cette inscription —
+     * du code que l'utilisateur relit — qui décide comment lire l'événement.
+     */
+    bool dispatchEventFrame(const uint8_t* data, size_t len) {
+        uint8_t address = 0, eventCode = 0;
+        const uint8_t* payload = nullptr;
+        size_t payloadLen = 0;
+
+        if (!BinaryCodec::decodeEvent(data, len, address, eventCode, payload, payloadLen))
+            return false;
+
+        const uint8_t typeCode = typeAtAddress(address);
+        if (typeCode == 0) {
+            // Personne n'écoute cette adresse. Ce n'est pas une erreur — c'est
+            // la panne que le serveur saura nommer, pas la carte.
+            IIOT_LOG("[Event] no block registered at this address");
+            return true;
+        }
+
+        DecodedMessage msg;
+        msg.paramCount = 0;
+        if (payloadLen > 0)
+            _codec.decodeEventPayload(typeCode, eventCode, payload, payloadLen, msg);
+        msg.deviceId    = "";
+        msg.widgetType  = "";
+        msg.event       = "";
+        msg.dashboardId = "";
+
+        // Un libellé lisible pour les journaux et les rappels faibles ; le
+        // routage, lui, se fait sur l'octet.
+        _eventRef[0] = 'I';
+        formatAddress(address, _eventRef + 1, sizeof(_eventRef) - 1);
+        msg.widgetId = _eventRef;
+
+        WidgetRegistry::dispatch(typeCode, _eventRef, eventCode, msg, &address);
+        return true;
+    }
+
+    static void formatAddress(uint8_t v, char* out, size_t) {
+        if (v >= 100) { *out++ = '0' + (v / 100); v %= 100; *out++ = '0' + (v / 10); }
+        else if (v >= 10) { *out++ = '0' + (v / 10); }
+        *out++ = '0' + (v % 10);
+        *out = '\0';
+    }
+
+    /** `I255` + NUL. */
+    char _eventRef[5] = {0};
 
     /**
      * Where a text payload is terminated. 48 characters is what the server
