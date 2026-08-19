@@ -12,6 +12,7 @@
 #include <string.h>
 #include "InstantIoTMessage.hpp"
 #include "BinaryCodec.hpp"
+#include "InstantIoTSignals.hpp"
 #include "SignalEvents.hpp"
 
 // ============================================================
@@ -32,9 +33,22 @@
 // ============================================================
 namespace InstantIoT {
 
+/**
+ * Un bloc enregistré.
+ *
+ * Deux clés possibles, jamais les deux à la fois :
+ *  - `widgetId` non nul  → adressé par NOM, l'ancien modèle, gelé.
+ *  - `widgetId` nul      → adressé par ADRESSE, `address` fait foi.
+ *
+ * La cohabitation n'est pas une hésitation : elle laisse les croquis
+ * existants compiler et tourner pendant que les nouveaux passent aux
+ * adresses. Le jour où plus personne n'utilise les noms, il n'y a qu'un
+ * champ à retirer.
+ */
 template<typename EventT>
 struct WidgetHandler {
     const char* widgetId;
+    uint8_t     address;
     void (*fn)(const EventT&);
     WidgetHandler<EventT>* next;
 };
@@ -45,24 +59,97 @@ inline WidgetHandler<EventT>*& handlerListHead() {
     return head;
 }
 
+// ============================================================
+// 🗺️ ADRESSE → TYPE DE WIDGET
+//
+// C'est ici que se règle « comment la lib sait que I5 est un
+// SimpleButton » : elle ne le devine pas et la trame ne le dit
+// pas — le bloc du croquis l'a inscrit au démarrage.
+//
+// Le sens de lecture appartient donc au code que l'utilisateur
+// relit, pas à un réglage distant qu'il ne voit pas. C'est
+// l'inverse du modèle où la trame annonce le type : là-bas,
+// changer un widget dans l'app change le sens du croquis sans
+// qu'une ligne ait bougé.
+// ============================================================
+
+struct AddressType {
+    uint8_t      address;
+    uint8_t      typeCode;
+    AddressType* next;
+};
+
+inline AddressType*& addressTypeHead() {
+    static AddressType* head = nullptr;
+    return head;
+}
+
+/** Le type déclaré à cette adresse, ou 0 si aucun bloc ne l'écoute. */
+inline uint8_t typeAtAddress(uint8_t address) {
+    for (AddressType* n = addressTypeHead(); n; n = n->next) {
+        if (n->address == address) return n->typeCode;
+    }
+    return 0;
+}
+
 template<typename EventT>
 struct WidgetRegistrar {
     WidgetHandler<EventT> node;
-    WidgetRegistrar(const char* id, void (*fn)(const EventT&)) {
+    AddressType           typeNode;
+
+    /** Adressé par NOM — l'ancien modèle. */
+    WidgetRegistrar(const char* id, uint8_t /*typeCode*/, void (*fn)(const EventT&)) {
         node.widgetId = id;
+        node.address  = 0;
         node.fn       = fn;
         node.next     = handlerListHead<EventT>();
         handlerListHead<EventT>() = &node;
+        typeNode.next = nullptr;   // rien à inscrire : pas d'adresse
+    }
+
+    /**
+     * Adressé par ADRESSE.
+     *
+     * Le constructeur fait DEUX choses : il accroche le gestionnaire, et il
+     * inscrit « à cette adresse vit ce type de widget ». Écrire le bloc EST
+     * l'enregistrement — rien n'est alloué, les deux nœuds sont membres de ce
+     * registrar, lui-même une variable globale que le compilateur place.
+     */
+    WidgetRegistrar(SignalRef ref, uint8_t typeCode, void (*fn)(const EventT&)) {
+        node.widgetId = nullptr;
+        node.address  = ref.addr;
+        node.fn       = fn;
+        node.next     = handlerListHead<EventT>();
+        handlerListHead<EventT>() = &node;
+
+        typeNode.address  = ref.addr;
+        typeNode.typeCode = typeCode;
+        typeNode.next     = addressTypeHead();
+        addressTypeHead() = &typeNode;
     }
 };
 
+/**
+ * Remet l'événement aux blocs concernés.
+ *
+ * [address] non nul : on livre aux blocs adressés par octet. Nul : aux blocs
+ * adressés par nom. Un même événement ne traverse jamais les deux familles —
+ * sans quoi un bloc nommé « 5 » recevrait ce qui va à l'adresse 5.
+ */
+template<typename EventT>
+inline void deliver(const EventT& e, const uint8_t* address) {
+    for (auto* h = handlerListHead<EventT>(); h; h = h->next) {
+        const bool matches = address
+            ? (h->widgetId == nullptr && h->address == *address)
+            : (h->widgetId != nullptr && e.widgetId && strcmp(h->widgetId, e.widgetId) == 0);
+        if (matches) h->fn(e);
+    }
+}
+
+/** Livraison par nom — conservée pour les appels existants. */
 template<typename EventT>
 inline void dispatchToHandlers(const EventT& e) {
-    for (auto* h = handlerListHead<EventT>(); h; h = h->next) {
-        if (h->widgetId && e.widgetId && strcmp(h->widgetId, e.widgetId) == 0) {
-            h->fn(e);
-        }
-    }
+    deliver(e, nullptr);
 }
 
 } // namespace InstantIoT
@@ -85,11 +172,17 @@ namespace InstantIoT {
 
 class WidgetRegistry {
 public:
+    /**
+     * @param address non nul quand la trame était adressée par octet. Le gros
+     *        `switch` ci-dessous ne change pas d'un cas : seule la LIVRAISON
+     *        finale sait s'il faut comparer des noms ou des adresses.
+     */
     static void dispatch(
         uint8_t typeCode,
         const char* widgetId,
         uint8_t eventCode,
-        const DecodedMessage& msg
+        const DecodedMessage& msg,
+        const uint8_t* address = nullptr
     ) {
         if (!widgetId) return;
 
@@ -108,7 +201,7 @@ public:
                     default: return;
                 }
                 onSimpleButtonEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -125,7 +218,7 @@ public:
                     default: return;
                 }
                 onAdvancedButtonEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -142,7 +235,7 @@ public:
                     default: return;
                 }
                 onHorizontalSliderEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -159,7 +252,7 @@ public:
                     default: return;
                 }
                 onVerticalSliderEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -187,7 +280,7 @@ public:
                     default: return;
                 }
                 onSwitchEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -208,7 +301,7 @@ public:
                     default: return;
                 }
                 onJoystickEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -235,7 +328,7 @@ public:
                     default: return;
                 }
                 onDirectionPadEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -255,7 +348,7 @@ public:
                     default: return;
                 }
                 onSegmentedSwitchEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 
@@ -269,7 +362,7 @@ public:
                     default: return;
                 }
                 onEmergencyButtonEvent(e);
-                InstantIoT::dispatchToHandlers(e);
+                InstantIoT::deliver(e, address);
                 return;
             }
 

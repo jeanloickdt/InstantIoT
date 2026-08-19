@@ -69,63 +69,63 @@
 #define _IIO_ISIMPLEBTN_IMPL(id, FN, REG)                                  \
     static void FN(const InstantIoT::SimpleButtonEvent&);                  \
     static InstantIoT::WidgetRegistrar<InstantIoT::SimpleButtonEvent>      \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_SIMPLEBUTTON, &FN);                                                      \
     static void FN(const InstantIoT::SimpleButtonEvent& e)
 
 #define IAdvancedButton(id) _IIO_IADVBTN_IMPL(id, _IIO_UID(_iioAbF_), _IIO_UID(_iioAbR_))
 #define _IIO_IADVBTN_IMPL(id, FN, REG)                                     \
     static void FN(const InstantIoT::AdvancedButtonEvent&);                \
     static InstantIoT::WidgetRegistrar<InstantIoT::AdvancedButtonEvent>    \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_ADVANCEDBUTTON, &FN);                                                      \
     static void FN(const InstantIoT::AdvancedButtonEvent& e)
 
 #define IJoystick(id) _IIO_IJOY_IMPL(id, _IIO_UID(_iioJyF_), _IIO_UID(_iioJyR_))
 #define _IIO_IJOY_IMPL(id, FN, REG)                                        \
     static void FN(const InstantIoT::JoystickEvent&);                      \
     static InstantIoT::WidgetRegistrar<InstantIoT::JoystickEvent>          \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_JOYSTICK, &FN);                                                      \
     static void FN(const InstantIoT::JoystickEvent& e)
 
 #define IHorizontalSlider(id) _IIO_IHSL_IMPL(id, _IIO_UID(_iioHsF_), _IIO_UID(_iioHsR_))
 #define _IIO_IHSL_IMPL(id, FN, REG)                                        \
     static void FN(const InstantIoT::HorizontalSliderEvent&);              \
     static InstantIoT::WidgetRegistrar<InstantIoT::HorizontalSliderEvent>  \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_HSLIDER, &FN);                                                      \
     static void FN(const InstantIoT::HorizontalSliderEvent& e)
 
 #define IVerticalSlider(id) _IIO_IVSL_IMPL(id, _IIO_UID(_iioVsF_), _IIO_UID(_iioVsR_))
 #define _IIO_IVSL_IMPL(id, FN, REG)                                        \
     static void FN(const InstantIoT::VerticalSliderEvent&);                \
     static InstantIoT::WidgetRegistrar<InstantIoT::VerticalSliderEvent>    \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_VSLIDER, &FN);                                                      \
     static void FN(const InstantIoT::VerticalSliderEvent& e)
 
 #define ISwitch(id) _IIO_ISW_IMPL(id, _IIO_UID(_iioSwF_), _IIO_UID(_iioSwR_))
 #define _IIO_ISW_IMPL(id, FN, REG)                                         \
     static void FN(const InstantIoT::SwitchEvent&);                        \
     static InstantIoT::WidgetRegistrar<InstantIoT::SwitchEvent>            \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_SWITCH, &FN);                                                      \
     static void FN(const InstantIoT::SwitchEvent& e)
 
 #define IDirectionPad(id) _IIO_IDP_IMPL(id, _IIO_UID(_iioDpF_), _IIO_UID(_iioDpR_))
 #define _IIO_IDP_IMPL(id, FN, REG)                                         \
     static void FN(const InstantIoT::DirectionPadEvent&);                  \
     static InstantIoT::WidgetRegistrar<InstantIoT::DirectionPadEvent>      \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_DIRECTIONPAD, &FN);                                                      \
     static void FN(const InstantIoT::DirectionPadEvent& e)
 
 #define ISegmentedSwitch(id) _IIO_ISEG_IMPL(id, _IIO_UID(_iioSgF_), _IIO_UID(_iioSgR_))
 #define _IIO_ISEG_IMPL(id, FN, REG)                                        \
     static void FN(const InstantIoT::SegmentedSwitchEvent&);               \
     static InstantIoT::WidgetRegistrar<InstantIoT::SegmentedSwitchEvent>   \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_SEGSWITCH, &FN);                                                      \
     static void FN(const InstantIoT::SegmentedSwitchEvent& e)
 
 #define IEmergencyButton(id) _IIO_IEMB_IMPL(id, _IIO_UID(_iioEmF_), _IIO_UID(_iioEmR_))
 #define _IIO_IEMB_IMPL(id, FN, REG)                                        \
     static void FN(const InstantIoT::EmergencyButtonEvent&);               \
     static InstantIoT::WidgetRegistrar<InstantIoT::EmergencyButtonEvent>   \
-        REG(id, &FN);                                                      \
+        REG(id, InstantIoT::TYPE_EMERGENCYBUTTON, &FN);                                                      \
     static void FN(const InstantIoT::EmergencyButtonEvent& e)
 
 // ============================================================
