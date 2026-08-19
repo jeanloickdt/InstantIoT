@@ -5,3 +5,7 @@ cd "$(dirname "$0")"
 g++ -std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -I. \
     -o /tmp/instantiot-test-signals test_signals.cpp ../../src/core/Registry.cpp
 /tmp/instantiot-test-signals
+
+g++ -std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -I. \
+    -o /tmp/instantiot-test-events test_events.cpp ../../src/core/Registry.cpp
+/tmp/instantiot-test-events
