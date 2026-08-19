@@ -73,6 +73,16 @@ ISimpleButton(I0) {
 };
 
 // L'ANCIEN modèle, sur le même type de widget — il doit continuer de vivre.
+// Le croisement : un ISignal pose sur une adresse qui recoit des evenements.
+static int i20Signal = 0;
+ISignal(I20, bool on) { (void)on; i20Signal++; };
+
+// Et l'inverse : un bloc de widget sur une adresse qui recoit des valeurs.
+static int i21Widget = 0;
+ISimpleButton(I21) {
+    WHEN_PRESSED { i21Widget++; }
+};
+
 static int pressesOnBtn1 = 0;
 ISimpleButton("btn1") {
     WHEN_PRESSED { pressesOnBtn1++; }
@@ -208,6 +218,48 @@ int main() {
         core.processFrame(frame, 10);   // I9 : aucun bloc
         ok(pressesAtI5 == p && togglesAtI6 == t && movesAtI7 == m,
            "une adresse sans bloc ne declenche rien, et ne plante pas");
+    }
+
+    section("Le croisement se dit, au lieu de se taire");
+    {
+        // Un EVENT sur une adresse ou seul un ISignal ecoute.
+        uint8_t frame[64];
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 20, SIGNAL_TAG_BOOL, (const uint8_t*)"\x01", 1);
+        // ^ c'est un SIGNAL : il doit atteindre le bloc ISignal normalement.
+        i20Signal = 0;
+        Serial.clear();
+        core.processFrame(frame, n);
+        ok(i20Signal == 1, "un signal atteint bien son bloc ISignal");
+
+        // Maintenant un EVENT a la meme adresse : personne du bon genre.
+        uint8_t body[] = { 0x00, 0x01, 20, 0x21, 0x01 };
+        uint8_t crc = 0;
+        for (uint8_t b : body) {
+            crc ^= b;
+            for (int i = 0; i < 8; i++) crc = (crc & 0x80) ? (crc << 1) ^ 0x07 : crc << 1;
+        }
+        uint8_t ev[16] = { 0xAA, 0x01, 0x05, 0x00, body[0], body[1], body[2], body[3], body[4], crc };
+
+        i20Signal = 0;
+        Serial.clear();
+        core.processFrame(ev, 10);
+        ok(i20Signal == 0, "l'evenement n'atteint pas le bloc ISignal — il ne sait pas le lire");
+        ok(Serial.saw("an ISignal listens here"),
+           "mais la carte le DIT : sans ca, l'utilisateur voit un bloc mort et cherche dans son croquis");
+    }
+    {
+        // Une VALEUR sur une adresse ou seul un bloc de widget ecoute.
+        uint8_t frame[64];
+        uint8_t one[1] = { 1 };
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 21, SIGNAL_TAG_BOOL, one, 1);
+
+        i21Widget = 0;
+        Serial.clear();
+        core.processFrame(frame, n);
+
+        ok(i21Widget == 0, "la valeur n'atteint pas le bloc de widget");
+        ok(Serial.saw("a widget block listens here"),
+           "et le pendant du diagnostic est la aussi");
     }
 
     section("Ce qui n'est pas un EVENT n'est pas reclame");

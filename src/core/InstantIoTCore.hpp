@@ -478,7 +478,17 @@ protected:
             return true;
 
         onSignalWritten(e);
-        dispatchSignal(e);
+
+        // Le croisement, dit à voix haute.
+        //
+        // Sans ça, un `ISimpleButton` posé sur une adresse qui porte une
+        // VALEUR ne se déclenche jamais et ne dit rien : l'utilisateur voit un
+        // bloc mort et cherche dans son croquis. La carte, elle, sait — le
+        // bloc est là, il est simplement de l'autre genre.
+        if (dispatchSignal(e) == 0 && typeAtAddress(address) != 0) {
+            IIOT_LOG("[Signal] a widget block listens here — this address carries a value, "
+                     "use ISignal(...)");
+        }
         return true;
     }
 
@@ -500,9 +510,15 @@ protected:
 
         const uint8_t typeCode = typeAtAddress(address);
         if (typeCode == 0) {
-            // Personne n'écoute cette adresse. Ce n'est pas une erreur — c'est
-            // la panne que le serveur saura nommer, pas la carte.
-            IIOT_LOG("[Event] no block registered at this address");
+            // Le pendant du diagnostic ci-dessus : un `ISignal` posé sur une
+            // adresse qui porte une ACTION reçoit des événements qu'il ne sait
+            // pas lire, et se tait.
+            if (hasSignalHandlerAt(address)) {
+                IIOT_LOG("[Event] an ISignal listens here — this address is an action, "
+                         "use ISimpleButton(...) or the block of its widget");
+            } else {
+                IIOT_LOG("[Event] no block registered at this address");
+            }
             return true;
         }
 
