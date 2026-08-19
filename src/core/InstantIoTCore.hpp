@@ -183,6 +183,27 @@ public:
         return sendSignal(sig.addr, SIGNAL_TAG_INT, p, 4);
     }
 
+    /**
+     * Les surcharges de confort — et elles ne sont pas du confort.
+     *
+     * Sans elles, `write(I0, analogRead(A0) * 3.3 / 4095.0)` ne compile PAS :
+     * l'expression vaut un `double`, et `float`, `bool`, `int` deviennent trois
+     * candidats à égalité. Le message du compilateur parle de surcharge
+     * ambiguë, ce qui n'aide personne à comprendre qu'il suffisait d'écrire
+     * `3.3f`.
+     *
+     * Or écrire `3.3` plutôt que `3.3f` est ce que fait tout le monde, et
+     * `millis()` rend un `unsigned long`. Ces lignes existent pour que la
+     * chose la plus naturelle à écrire soit celle qui compile.
+     */
+    bool write(SignalRef sig, double value)        { return write(sig, (float)value); }
+    bool write(SignalRef sig, long value)          { return write(sig, (int)value); }
+    bool write(SignalRef sig, unsigned long value) { return write(sig, (int)value); }
+    bool write(SignalRef sig, unsigned int value)  { return write(sig, (int)value); }
+    bool write(SignalRef sig, short value)         { return write(sig, (int)value); }
+    bool write(SignalRef sig, unsigned short value){ return write(sig, (int)value); }
+    bool write(SignalRef sig, unsigned char value) { return write(sig, (int)value); }
+
     bool write(SignalRef sig, const char* value) {
         if (!value) return false;
         size_t n = strlen(value);
