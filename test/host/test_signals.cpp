@@ -127,7 +127,48 @@ static bool route(const uint8_t* frame, size_t len) {
     return weakCalls > before;
 }
 
+// ── Ce que l'utilisateur ecrit vraiment ───────────────────────────────────
+//
+// Ce bloc ne s'execute pas : il doit COMPILER. C'est le seul test possible
+// pour une ambiguite de surcharge, et il aurait attrape le defaut qui a
+// bloque un vrai croquis — `3.3 / 4095.0` vaut un double, et sans surcharge
+// dediee le compilateur voit trois candidats a egalite.
+struct NullTx2 : ITransport {
+    bool   begin() override                           { return true; }
+    void   poll() override                            {}
+    bool   connected() override                       { return false; }
+    int    available() override                       { return 0; }
+    int    read(uint8_t*, size_t) override            { return 0; }
+    size_t write(const uint8_t*, size_t len) override { return len; }
+};
+static NullTx2 tx2;
+static InstantIoTCoreBase writeCompiles(tx2);
+
+static void everyNaturalWriteCompiles() {
+    int raw = 2048;
+    writeCompiles.write(I0, raw * (3.3 / 4095.0) * 100.0);  // double — le cas reel
+    writeCompiles.write(I1, 23.4);                          // litteral decimal
+    writeCompiles.write(I2, 23.4f);
+    writeCompiles.write(I3, true);
+    writeCompiles.write(I4, 42);
+    writeCompiles.write(I5, 42L);                           // long
+    writeCompiles.write(I6, millis());                      // unsigned long
+    writeCompiles.write(I7, (unsigned int)7);
+    writeCompiles.write(I8, (short)7);
+    writeCompiles.write(I9, (uint8_t)7);
+    writeCompiles.write(I10, "OK");
+
+    // Toute la bibliotheque mathematique rend des `double`. Une courbe de
+    // test, une conversion, une moyenne : c'est le cas le PLUS courant, pas
+    // un cas limite.
+    writeCompiles.write(I11, sin(millis() / 1000.0));
+    writeCompiles.write(I12, sqrt(2.0));
+    writeCompiles.write(I13, (raw + 0.5) / 2);
+}
+
 int main() {
+    (void)&everyNaturalWriteCompiles;
+
     BinaryCodec codec;
 
     section("La trame que le serveur envoie vraiment");
