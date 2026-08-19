@@ -63,6 +63,15 @@ static const uint8_t TYPE_HEARTBEAT         = 0xFE;
 
 // InstantIoT 2.0 — the value path. Free: widget types stop at 0x11.
 static const uint8_t TYPE_SIGNAL            = 0x20;
+
+// Un EVENT — un fait, pas un état. Même disposition qu'un signal : une
+// adresse d'un octet dans le créneau WID, et le créneau EVENT porte enfin un
+// événement (CMD_PRESS, CMD_TOGGLE…), ce pour quoi il a été fait.
+//
+// Pourquoi il ne peut pas être un signal : une valeur est idempotente. Trois
+// appuis écrivent 1, 1, 1 — une seule transition est observable, donc deux
+// appuis disparaissent. Aucun réglage ne comble cet écart.
+static const uint8_t TYPE_EVENT             = 0x21;
 static const uint8_t SIGNAL_TAG_BOOL        = 0x01;
 static const uint8_t SIGNAL_TAG_INT         = 0x02;
 static const uint8_t SIGNAL_TAG_FLOAT       = 0x03;
@@ -533,6 +542,61 @@ public:
 
         outAddress    = body[2];
         outTag        = body[4];
+        outPayload    = body + 5;
+        outPayloadLen = (size_t)len - 5;
+        return true;
+    }
+
+    /**
+     * La charge utile d'un EVENT, lue avec le type que le CROQUIS a déclaré.
+     *
+     * `decodePayload` est privé et prend son type de la trame ; ici le type
+     * vient de la table des adresses, donc du code de l'utilisateur. C'est la
+     * même lecture, avec une autre source de vérité.
+     */
+    void decodeEventPayload(
+        uint8_t typeCode, uint8_t eventCode,
+        const uint8_t* payload, size_t len,
+        DecodedMessage& msg
+    ) {
+        decodePayload(typeCode, eventCode, payload, len, msg);
+    }
+
+    /**
+     * Une trame EVENT, lue comme un signal : l'adresse est un octet brut dans
+     * le créneau WID, pas une chaîne.
+     *
+     * Rend false pour tout ce qui n'est pas un EVENT bien formé — dont chaque
+     * trame de widget ordinaire, ce qui en fait le discriminant utilisable
+     * avant le décodeur général.
+     */
+    static bool decodeEvent(
+        const uint8_t* buffer,
+        size_t length,
+        uint8_t& outAddress,
+        uint8_t& outEventCode,
+        const uint8_t*& outPayload,
+        size_t& outPayloadLen
+    ) {
+        if (!buffer || length < 6) return false;
+        if (buffer[0] != 0xAA || buffer[1] != 0x01) return false;
+
+        uint16_t len = readU16LE(buffer + 2);
+        if (length < (size_t)(4 + len + 1)) return false;
+        if (len < 5) return false;   // DEV_COUNT + WID_LEN + addr + TYPE + EVENT
+
+        const uint8_t* body = buffer + 4;
+        if (body[0] != 0x00) return false;   // pas de liste d'appareils
+        if (body[1] != 0x01) return false;   // l'adresse fait un octet
+        if (body[3] != TYPE_EVENT) return false;
+
+        if (crc8(body, len) != body[len]) {
+            IIOT_LOG("[Event] CRC mismatch");
+            return false;
+        }
+
+        outAddress    = body[2];
+        outEventCode  = body[4];
         outPayload    = body + 5;
         outPayloadLen = (size_t)len - 5;
         return true;
