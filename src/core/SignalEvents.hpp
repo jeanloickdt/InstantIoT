@@ -209,10 +209,21 @@ struct SignalRegistrar {
     }
 };
 
-inline void dispatchSignal(const SignalEvent& e) {
+/** @return combien de blocs ont été appelés — zéro se diagnostique. */
+inline uint8_t dispatchSignal(const SignalEvent& e) {
+    uint8_t called = 0;
     for (SignalHandler* h = signalHandlerListHead(); h; h = h->next) {
-        if (h->address == e.address) h->fn(e);
+        if (h->address == e.address) { h->fn(e); called++; }
     }
+    return called;
+}
+
+/** Un `ISignal` écoute-t-il cette adresse ? */
+inline bool hasSignalHandlerAt(uint8_t address) {
+    for (SignalHandler* h = signalHandlerListHead(); h; h = h->next) {
+        if (h->address == address) return true;
+    }
+    return false;
 }
 
 }  // namespace InstantIoT
