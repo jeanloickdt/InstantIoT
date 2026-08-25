@@ -23,3 +23,9 @@ build/
 # Croquis de travail locaux — jamais dans le depot : ils contiennent
 # des identifiants WiFi et des jetons d appareil reels.
 sketches/
+
+# Reglages locaux de l'agent — jamais dans un depot public : le fichier
+# accumule les commandes autorisees, et avec elles les chemins, adresses et
+# noms de depots prives. Il etait deja exclu par l'ignore global de la
+# machine, ce qui ne protege pas un clone ailleurs.
+.claude/settings.local.json
