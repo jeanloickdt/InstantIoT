@@ -190,6 +190,18 @@ inline bool decodeSignalValue(
 struct SignalHandler {
     uint8_t address;
     void (*fn)(const SignalEvent&);
+    /**
+     * Ce bloc attend-il un GESTE plutôt qu'un état ?
+     *
+     * `ISignal(I5, float t)` veut la valeur, d'où qu'elle vienne — y compris
+     * du rappel envoyé quand la carte se reconnecte. `ISimpleButton(I5)`
+     * déclare autre chose : « je veux savoir qu'on a appuyé ». Personne n'a
+     * appuyé ; le réveiller inventerait un geste.
+     *
+     * Les deux vivent dans la même liste depuis que la DSL écoute les
+     * signaux. C'est ce booléen qui les sépare au moment du rappel.
+     */
+    bool gesture;
     SignalHandler* next;
 };
 
@@ -201,19 +213,27 @@ inline SignalHandler*& signalHandlerListHead() {
 /** Attaches one `ISignal(...)` block to the list, before `setup()` runs. */
 struct SignalRegistrar {
     SignalHandler node;
-    SignalRegistrar(SignalRef ref, void (*fn)(const SignalEvent&)) {
+    /** @param gesture vrai pour un bloc de widget, faux pour un `ISignal`. */
+    SignalRegistrar(SignalRef ref, void (*fn)(const SignalEvent&), bool gesture = false) {
         node.address = ref.addr;
         node.fn      = fn;
+        node.gesture = gesture;
         node.next    = signalHandlerListHead();
         signalHandlerListHead() = &node;
     }
 };
 
-/** @return combien de blocs ont été appelés — zéro se diagnostique. */
-inline uint8_t dispatchSignal(const SignalEvent& e) {
+/**
+ * @param restore vrai quand la trame est un rappel : les blocs de geste sont
+ *        alors sautés. Un état se rappelle, un geste ne se rejoue pas.
+ * @return combien de blocs ont été appelés — zéro se diagnostique.
+ */
+inline uint8_t dispatchSignal(const SignalEvent& e, bool restore = false) {
     uint8_t called = 0;
     for (SignalHandler* h = signalHandlerListHead(); h; h = h->next) {
-        if (h->address == e.address) { h->fn(e); called++; }
+        if (h->address != e.address) continue;
+        if (restore && h->gesture) continue;
+        h->fn(e); called++;
     }
     return called;
 }

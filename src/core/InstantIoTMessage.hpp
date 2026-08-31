@@ -142,12 +142,28 @@ struct JoystickEvent {
 // 🎮 DIRECTION PAD EVENTS
 // ============================================================
 
+/**
+ * Les touches d'une croix, telles que l'app les nomme.
+ *
+ * Elle en propose treize — la croix, les quatre lettres d'une manette, les
+ * quatre formes d'une autre. La lib n'en connaissait que cinq : une croix
+ * reglee en A/B/X/Y envoyait des mots qu'elle rangeait tous dans `Unknown`,
+ * et le croquis ne pouvait pas les distinguer.
+ */
 enum class DPadButton : uint8_t {
     Up = 0,
     Down,
     Left,
     Right,
     Center,
+    A,
+    B,
+    X,
+    Y,
+    Triangle,
+    Circle,
+    Square,
+    Cross,
     Unknown
 };
 

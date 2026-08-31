@@ -493,7 +493,7 @@ protected:
         // La règle appartient donc au BLOC, pas au réglage du signal : peu
         // importe que le rejeu soit coché, un geste ne se rejoue pas.
         if (rappel) {
-            dispatchSignal(e);
+            dispatchSignal(e, /* restore */ true);
             return true;
         }
 
