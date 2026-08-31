@@ -77,6 +77,19 @@ static const uint8_t SIGNAL_TAG_INT         = 0x02;
 static const uint8_t SIGNAL_TAG_FLOAT       = 0x03;
 static const uint8_t SIGNAL_TAG_STRING      = 0x04;
 
+/**
+ * Le bit haut du tag : cette valeur est un RAPPEL, pas une écriture vive.
+ *
+ * La carte se reconnecte et le serveur lui renvoie sa dernière valeur. La
+ * trame est autrement identique à ce qu'un doigt vient d'écrire — sans cette
+ * marque, un `ISimpleButton(I5)` se déclencherait au démarrage, sans que
+ * personne n'ait appuyé.
+ *
+ * Un état se rappelle, un geste ne se rejoue pas. C'est toute la différence
+ * que ce bit porte.
+ */
+static const uint8_t SIGNAL_TAG_RESTORE     = 0x80;
+
 // ============================================================
 //  EVENT CODES — Device → App (0x01..0x0E)
 // ============================================================
@@ -516,7 +529,15 @@ public:
         uint8_t& outAddress,
         uint8_t& outTag,
         const uint8_t*& outPayload,
-        size_t& outPayloadLen
+        size_t& outPayloadLen,
+        /**
+         * Vrai si la trame est un rappel.
+         *
+         * Séparé de `outTag`, qui garde son sens d'origine — le type de la
+         * valeur. Les appelants qui décodent ne changent pas d'une ligne ;
+         * seul celui qui doit trancher pose la question.
+         */
+        bool& outRestore
     ) {
         if (!buffer || length < 6) return false;
         if (buffer[0] != 0xAA || buffer[1] != 0x01) return false;
@@ -541,7 +562,8 @@ public:
         }
 
         outAddress    = body[2];
-        outTag        = body[4];
+        outRestore    = (body[4] & SIGNAL_TAG_RESTORE) != 0;
+        outTag        = body[4] & ~SIGNAL_TAG_RESTORE;
         outPayload    = body + 5;
         outPayloadLen = (size_t)len - 5;
         return true;
