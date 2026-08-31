@@ -468,7 +468,8 @@ protected:
         const uint8_t* payload = nullptr;
         size_t payloadLen = 0;
 
-        if (!BinaryCodec::decodeSignal(data, len, address, tag, payload, payloadLen))
+        bool rappel = false;
+        if (!BinaryCodec::decodeSignal(data, len, address, tag, payload, payloadLen, rappel))
             return false;
 
         SignalEvent e;
@@ -478,6 +479,23 @@ protected:
             return true;
 
         onSignalWritten(e);
+
+        // Un RAPPEL ne réveille pas un geste.
+        //
+        // Au redémarrage, le serveur renvoie la dernière valeur de chaque
+        // signal qui le demande. C'est ce qu'il faut pour un état — une
+        // consigne, un seuil : `ISignal(I5, float t)` doit la retrouver.
+        //
+        // Mais un `ISimpleButton(I5)` déclare autre chose : « je veux savoir
+        // qu'on a appuyé ». Personne n'a appuyé. Le lui livrer inventerait un
+        // geste, et le croquis allumerait une lampe que personne n'a demandée.
+        //
+        // La règle appartient donc au BLOC, pas au réglage du signal : peu
+        // importe que le rejeu soit coché, un geste ne se rejoue pas.
+        if (rappel) {
+            dispatchSignal(e);
+            return true;
+        }
 
         // Le croisement, dit à voix haute.
         //
