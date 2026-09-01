@@ -611,12 +611,13 @@ Written down rather than left to be rediscovered.
   `typeAtAddress(5) == TYPE_SIMPLEBUTTON` and `ISimpleButton("btn1")`, both
   removed on purpose. Making it green again means deciding what an EVENT
   becomes on the board — work, not a touch-up.
-- **Dead `WHEN_` macros.** `WHEN_TOGGLED`, `WHEN_TURNED_ON`,
-  `WHEN_CHANGING`, `WHEN_SELECTION_CHANGED` and their predicates are
-  unreachable: the blocks they were written for (`ISwitch`, the sliders,
-  `ISegmentedSwitch`) carry their data in the head and have no `e` to
-  question. Coherent — there is only one kind of event left to sort — but
-  the macros still advertise a vocabulary that no longer exists.
+- **Five orphaned event structs.** Removing the dead `WHEN_` macros left
+  `SwitchEvent`, `JoystickEvent`, `HorizontalSliderEvent`,
+  `VerticalSliderEvent` and `SegmentedSwitchEvent` in
+  `InstantIoTMessage.hpp` with nothing building them — their blocks carry
+  the value in the head now. Their `*EventKind` enums go with them.
+  `ButtonEventKind`, `DPadButton` and `DPadEventKind` stay: `SignalToWidget`
+  decodes into them.
 - **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
   a `src/widgets/` directory that no longer exists.
 - **No Ethernet transport.** The model expects it — `begin(EthernetLink(),

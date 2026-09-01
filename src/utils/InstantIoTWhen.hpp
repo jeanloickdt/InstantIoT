@@ -220,38 +220,15 @@ inline bool _whenPressed(const AdvancedButtonEvent& e)     { return e.kind == Bu
 
 inline bool _whenReleased(const SimpleButtonEvent& e)      { return e.kind == ButtonEventKind::Release; }
 inline bool _whenReleased(const AdvancedButtonEvent& e)    { return e.kind == ButtonEventKind::Release; }
-inline bool _whenReleased(const JoystickEvent& e)          { return e.kind == JoystickEventKind::Released; }
 
 inline bool _whenLongPressed(const SimpleButtonEvent& e)   { return e.kind == ButtonEventKind::LongPress; }
 inline bool _whenLongPressed(const AdvancedButtonEvent& e) { return e.kind == ButtonEventKind::LongPress; }
 
-inline bool _whenToggled(const SimpleButtonEvent& e)       { return e.kind == ButtonEventKind::Toggle; }
-inline bool _whenToggled(const AdvancedButtonEvent& e)     { return e.kind == ButtonEventKind::Toggle; }
-inline bool _whenToggled(const SwitchEvent& e)             { return e.kind == SwitchEventKind::Toggle; }
-
-inline bool _whenMoved(const JoystickEvent& e)             { return e.kind == JoystickEventKind::PositionChanged; }
-
-// ── Switch ───────────────────────────────────────────────
-inline bool _whenTurnedOn(const SwitchEvent& e)            { return e.kind == SwitchEventKind::TurnOn; }
-inline bool _whenTurnedOff(const SwitchEvent& e)           { return e.kind == SwitchEventKind::TurnOff; }
-inline bool _whenSwitchSetValue(const SwitchEvent& e)      { return e.kind == SwitchEventKind::SetValue; }
-
-// ── Slider ───────────────────────────────────────────────
-inline bool _whenChanging(const HorizontalSliderEvent& e)  { return e.kind == SliderEventKind::ValueChanging; }
-inline bool _whenChanging(const VerticalSliderEvent& e)    { return e.kind == SliderEventKind::ValueChanging; }
-
-inline bool _whenChanged(const HorizontalSliderEvent& e)   { return e.kind == SliderEventKind::ValueChanged; }
-inline bool _whenChanged(const VerticalSliderEvent& e)     { return e.kind == SliderEventKind::ValueChanged; }
 
 // ── DirectionPad ─────────────────────────────────────────
 inline bool _whenPadPressed(const DirectionPadEvent& e)    { return e.kind == DPadEventKind::Press; }
 inline bool _whenPadReleased(const DirectionPadEvent& e)   { return e.kind == DPadEventKind::Release; }
 inline bool _whenPadLongPressed(const DirectionPadEvent& e){ return e.kind == DPadEventKind::LongPress; }
-
-// ── SegmentedSwitch ──────────────────────────────────────
-inline bool _whenSelectionChanged(const SegmentedSwitchEvent& e) { return e.kind == SegmentedEventKind::SelectionChanged; }
-inline bool _whenSegmentSelected(const SegmentedSwitchEvent& e)  { return e.kind == SegmentedEventKind::SegmentSelected; }
-inline bool _whenSegmentDeselected(const SegmentedSwitchEvent& e){ return e.kind == SegmentedEventKind::SegmentDeselected; }
 
 // ── EmergencyButton ──────────────────────────────────────
 inline bool _whenTriggered(const EmergencyButtonEvent& e)  { return e.kind == EmergencyEventKind::Trigger; }
@@ -266,48 +243,9 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // Predicates are resolved by overload based on the type of `e`.
 // ============================================================
 
-// --- Without capture ----------------------------------------
 #define WHEN_PRESSED      if (iiot::_whenPressed(e))
 #define WHEN_RELEASED     if (iiot::_whenReleased(e))
 #define WHEN_LONG_PRESSED if (iiot::_whenLongPressed(e))
-
-// --- With capture of a bool variable ------------------------
-// "if init-statement" idiom (C++17) to have only one if
-#define WHEN_TOGGLED(var_isOn)                                                 \
-    if (iiot::_whenToggled(e))                                           \
-        if (bool var_isOn = e.isOn; true)
-
-// --- With capture of two float variables (joystick) --------
-// Two nested if-init (C++17) — each condition is a `true` bool,
-// so the user block always runs once if the kind matches.
-#define WHEN_MOVED(var_x, var_y)                                               \
-    if (iiot::_whenMoved(e))                                             \
-        if (float var_x = e.x; true)                                           \
-            if (float var_y = e.y; true)
-
-// ============================================================
-// 🎚️ SLIDER  (H and V — same DSL)
-// ============================================================
-// Streaming during drag (ValueChanging) — captures the float value
-#define WHEN_CHANGING(var_v)                                                   \
-    if (iiot::_whenChanging(e))                                          \
-        if (float var_v = e.value; true)
-
-// Final value on release (ValueChanged) — captures the float value
-#define WHEN_CHANGED(var_v)                                                    \
-    if (iiot::_whenChanged(e))                                           \
-        if (float var_v = e.value; true)
-
-// ============================================================
-// 🔘 SWITCH
-// ============================================================
-#define WHEN_TURNED_ON     if (iiot::_whenTurnedOn(e))
-#define WHEN_TURNED_OFF    if (iiot::_whenTurnedOff(e))
-// WHEN_TOGGLED(isOn) is already defined (overload on SwitchEvent).
-// WHEN_SWITCH_SET(isOn) captures e.isOn for events with kind=SetValue.
-#define WHEN_SWITCH_SET(var_isOn)                                              \
-    if (iiot::_whenSwitchSetValue(e))                                    \
-        if (bool var_isOn = e.isOn; true)
 
 // ============================================================
 // 🎮 DIRECTION PAD
@@ -359,22 +297,6 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 #define WHEN_PAD_LONG_PRESSED(var_btn)                                         \
     if (iiot::_whenPadLongPressed(e))                                    \
         if (iiot::DPadButton var_btn = e.button; true)
-
-// ============================================================
-// 🔀 SEGMENTED SWITCH
-// ============================================================
-// Captures selectedIndex (int)
-#define WHEN_SELECTION_CHANGED(var_idx)                                        \
-    if (iiot::_whenSelectionChanged(e))                                  \
-        if (int var_idx = e.selectedIndex; true)
-
-#define WHEN_SEGMENT_SELECTED(var_idx)                                         \
-    if (iiot::_whenSegmentSelected(e))                                   \
-        if (int var_idx = e.selectedIndex; true)
-
-#define WHEN_SEGMENT_DESELECTED(var_idx)                                       \
-    if (iiot::_whenSegmentDeselected(e))                                 \
-        if (int var_idx = e.selectedIndex; true)
 
 // ============================================================
 // 🚨 EMERGENCY BUTTON
