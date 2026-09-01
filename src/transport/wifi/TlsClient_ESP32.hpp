@@ -144,18 +144,44 @@ public:
         // etre ici aussi.
         if (!ssid_ || !pass_) return;
 
-        // WiFi tombé → reconnexion (avec backoff)
+        // ── Le WiFi n'est pas la ────────────────────────────────
+        //
+        // Une association peut etre EN COURS. Relancer `WiFi.begin()` a ce
+        // moment-la ne la relance pas : elle la TUE et la fait repartir de
+        // zero. L'ESP32 le dit lui-meme —
+        //
+        //     E (86789) wifi:sta is connecting, cannot set config
+        //
+        // — et une carte sur un reseau lent n'arrive alors jamais : chaque
+        // reprise l'interrompt juste avant qu'elle n'aboutisse. La pile
+        // continue toute seule ; il suffit de ne plus lui couper la parole.
         if (WiFi.status() != WL_CONNECTED) {
             client_.stop();
-            if (millis() < nextRetryAt_) return;
 
-            retryAttempt_++;
-            IIOT_LOG_VAL("[WiFiSecure] WiFi lost — reconnect attempt #", retryAttempt_);
-            if (!connectWiFi()) {
+            if (tentativeWiFiDepuis_ != 0) {
+                // Une tentative est en vol : on regarde, on ne touche pas.
+                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+                    return;
+                // Elle a assez dure. On la coupe proprement — sans
+                // `disconnect()`, le `begin()` suivant retombe sur la meme
+                // erreur — et on laisse le backoff decider du moment.
+                IIOT_LOG("[WiFiSecure] WiFi attempt timed out — will retry");
+                WiFi.disconnect();
+                tentativeWiFiDepuis_ = 0;
                 scheduleRetry();
                 return;
             }
+
+            if (millis() < nextRetryAt_) return;
+
+            retryAttempt_++;
+            IIOT_LOG_VAL("[WiFiSecure] WiFi reconnect attempt #", retryAttempt_);
+            lanceLaTentativeWiFi();
+            return;   // on rendra la main a la prochaine passe
         }
+
+        // Le WiFi est la : plus rien en vol.
+        tentativeWiFiDepuis_ = 0;
 
         // TLS/TCP tombé → reconnexion (avec backoff)
         if (!client_.connected()) {
@@ -214,22 +240,31 @@ public:
 
 private:
 
+    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
+    void lanceLaTentativeWiFi() {
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(ssid_, pass_);
+        tentativeWiFiDepuis_ = millis();
+    }
+
     // ----- WiFi -----
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiSecure] WiFi connecting to: ", ssid_);
 
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(ssid_, pass_);
+        lanceLaTentativeWiFi();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                IIOT_LOG("[WiFiSecure] WiFi timeout");
+                // La tentative reste EN VOL : la pile continue d'essayer, et
+                // `poll()` la laissera aboutir plutot que de la relancer.
+                IIOT_LOG("[WiFiSecure] WiFi timeout — la tentative continue en fond");
                 return false;
             }
             delay(100);
         }
 
+        tentativeWiFiDepuis_ = 0;
         IIOT_LOG_VAL("[WiFiSecure] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -325,6 +360,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
+    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
+    uint32_t    tentativeWiFiDepuis_ = 0;
     uint32_t    heartbeatMs_;
 };
 
