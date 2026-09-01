@@ -23,7 +23,7 @@ public:
     InstantIoTCoreBase(ITransport& transport)
         : _transport(transport)
         , _rxPos(0)
-        , _initialized(false)
+        , _begun(false)
     {}
 
     /**
@@ -40,19 +40,35 @@ public:
     //  LIFECYCLE
     // ════════════════════════════════════════════════════════
 
+    /**
+     * `_begun` dit que `begin()` a ete TENTE, et non que la liaison est
+     * ouverte.
+     *
+     * La distinction a coute une carte muette sur le terrain. Il valait
+     * « le transport a repondu oui » : un WiFi pas encore leve, un serveur
+     * qui ne repond pas, et il restait faux — donc `loop()` sortait
+     * aussitot, donc `poll()` n'etait jamais appele. Or c'est `poll()` qui
+     * porte la reconnexion avec backoff. La carte n'essayait plus jamais,
+     * jusqu'au bouton reset, et le croquis affichait paisiblement
+     * « pas connecte » a l'infini.
+     *
+     * Echouer a la premiere tentative est NORMAL : au demarrage la box
+     * n'est pas toujours prete, et le serveur pas toujours joignable. Ce
+     * qui ne doit pas l'etre, c'est renoncer.
+     */
     virtual bool begin() {
         IIOT_LOG("[InstantIoT] Starting...");
+        _begun = true;
         if (!_transport.begin()) {
-            IIOT_LOG("[InstantIoT] Transport FAILED");
+            IIOT_LOG("[InstantIoT] Transport FAILED — loop() continuera d'essayer");
             return false;
         }
-        _initialized = true;
         IIOT_LOG("[InstantIoT] Ready");
         return true;
     }
 
     virtual void loop() {
-        if (!_initialized) return;
+        if (!_begun) return;
         _transport.poll();
         readLoop();
         heartbeatTick();
@@ -225,7 +241,8 @@ protected:
     uint16_t _signalRatePerSecond = INSTANTIOT_DEFAULT_SIGNAL_RATE;
     uint32_t _lastSignalAt = 0;
 
-    bool _initialized;
+    /** Vrai des que `begin()` a ete appele — pas des que la liaison tient. */
+    bool _begun;
 
     // ─── Heartbeat state (server mode) ────────────────────
     uint32_t _heartbeatMs       = 0;   // 0 = disabled

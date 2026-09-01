@@ -115,6 +115,11 @@ public:
     }
 
     void poll() override {
+        // Sans identifiants, il n'y a rien a retenter — et `WiFi.begin(nullptr)`
+        // ne pardonne pas. Le garde-fou vivait dans `begin()` seul ; depuis que
+        // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
+        // etre ici aussi.
+        if (!ssid_ || !pass_) return;
         if (WiFi.status() != WL_CONNECTED) {
             client_.stop();
             if (millis() < nextRetryAt_) return;

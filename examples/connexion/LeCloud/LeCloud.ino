@@ -13,11 +13,23 @@
  * modem embarque).
  *************************************************************/
 
+// Ça ne se connecte pas ? Decommentez cette ligne AVANT l'include et
+// rouvrez le moniteur serie : la lib dit alors a quelle etape elle
+// bute — WiFi, TLS, ou poignee de main. Sans elle, ses journaux sont
+// compiles hors du binaire et il ne reste que les messages ci-dessous,
+// qui ne savent rien.
+// #define INSTANTIOT_DEBUG 1
+
 #include <InstantIoT.h>
 
 const char* WIFI_SSID    = "MonWiFi";
 const char* WIFI_PASS    = "MonMotDePasse";
 const char* DEVICE_TOKEN = "COLLEZ_LE_JETON_ICI";
+
+// Le cloud InstantIoT, port 9443. Pour une preproduction ou un cloud
+// que vous hebergez, nommez l'hote et le port : voir `.at(...)` plus bas.
+const char* SERVER_HOST  = "instantiot.cloud";
+const uint16_t SERVER_PORT = 9443;
 
 #ifndef LED_BUILTIN
   #define LED_BUILTIN 2
@@ -52,10 +64,16 @@ void setup() {
     //   .plaintext()                 pas de chiffrement du tout, pour une
     //                                carte sans pile TLS. Le jeton passe
     //                                alors lisible, et c'est le prix
-    if (InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS), Cloud(DEVICE_TOKEN))) {
+    Serial.print("cible : "); Serial.print(SERVER_HOST);
+    Serial.print(":");         Serial.println(SERVER_PORT);
+
+    if (InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS),
+                         Cloud(DEVICE_TOKEN).at(SERVER_HOST, SERVER_PORT))) {
         Serial.print("Connecte au cloud. IP locale : ");
         Serial.println(WiFi.localIP());
     } else {
+        // Echouer ici est normal : au demarrage la box n'est pas toujours
+        // prete. `loop()` continue d'essayer, avec un delai qui s'allonge.
         Serial.println("Pas encore connecte — la carte reessaie.");
     }
 
