@@ -258,4 +258,50 @@ struct WiFiLink {
 };
 #endif
 
+// ════════════════════════════════════════════════════════════
+//  Les liaisons que cette carte n'a pas
+// ════════════════════════════════════════════════════════════
+//
+// Sans ces coquilles, `WiFiLink` sur un ESP8266 sort « was not declared
+// in this scope; did you mean 'WiFiClient'? » — et l'utilisateur part
+// corriger une faute de frappe qu'il n'a pas faite. La coquille existe,
+// donc le nom se resout, et le message dit la vraie raison.
+//
+// `sizeof...(A) < 0` est toujours faux, et depend d'un parametre de
+// gabarit : l'assertion n'est donc evaluee que si le croquis construit
+// vraiment cette liaison.
+#define _IIO_LIAISON_ABSENTE(NOM, POURQUOI)                                \
+    struct NOM {                                                           \
+        template <class... A>                                              \
+        explicit NOM(A&&...) { static_assert(sizeof...(A) < 0, POURQUOI); } \
+        ITransport& transport() const;                                     \
+    };
+
+#if !defined(INSTANTIOT_HAS_WIFI_LINK)
+_IIO_LIAISON_ABSENTE(WiFiLink,
+    "Cette carte ne sait pas rejoindre un WiFi existant pour atteindre un "
+    "serveur — l'ESP8266 n'a que le point d'acces. Utilisez "
+    "AccessPoint(nom, mot_de_passe) : le telephone rejoint le WiFi de la "
+    "carte et lui parle directement.")
+#endif
+
+#if !defined(INSTANTIOT_HAS_BLUETOOTH)
+_IIO_LIAISON_ABSENTE(BluetoothLink,
+    "Cette carte n'a pas de Bluetooth classique. Il demande un ESP32 avec "
+    "une radio BR/EDR — ni l'ESP8266 ni l'Uno R4 WiFi n'en ont, ni les "
+    "ESP32 en -S2 et -C3.")
+#endif
+
+#if !defined(INSTANTIOT_HAS_BLE)
+_IIO_LIAISON_ABSENTE(BLELink,
+    "BLE demande un ESP32 et la bibliotheque NimBLE-Arduino, a installer "
+    "depuis le gestionnaire de bibliotheques.")
+#endif
+
+#if !defined(INSTANTIOT_HAS_SERIAL_LINK)
+_IIO_LIAISON_ABSENTE(SerialLink,
+    "SoftwareSerial n'existe pas sur cette carte. Elle est dans le cœur AVR "
+    "et s'installe a cote sur ESP8266 ; l'ESP32, lui, ne l'a pas du tout.")
+#endif
+
 }  // namespace iiot
