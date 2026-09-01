@@ -36,6 +36,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include "../../core/Transport.h"
+#include "RaisonWiFi_ESP32.hpp"
 #include "../../InstantIoTConfig.h"
 #include "../../certs/InstantIoT_LE_Roots.h"
 
@@ -158,6 +159,12 @@ public:
         if (WiFi.status() != WL_CONNECTED) {
             client_.stop();
 
+            // La puce sait POURQUOI, et elle le sait tout de suite : le refus
+            // d'une cle arrive en deux secondes. Le dire ici plutot qu'a
+            // l'expiration du delai, c'est treize secondes de moins a se
+            // demander ce qui se passe. Une fois par raison, pas par essai.
+            diLaRaisonWiFi();
+
             if (tentativeWiFiDepuis_ != 0) {
                 // Une tentative est en vol : on regarde, on ne touche pas.
                 if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
@@ -180,8 +187,10 @@ public:
             return;   // on rendra la main a la prochaine passe
         }
 
-        // Le WiFi est la : plus rien en vol.
+        // Le WiFi est la : plus rien en vol, et la raison precedente
+        // n'a plus cours.
         tentativeWiFiDepuis_ = 0;
+        oublieLaRaisonWiFi();
 
         // TLS/TCP tombé → reconnexion (avec backoff)
         if (!client_.connected()) {
@@ -242,6 +251,7 @@ private:
 
     /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
     void lanceLaTentativeWiFi() {
+        ecouteLesRaisonsWiFi();
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid_, pass_);
         tentativeWiFiDepuis_ = millis();
@@ -265,6 +275,7 @@ private:
         }
 
         tentativeWiFiDepuis_ = 0;
+        oublieLaRaisonWiFi();
         IIOT_LOG_VAL("[WiFiSecure] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }

@@ -456,6 +456,24 @@ The TCP and TLS clients add three setters the links call before `begin()`:
 `setCredentials(ssid, pass)`, `setHeartbeat(ms)`, and — on the TLS ones only
 — `setCACert(pem)` / `setInsecure()`.
 
+### Two rules a WiFi transport must keep
+
+**Never restart an association that is in flight.** `WiFi.begin()` on a
+connecting station does not restart it, it kills it — the ESP32 says so
+(`sta is connecting, cannot set config`), and a board on a slow network then
+never arrives, because every retry interrupts the attempt just before it
+completes. `poll()` records when the last `WiFi.begin` happened and watches
+without touching until the window has passed. `WiFi.begin` is called from one
+place only, `lanceLaTentativeWiFi()`, so the rule is enforceable.
+
+**Say why it failed, out loud.** The ESP32 emits a disconnect reason within
+about two seconds; `RaisonWiFi_ESP32.hpp` catches it and prints it in plain
+words — once per distinct reason, and *not* behind `INSTANTIOT_DEBUG`. It is
+the one moment where the board can do nothing else and the person watching
+has no other source of truth. A password that lost two characters in a
+copy-paste cost an hour of blind debugging before this existed.
+`INSTANTIOT_QUIET` silences it.
+
 ---
 
 ## 10. Memory model
@@ -605,6 +623,9 @@ Written down rather than left to be rediscovered.
   Cloud(TOKEN))` would need no change anywhere else — but nothing is written
   until it has run on a board.
 - **`README.md` still describes the erased model.**
+- **No disconnect reason on Uno R4.** WiFiS3 has no event API, so the
+  `RaisonWiFi_ESP32` treatment stops at the ESP32. An R4 that cannot join a
+  network still says only "WiFi timeout".
 
 ---
 
