@@ -1,97 +1,65 @@
 /*************************************************************
- * InstantIoT — Example: Cloud Mode (TLS) - Secure Connect
+ * InstantIoT — se connecter au cloud, chiffre
  *
- * Use case: Verify ESP32 can connect to the InstantIoT Cloud
- *           over WiFi (Station) + **TLS** on port 9443.
- *           The token and all frames travel encrypted.
+ * La carte rejoint votre WiFi puis ouvre une session TLS vers le
+ * cloud InstantIoT. Le jeton et les valeurs ne passent jamais
+ * lisibles sur internet.
  *
- * Flow:
- *   1. WiFi STA connect
- *   2. TLS connect to host:9443 (server identity verified against
- *      the embedded Let's Encrypt roots)
- *   3. Handshake [LEN | "token:heartbeatMs"]  — default heartbeat 5000ms
- *   4. Library sends TYPE_HEARTBEAT frames periodically
- *   5. Local blink: built-in LED + log state every 2s
+ * A remplacer avant de televerser :
+ *   WIFI_SSID, WIFI_PASS   → votre box
+ *   DEVICE_TOKEN           → le jeton donne par le panneau cloud
  *
- * Boards: ESP32 and Arduino Uno R4 WiFi (both do TLS; on the R4
- *         the TLS runs on the onboard ESP32-S3 modem)
- *
- * Before flashing, replace:
- *   WIFI_SSID, WIFI_PASS   → your router
- *   SERVER_HOST            → your cloud hostname (NOT a raw IP: the
- *                            hostname is needed for SNI + cert check)
- *   DEVICE_TOKEN           → token from the cloud panel
+ * Cartes : ESP32, Arduino Uno R4 WiFi (le TLS y est fait par le
+ * modem embarque).
  *************************************************************/
 
-#include <InstantIoTWiFiServerSecure.hpp>
+#include <InstantIoT.h>
+using namespace iiot;
 
-// ----- WiFi -----
-const char* WIFI_SSID = "MyWiFi";
-const char* WIFI_PASS = "MyPassword";
-
-// ----- InstantIoT Cloud (TLS) -----
-const char* SERVER_HOST  = "instantiot.cloud";   // hostname, pas une IP
-const char* DEVICE_TOKEN = "PASTE_TOKEN_HERE";
+const char* WIFI_SSID    = "MonWiFi";
+const char* WIFI_PASS    = "MonMotDePasse";
+const char* DEVICE_TOKEN = "COLLEZ_LE_JETON_ICI";
 
 #ifndef LED_BUILTIN
-  #define LED_BUILTIN 2   // fallback for ESP32 boards without it defined
+  #define LED_BUILTIN 2
 #endif
-#define LED_PIN LED_BUILTIN  // ESP32 ≈ 2, Uno R4 WiFi = 13
 
-// Port 9443 par défaut (portier TLS du cloud). Validation du serveur
-// contre les racines Let's Encrypt embarquées.
-InstantIoTWiFiServerSecure instant(SERVER_HOST, DEVICE_TOKEN);
-
-uint32_t lastBlink = 0;
-bool ledState = false;
+uint32_t dernierClignotement = 0;
+bool     allumee = false;
 
 void setup() {
     delay(2000);
     Serial.begin(115200);
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, LOW);
+    pinMode(LED_BUILTIN, OUTPUT);
 
-    Serial.println();
-    Serial.println("=== InstantIoT Cloud Mode (TLS) - Secure Connect ===");
-    Serial.print("Server:  "); Serial.print(SERVER_HOST); Serial.println(":9443 (TLS)");
-    Serial.print("Token:   "); Serial.println(DEVICE_TOKEN);
-
-    // Optional: override heartbeat (default 5000ms). Server offline
-    // timeout ≈ 2.5× this value (clamped 2s..120s).
-    // instant.setHeartbeat(5000);
-
-    // Débogage seulement — chiffre sans vérifier l'identité du serveur.
-    // À NE PAS laisser en prod (MITM possible) :
-    // instant.setInsecure();
-
-    // Serveur self-hosted avec un certificat maison :
-    // instant.setCACert(MY_ROOT_CA_PEM);
-
-    if (!instant.begin(WIFI_SSID, WIFI_PASS)) {
-        Serial.println("[ERROR] Failed to connect. Check serial for details.");
-        // loop() keeps retrying (auto-reconnect with backoff)
+    // `Cloud(...)` chiffre et verifie l'identite du serveur contre les
+    // racines Let's Encrypt embarquees. Trois facons d'en sortir, et
+    // elles ne disent pas la meme chose :
+    //
+    //   .withCertificate(MA_RACINE)  votre autorite a vous — l'identite
+    //                                reste verifiee, contre elle
+    //   .withoutCertCheck()          chiffre, mais n'importe qui peut se
+    //                                faire passer pour le serveur. Pour un
+    //                                premier demarrage, pas pour la suite
+    //   .plaintext()                 pas de chiffrement du tout, pour une
+    //                                carte sans pile TLS. Le jeton passe
+    //                                alors lisible, et c'est le prix
+    if (InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS), Cloud(DEVICE_TOKEN))) {
+        Serial.print("Connecte au cloud. IP locale : ");
+        Serial.println(WiFi.localIP());
     } else {
-        Serial.print("Local IP: "); Serial.println(instant.getLocalIP());
-        Serial.println("[OK] Connected to cloud over TLS");
+        Serial.println("Pas encore connecte — la carte reessaie.");
     }
 }
 
 void loop() {
-    instant.loop();
+    InstantIoT.loop();
 
-    if (millis() - lastBlink >= 2000) {
-        lastBlink = millis();
-
-        if (instant.connected()) {
-            ledState = !ledState;
-            digitalWrite(LED_PIN, ledState ? HIGH : LOW);
-            Serial.println("[HB] connected (TLS) ✓");
-        } else if (instant.isWiFiConnected()) {
-            digitalWrite(LED_PIN, LOW);
-            Serial.println("[HB] WiFi OK, waiting for cloud...");
-        } else {
-            digitalWrite(LED_PIN, LOW);
-            Serial.println("[HB] WiFi down, reconnecting...");
-        }
+    if (millis() - dernierClignotement >= 2000) {
+        dernierClignotement = millis();
+        allumee = InstantIoT.connected() && !allumee;
+        digitalWrite(LED_BUILTIN, allumee ? HIGH : LOW);
+        Serial.println(InstantIoT.connected() ? "cloud : joint (TLS)"
+                                              : "cloud : pas joint");
     }
 }

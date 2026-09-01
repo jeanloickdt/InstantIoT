@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📡 BT_ESP32.hpp - Transport Bluetooth Classic ESP32
+ * 📡 Bluetooth_ESP32.hpp - Transport Bluetooth Classic ESP32
  * ============================================================
  *
  * Uses ESP32 built-in Bluetooth Classic (no external module).
@@ -9,8 +9,8 @@
  * Board : ESP32 only
  *
  * Usage:
- *   #include <InstantIoTBluetoothESP32SPP.hpp>
- *   InstantIoTBluetoothESP32SPP instant("MyDevice");
+ *   #include <InstantIoT.h>
+ *   InstantIoT.begin(BluetoothLink("MyDevice"));
  *
  *   void setup() { instant.begin(); }
  *   void loop()  { instant.loop();  }
@@ -29,10 +29,10 @@
 
 namespace iiot {
 
-class BT_ESP32 : public ITransport {
+class Bluetooth_ESP32 : public ITransport {
 public:
 
-    BT_ESP32(const char* deviceName)
+    Bluetooth_ESP32(const char* deviceName)
         : _deviceName(deviceName)
     {}
 

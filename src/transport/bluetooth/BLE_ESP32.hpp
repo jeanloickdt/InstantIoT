@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📡 BT_ESP32_BLE.hpp - Transport BLE ESP32 via NimBLE
+ * 📡 BLE_ESP32.hpp - Transport BLE ESP32 via NimBLE
  * ============================================================
  *
  * Uses NimBLE-Arduino library (lightweight BLE stack).
@@ -10,8 +10,8 @@
  * Board : ESP32 family (ESP32, ESP32-S2, ESP32-S3, ESP32-C3)
  *
  * Usage:
- *   #include <InstantIoTBluetoothBLE.hpp>
- *   InstantIoTBluetoothBLE instant("MyDevice");
+ *   #include <InstantIoT.h>
+ *   InstantIoT.begin(BLELink("MyDevice"));
  *
  *   void setup() { instant.begin(); }
  *   void loop()  { instant.loop();  }
@@ -39,10 +39,10 @@
 
 namespace iiot {
 
-class BT_ESP32_BLE : public ITransport {
+class BLE_ESP32 : public ITransport {
 public:
 
-    BT_ESP32_BLE(const char* deviceName)
+    BLE_ESP32(const char* deviceName)
         : _deviceName(deviceName)
         , _txChar(nullptr)
         , _rxHead(0)
@@ -155,7 +155,7 @@ private:
     // ── Server callbacks ──────────────────────────────────────
     class ServerCallbacks : public NimBLEServerCallbacks {
     public:
-        ServerCallbacks(BT_ESP32_BLE* t) : _t(t) {}
+        ServerCallbacks(BLE_ESP32* t) : _t(t) {}
 
         void onConnect(NimBLEServer* server, NimBLEConnInfo& connInfo) override {
             IIOT_LOG("[BLE-ESP32] Client connected");
@@ -166,13 +166,13 @@ private:
         }
 
     private:
-        BT_ESP32_BLE* _t;
+        BLE_ESP32* _t;
     };
 
     // ── Characteristic callbacks ──────────────────────────────
     class CharCallbacks : public NimBLECharacteristicCallbacks {
     public:
-        CharCallbacks(BT_ESP32_BLE* t) : _t(t) {}
+        CharCallbacks(BLE_ESP32* t) : _t(t) {}
 
         void onWrite(NimBLECharacteristic* pChar, NimBLEConnInfo& connInfo) override {
             const uint8_t* data = pChar->getValue().data();
@@ -181,7 +181,7 @@ private:
         }
 
     private:
-        BT_ESP32_BLE* _t;
+        BLE_ESP32* _t;
     };
 };
 
