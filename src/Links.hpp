@@ -9,7 +9,7 @@
  * d'abord un réseau, puis atteint un serveur.
  *
  *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), Cloud(TOKEN));
- *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), MyMyServer("192.168.1.42", TOKEN));
+ *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
  *
  * Trois liaisons n'ont pas de bout à nommer : l'app est déjà au bout du
  * fil. Elles se passent seules, et le premier argument ne change pas.
@@ -36,7 +36,8 @@
  *
  * ESP32       AccessPoint, WiFiLink (clair et TLS), BluetoothLink, BLELink
  * Uno R4 WiFi AccessPoint, WiFiLink (clair et TLS)
- * ESP8266     AccessPoint
+ * ESP8266     AccessPoint, SerialLink
+ * AVR         SerialLink
  *
  * Un couple que la carte ne sait pas faire ne compile pas, et le dit en
  * une phrase plutôt qu'en une page de gabarits.
@@ -93,7 +94,17 @@
 #endif
 
 // BLE passe par NimBLE, qui est une bibliotheque a installer et non une
-// partie du cœur. On ne la reclame que si elle est la.
+// partie du cœur.
+//
+// `__has_include` ne suffit PAS a la trouver, et c'est un piege du systeme
+// de compilation d'Arduino : il decouvre les bibliotheques en lisant les
+// directives `#include`, et rend disponible celle qu'il voit manquer. Un
+// `__has_include` ne manque jamais — il rend faux, en silence — donc la
+// bibliotheque n'est jamais ajoutee au chemin, donc il rend faux. Le
+// croquis doit l'inclure lui-meme, ce qui declenche la decouverte :
+//
+//     #include <NimBLEDevice.h>
+//     #include <InstantIoT.h>
 #if (defined(ARDUINO_ARCH_ESP32) || defined(ESP32)) && defined(__has_include)
     #if __has_include(<NimBLEDevice.h>)
         #include "transport/bluetooth/BLE_ESP32.hpp"
@@ -104,12 +115,15 @@
 
 // SoftwareSerial appartient au cœur AVR et se pose a cote sur ESP8266 ;
 // l'ESP32 ne l'a pas du tout.
-#if defined(__has_include)
-    #if __has_include(<SoftwareSerial.h>) && !defined(ESP32)
-        #include "transport/serial/SoftSerial.hpp"
-        namespace iiot { using TransportSerial = SoftSerial; }
-        #define INSTANTIOT_HAS_SERIAL_LINK 1
-    #endif
+//
+// La plateforme, et non `__has_include`, pour la meme raison que ci-dessus :
+// l'inclusion doit etre VUE pour que la bibliotheque soit ajoutee au chemin.
+// Avec `__has_include`, `SerialLink` etait inatteignable sur toutes les
+// cartes, un Uno compris.
+#if defined(ARDUINO_ARCH_AVR) || defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
+    #include "transport/serial/SoftSerial.hpp"
+    namespace iiot { using TransportSerial = SoftSerial; }
+    #define INSTANTIOT_HAS_SERIAL_LINK 1
 #endif
 
 namespace iiot {
@@ -294,14 +308,16 @@ _IIO_LIAISON_ABSENTE(BluetoothLink,
 
 #if !defined(INSTANTIOT_HAS_BLE)
 _IIO_LIAISON_ABSENTE(BLELink,
-    "BLE demande un ESP32 et la bibliotheque NimBLE-Arduino, a installer "
-    "depuis le gestionnaire de bibliotheques.")
+    "BLE demande un ESP32 et la bibliotheque NimBLE-Arduino. Si elle est "
+    "installee, le croquis doit l'inclure LUI-MEME avant InstantIoT.h — "
+    "#include <NimBLEDevice.h> — sans quoi le compilateur Arduino ne "
+    "l'ajoute pas au chemin de recherche.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_SERIAL_LINK)
 _IIO_LIAISON_ABSENTE(SerialLink,
-    "SoftwareSerial n'existe pas sur cette carte. Elle est dans le cœur AVR "
-    "et s'installe a cote sur ESP8266 ; l'ESP32, lui, ne l'a pas du tout.")
+    "SoftwareSerial n'existe pas sur cette carte : elle est dans le cœur AVR "
+    "et dans celui de l'ESP8266. Ni l'ESP32 ni l'Uno R4 WiFi ne l'ont.")
 #endif
 
 }  // namespace iiot
