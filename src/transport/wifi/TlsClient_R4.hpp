@@ -120,13 +120,37 @@ public:
         // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
         // etre ici aussi.
         if (!ssid_ || !pass_) return;
-        if (WiFi.status() != WL_CONNECTED) {
+        // ── Le reseau n'est pas pret ────────────────────────────
+        //
+        // Meme regle que sur ESP32 : une association peut etre EN COURS, et
+        // la relancer la tue au lieu de l'aider. On regarde, on ne touche
+        // pas, jusqu'a ce que le delai soit ecoule.
+        //
+        // « Pret » veut dire une IP, pas seulement `WL_CONNECTED` : WiFiS3
+        // annonce la connexion AVANT la fin du DHCP, et partir en TLS avec
+        // 0.0.0.0 echoue sans rien expliquer.
+        if (!reseauPret()) {
             client_.stop();
+
+            if (tentativeWiFiDepuis_ != 0) {
+                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+                    return;
+                IIOT_LOG("[WiFiR4Sec] WiFi attempt timed out — will retry");
+                WiFi.disconnect();
+                tentativeWiFiDepuis_ = 0;
+                scheduleRetry();
+                return;
+            }
+
             if (millis() < nextRetryAt_) return;
+
             retryAttempt_++;
-            IIOT_LOG_VAL("[WiFiR4Sec] WiFi lost — reconnect attempt #", retryAttempt_);
-            if (!connectWiFi()) { scheduleRetry(); return; }
+            IIOT_LOG_VAL("[WiFiR4Sec] WiFi reconnect attempt #", retryAttempt_);
+            lanceLaTentativeWiFi();
+            return;   // on rendra la main a la prochaine passe
         }
+
+        tentativeWiFiDepuis_ = 0;
 
         if (!client_.connected()) {
             client_.stop();
@@ -164,14 +188,28 @@ public:
 
 private:
 
+    /** Une IP, et pas seulement `WL_CONNECTED` — voir `poll()`. */
+    bool reseauPret() const {
+        return WiFi.status() == WL_CONNECTED
+            && WiFi.localIP() != IPAddress(0, 0, 0, 0);
+    }
+
+    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
+    void lanceLaTentativeWiFi() {
+        WiFi.begin(ssid_, pass_);
+        tentativeWiFiDepuis_ = millis();
+    }
+
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiR4Sec] WiFi connecting to: ", ssid_);
-        WiFi.begin(ssid_, pass_);
+        lanceLaTentativeWiFi();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                IIOT_LOG("[WiFiR4Sec] WiFi timeout");
+                // La tentative reste EN VOL : `poll()` la laissera aboutir
+                // plutot que de la relancer.
+                IIOT_LOG("[WiFiR4Sec] WiFi timeout — la tentative continue en fond");
                 return false;
             }
             delay(100);
@@ -185,6 +223,7 @@ private:
             }
             delay(100);
         }
+        tentativeWiFiDepuis_ = 0;
         IIOT_LOG_VAL("[WiFiR4Sec] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -265,6 +304,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
+    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
+    uint32_t    tentativeWiFiDepuis_ = 0;
     uint32_t    heartbeatMs_;
 };
 
