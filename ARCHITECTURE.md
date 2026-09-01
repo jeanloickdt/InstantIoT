@@ -1,44 +1,50 @@
 # InstantIoT Arduino Library — Architecture
 
-> Single-header-per-transport C++ library that connects an Arduino board
-> (ESP32 / ESP8266 / Uno R4 WiFi) to the InstantIoT mobile app using a
-> compact binary protocol (`iWidgets v1`).
+> A header-only C++ library that connects an Arduino board (ESP32 / ESP8266 /
+> Uno R4 WiFi) to the InstantIoT mobile app over a compact binary protocol.
 >
-> No dynamic memory, no JSON, fully static allocation. Everything fits in a few KB of
-> Flash and ~100 B of RAM plus a fixed-size buffer.
+> No dynamic memory, no JSON, fully static allocation.
 >
 > Read this end to end (~10 min) before contributing.
 
+*(This file is in English because the repository is public and the README is.
+The source comments are in French — that is deliberate and not an
+inconsistency to "fix": the comments argue about design decisions, and they
+were written in the language those decisions were made in.)*
+
 ---
 
-## 1. Overview — the user's mental model
+## 1. The one idea
 
-The library is designed so a maker writes **as little code as possible**:
+**The board writes a value at an address. The app decides what it looks
+like.**
+
+Everything below follows from that sentence. There are no widget objects on
+the board any more, no widget ids on the wire, and no `gauge("temp")`. A
+sketch writes `InstantIoT.write(I0, 23.4f)`, and whether that becomes a
+gauge, a chart or a number is a choice made in the app — changed without
+reflashing.
 
 ```cpp
-#include <InstantIoTWiFiAP.hpp>            // pick a transport
+#include <InstantIoT.h>
+using namespace iiot;
 
-InstantIoTWiFiAP instant("DeviceName", "12345678");
-
-ISimpleButton("btn1") {                    // declare handlers at file scope
+ISimpleButton(I0) {
     WHEN_PRESSED  { digitalWrite(LED_BUILTIN, HIGH); }
-    WHEN_RELEASED { digitalWrite(LED_BUILTIN, LOW); }
+    WHEN_RELEASED { digitalWrite(LED_BUILTIN, LOW);  }
+};
+
+void setup() {
+    InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
 }
 
-void setup() { instant.begin(); }
-void loop()  { instant.loop(); }
+void loop() {
+    InstantIoT.loop();
+    InstantIoT.write(I1, analogRead(A0) * 3.3 / 4095.0);
+}
 ```
 
-That's the whole API surface for a basic dashboard. Display widgets work
-through fluent accessors on the instance:
-
-```cpp
-instant.gauge("temp").setValue(23.5f);
-instant.chart("data").addPoint("default", value);
-```
-
-Everything else — protocol framing, CRC, transport selection, callback
-dispatch — happens behind the scenes.
+That is the whole public surface: one header, one object, one `begin`.
 
 ---
 
@@ -47,34 +53,31 @@ dispatch — happens behind the scenes.
 ```
         ┌──────────────────────────────────────────────────┐
         │  user sketch (.ino)                              │
-        │  • includes one transport header                 │
-        │  • declares I<Widget>("id") { WHEN_* … } blocks  │
-        │  • calls instant.<displayWidget>("id").<method>  │
+        │  • #include <InstantIoT.h>                       │
+        │  • declares I<Widget>(Ix) { WHEN_* … } blocks     │
+        │  • calls InstantIoT.write(Ix, value)             │
         └────────────────────┬─────────────────────────────┘
                              │
         ┌────────────────────▼─────────────────────────────┐
-        │  Façade + Core (transport-agnostic)              │
-        │  • InstantIoTWiFiAP / WiFiServer / BLE / …       │
+        │  Facade + Core (transport-agnostic)              │
+        │  • iiot::Facade — the singleton, holds the core  │
         │  • InstantIoTCoreBase (loop, RX assembly, TX)    │
-        │  • BinaryCodec (frame ↔ DecodedMessage)          │
-        │  • WidgetRegistry (dispatch event → handler)     │
+        │  • BinaryCodec (frame ↔ signal)                  │
+        │  • SignalEvents (dispatch address → block)       │
         └────────────────────┬─────────────────────────────┘
-                             │  ITransport (read / write / poll)
+                             │  ITransport (begin/poll/read/write)
         ┌────────────────────▼─────────────────────────────┐
-        │  Transport implementations                       │
-        │  • WiFi SoftAP / WiFi Server / BLE / BT SPP /    │
-        │    SoftwareSerial                                │
+        │  Transports                                      │
+        │  • SoftAP_* / TcpClient_* / TlsClient_*          │
+        │  • Bluetooth_ESP32 / BLE_ESP32 / SoftSerial      │
         └──────────────────────────────────────────────────┘
 ```
 
 | Layer | Owns | Knows about |
 |---|---|---|
-| User sketch | App-specific logic | The widgets it uses |
-| Façade + Core | Protocol, dispatch, widget structs | An `ITransport` (abstract) |
+| Sketch | Application logic | The addresses it uses |
+| Facade + Core | Protocol, dispatch, rate ceiling | An `ITransport` (abstract) |
 | Transport | Raw bytes over the wire | Nothing protocol-specific |
-
-This is what lets the same widget code run over Wi-Fi today and over BLE
-tomorrow without a single user-facing change.
 
 ---
 
@@ -82,191 +85,175 @@ tomorrow without a single user-facing change.
 
 ```
 src/
-├─ InstantIoT*.{hpp,h}                façade per transport (the only header
-│   │                                  the user includes)
-│   ├─ InstantIoTWiFiAP.hpp             board hosts its own Wi-Fi (SoftAP)
-│   ├─ InstantIoTWiFiServer.hpp         board → TCP client of InstantIoT Server
-│   ├─ InstantIoTBluetoothESP32SPP.hpp  Bluetooth Classic, ESP32 only
-│   ├─ InstantIoTBluetoothBLE.hpp       BLE GATT, ESP32 (NimBLE)
-│   └─ InstantIoTSerial.hpp             HC-05 / HC-06 over SoftwareSerial
+├─ InstantIoT.h          ★ the only header a sketch includes
+├─ InstantIoT.cpp          the singleton itself, and one weak default
+├─ Links.hpp               how the board reaches the network
+├─ Destinations.hpp        who the board talks to
+├─ InstantIoTConfig.h      buffer sizes, platform detection, debug flag
 │
-├─ InstantIoTConfig.h                   compile-time flags + buffer sizes
+├─ core/
+│   ├─ Transport.h              ITransport interface
+│   ├─ MessageSender.h          IMessageSender interface
+│   ├─ Codec.h                  shared types (DecodedMessage, Param)
+│   ├─ BinaryCodec.hpp          encode/decode — frames and signals
+│   ├─ InstantIoTCore.hpp       main loop: RX assembly, TX, heartbeat
+│   ├─ InstantIoTSignals.hpp    SignalRef, the I0..I255 constants
+│   ├─ SignalEvents.hpp         SignalValue, the handler list, dispatch
+│   ├─ SignalToWidget.hpp       gesture/position/pad decoding
+│   ├─ InstantIoTMessage.hpp    typed event structs (SimpleButtonEvent…)
+│   └─ InstantIoTDeviceConfig.hpp
 │
-├─ core/                                ★ protocol & dispatch — transport-agnostic
-│   ├─ Codec.h                          shared types: DecodedMessage, Param
-│   ├─ BinaryCodec.hpp                  encode/decode iWidgets v1 frames
-│   ├─ Transport.h                      ITransport interface
-│   ├─ MessageSender.h                  IMessageSender interface (for widgets)
-│   ├─ Registry.hpp / Registry.cpp      dispatch event → user callback
-│   ├─ InstantIoTCore.hpp               main loop: RX assembly + TX + heartbeat
-│   ├─ InstantIoTMessage.hpp            typed event structs (SimpleButtonEvent…)
-│   └─ InstantIoTDeviceConfig.hpp       device identity + broker info
+├─ transport/
+│   ├─ wifi/SoftAP_{ESP32,ESP8266,R4}.hpp     board hosts its own WiFi
+│   ├─ wifi/TcpClient_{ESP32,R4}.hpp          plain TCP to a server
+│   ├─ wifi/TlsClient_{ESP32,R4}.hpp          TLS to a server
+│   ├─ bluetooth/{Bluetooth_ESP32,BLE_ESP32}.hpp
+│   └─ serial/SoftSerial.hpp
 │
-├─ widgets/
-│   ├─ WidgetBase.hpp                   base class for display widgets
-│   ├─ WidgetIncludes.hpp               aggregator gated by INSTANTIOT_WIDGETS_*
-│   └─ displays/                        Arduino → App (no controls/ dir on
-│       │                               purpose: control events are received,
-│       │                               never emitted)
-│       ├─ Gauge.hpp, Metric.hpp, Led.hpp, Text.hpp
-│       ├─ HorizontalLevel.hpp, VerticalLevel.hpp
-│       └─ AdvancedChart.hpp, BarChart.hpp
-│
-├─ transport/                           concrete ITransport implementations
-│   ├─ serial/InstantSoftwareSerial.hpp
-│   ├─ bluetooth/{BT_ESP32.hpp, BT_ESP32_BLE.hpp}
-│   └─ wifi/{SoftAP_ESP32.hpp, SoftAP_ESP8266.hpp,
-│            SoftAP_R4.hpp, WiFiServerClient_ESP32.hpp}
+├─ certs/InstantIoT_LE_Roots.h    Let's Encrypt roots, for TLS
 │
 └─ utils/
-    ├─ InstantIoTMacros.hpp             legacy DSL: void onXxxEvent + ON_* macros
-    ├─ InstantIoTWhen.hpp               modern DSL: I<Widget>("id"){ WHEN_* … }
-    ├─ InstantIoTDebug.hpp              IIOT_LOG (compiled out if !INSTANTIOT_DEBUG)
-    ├─ InstantIoTTimer.hpp              non-blocking timing helpers
-    └─ InstantIoTColor.hpp              rgb / hex color helpers
+    ├─ InstantIoTWhen.hpp     the DSL: I<Widget>(Ix) { WHEN_* … }
+    ├─ InstantIoTDebug.hpp    IIOT_LOG (compiled out unless INSTANTIOT_DEBUG)
+    ├─ InstantIoTTimer.hpp    non-blocking timing helpers
+    └─ InstantIoTColor.hpp    rgb / hex helpers
 ```
+
+The transports keep the chip in their name on purpose. `SoftAP_ESP32` and
+`SoftAP_ESP8266` are genuinely different implementations, and a common name
+would suggest reading one teaches you the other.
+
+`TcpClient` / `TlsClient` used to be called `WiFiServerClient` and
+`WiFiServerClientSecure` — names that said *server* about a client. What
+separates the two is the encryption, not the wire, which is where an Ethernet
+implementation will slot in.
 
 ---
 
-## 4. Two DSLs for the same problem
+## 4. The singleton
 
-The library historically exposed callbacks. A newer, cleaner style has
-replaced them for most controls.
+`InstantIoT` is one global object of type `iiot::Facade`, defined in
+`InstantIoT.cpp`. It holds a pointer to the core, and the core does the work.
 
-### Modern (recommended) — declarative, file-scope blocks
+Two properties are load-bearing, and both are tested in
+`test/host/test_singleton.cpp`:
+
+**It is callable from anywhere.** Any function, any `ISignal` block, any
+`WHEN_` clause. Answering a gesture with a write is the normal case, and the
+read and write paths do not share a buffer (`_rxBuffer` on one side,
+`_txBuffer` on the other). The one place it must *not* be called from is an
+ISR — writing to a socket from an interrupt is unsafe with any library.
+
+**A call before `begin()` does nothing and says so once.** The facade has no
+constructor, so its fields are constant-initialised: they are valid even
+while another translation unit's globals are still being constructed. A
+plain global would not guarantee that, and the failure mode is a board that
+reboots at startup for reasons nobody can see.
+
+The namespace was renamed `InstantIoT` → `iiot` to free the name. In C++ an
+object and a namespace cannot share one, and the sketch is the side that
+needs the readable name.
+
+---
+
+## 5. Links and destinations
+
+A **link** is the path, a **destination** is the far end. They do not know
+about each other, which is what will let an `EthernetLink()` appear without
+any destination changing.
 
 ```cpp
-ISimpleButton("btn1") {
-    WHEN_PRESSED        { … }
-    WHEN_RELEASED       { … }
-    WHEN_LONG_PRESSED   { … }
-    WHEN_TOGGLED(isOn)  { … }
-}
+InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
+InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
+InstantIoT.begin(AccessPoint("MyBoard", "12345678"));   // no far end to name
 ```
 
-`InstantIoTWhen.hpp` expands `I<Widget>(id) { … }` into:
-- a static function definition that handles the events for that widget
-  (the user's `{ … }` becomes the function body)
-- a `WidgetRegistrar<EventT>` instance whose constructor adds itself to a
-  global intrusive linked list **before `setup()` runs**
+Both are **descriptions**, not live objects: they do not survive the
+statement. The facade builds the transport from them and keeps it in a
+function-local `static`.
 
-The blocks must live at **file scope**, not inside `setup()` or `loop()`.
+| | ESP32 | Uno R4 WiFi | ESP8266 | AVR |
+|---|---|---|---|---|
+| `AccessPoint` | ✓ | ✓ | ✓ | — |
+| `WiFiLink` | ✓ | ✓ | — | — |
+| `Cloud` / `MyServer` plain | ✓ | ✓ | — | — |
+| `Cloud` / `MyServer` TLS | ✓ | ✓ | — | — |
+| `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
+| `BLELink` | ✓ (see below) | — | — | — |
+| `SerialLink` | — | — | ✓ | ✓ |
 
-Available blocks: `ISimpleButton`, `IAdvancedButton`, `IEmergencyButton`,
-`IHorizontalSlider`, `IVerticalSlider`, `ISwitch`, `IJoystick`,
-`IDirectionPad`, `ISegmentedSwitch`.
+AVR is not in `library.properties`'s `architectures` and the app does not
+expose the serial mode, but `SerialLink` does build on an Uno — 20 % of Flash
+and 79 % of RAM, which leaves little room for a sketch.
 
-### Legacy — global event handlers
+A combination the board cannot do fails to compile, and the message says what
+to write instead rather than talking about templates. Links that do not exist
+on a platform still have a shell declaration, so the error is the real reason
+and not `did you mean 'WiFiClient'?`.
+
+### The `__has_include` trap
+
+Arduino's build system discovers libraries by **reading `#include`
+directives**: it preprocesses, sees an include it cannot resolve, finds the
+library that provides it, adds it to the search path, and tries again.
+
+`__has_include` never fails to resolve — it quietly returns 0 — so the
+library is never added to the path, so it returns 0. The condition is
+self-fulfilling.
+
+That is why the platform guards for `SoftSerial` are plain
+`#if defined(ARDUINO_ARCH_AVR) || …` and not `__has_include`. With
+`__has_include`, `SerialLink` was unreachable on **every** board, an Uno
+included, and nothing said so.
+
+`BLELink` keeps `__has_include`, because NimBLE is a library the user
+installs rather than part of a core — and there the sketch has to break the
+cycle itself:
 
 ```cpp
-void onSimpleButtonEvent(const SimpleButtonEvent& e) {
-    ON_PRESS("btn1") { … }
-}
+#include <NimBLEDevice.h>   // before InstantIoT.h — this triggers discovery
+#include <InstantIoT.h>
 ```
 
-These free functions are declared `__attribute__((weak))` with an empty
-default in `Registry.cpp`. When the user defines one in their sketch,
-the linker keeps the user's version.
+### Why plaintext is a type and not a flag
 
-Both DSLs coexist: `WidgetRegistry::dispatch()` calls the weak callback
-**first** and then walks the handler list. You can mix both styles in the
-same sketch — for example use modern `I<Widget>` blocks for new widgets
-while keeping an existing `void onSimpleButtonEvent(…)` from older code.
+`Cloud(TOKEN)` returns a `SecureDestination`; `Cloud(TOKEN).plaintext()`
+returns a `PlainDestination`. A different type means a different transport,
+which means a different thing linked into the binary: 998 335 bytes with TLS
+against 905 455 without, on ESP32. A board with no TLS stack at all can
+therefore reach the cloud for real, instead of failing to compile over a path
+it never takes.
+
+Plaintext means plaintext: the token and the values travel readable. That is
+a decision taken knowingly, never a default.
+
+Two names were imposed by the compiler rather than chosen: `WiFiLink` because
+the Arduino core already has a `WiFi` object, and `MyServer` because it also
+has a `class Server`.
 
 ---
 
-## 5. The Registry — how a button press reaches your callback
+## 6. A signal leaving the board
 
 ```
-Frame on the wire
+InstantIoT.write(I0, 23.4f)
   │
   ▼
-InstantIoTCoreBase::loop()
-  ├─ _transport.poll()
-  ├─ readLoop()                  read up to 64 bytes → _rxBuffer (4 KB)
-  └─ extractFrames()              scan for [AA 01 LEN(2B) … CRC]
-        │
-        ▼
-  processFrame(buffer, len)
-        │
-        ▼
-  BinaryCodec::decode()
-   • validate magic + version + CRC8
-   • parse DEV_COUNT / DEV / WID_LEN / WID / TYPE / EVENT
-   • decodePayload(typeCode, eventCode, …) fills msg.params[]
-   • result: a DecodedMessage
-        │
-        ▼
-  WidgetRegistry::dispatch(typeCode, widgetId, eventCode, msg)
-   • switch(typeCode) → build a typed event struct
-       (SimpleButtonEvent, JoystickEvent, …)
-   • call the weak global callback (if user defined one)
-   • dispatchToHandlers(e): walk handlerListHead<EventT>(),
-       call each WidgetHandler whose widgetId matches via strcmp
-```
-
-`handlerListHead<EventT>()` is a `template<typename E> static WidgetHandler*&`
-— one linked-list root per event struct type. Each `WidgetRegistrar` is a
-~12 B node allocated at file scope; nothing on the heap.
-
----
-
-## 6. The other direction — sending a display update
-
-```
-User code
-  │
-  ▼
-instant.gauge("temp").setValue(23.5f)
-  │
-  ▼
-GaugeWidget::setValue(float v)
-   • writes the float LE into a local 4-byte buffer
-   • calls sendBinary(EV_SETVALUE, buf, 4)
-  │
-  ▼
-WidgetBase::sendBinary(eventCode, payload, len)
-   • delegates to IMessageSender (the core)
-  │
-  ▼
-InstantIoTCoreBase::sendBinary(widgetId, typeCode, eventCode, payload, len)
-   • BinaryCodec::encode(_txBuffer, deviceId, widgetId, typeCode,
-                          eventCode, payload, len)
-   • _transport.write(_txBuffer, len)
-   • bytes go out the wire
-```
-
-Display widget classes (`GaugeWidget`, `LedWidget`, `BarChartWidget`, …)
-all inherit `DisplayWidget` which inherits `WidgetBase`. The base owns
-the widget id (fixed-size `char[]`) and the sender reference.
-
----
-
-## 6bis. The value path — signals (InstantIoT 2.0)
-
-A signal carries **data**, not a drawing. The two paths never meet: a display
-widget addresses a widget id, a signal addresses one byte.
-
-```
-User code
-  │
-  ▼
-instant.write(I0, 23.4f)
+Facade::write — refuses (and logs once) if begin() has not run
   │
   ▼
 InstantIoTCoreBase::write(SignalRef, float)
-   • packs the value LE into a 4-byte buffer
+   • packs the value little-endian into 4 bytes
   │
   ▼
 InstantIoTCoreBase::sendSignal(address, tag, payload, len)
-   • THE CEILING — one global counter, not a table per address:
-     the constraint comes from the platform, and a small board
-     should not pay a table for it. Returns false, silently, when
-     the call arrives too soon.
+   • THE CEILING — one global counter, not a table per address: the
+     constraint comes from the platform, and a small board should not
+     pay a table for it. Returns false, silently, when a call arrives
+     too soon. That is not an error.
   │
   ▼
-BinaryCodec::encodeSignal(buffer, address, tag, payload, len)
-   • _transport.write(...)
+BinaryCodec::encodeSignal(...)  →  _transport.write(...)
 ```
 
 ### Why a second encoder
@@ -276,247 +263,323 @@ length-prefixed and NUL-terminated. An address of value 0 would be an empty
 string. `encodeSignal` exists for that one reason: it lays the address down as
 a raw byte.
 
-### The frame — it rides the layout that already exists
+### The frame
 
 ```
-AA | VER | LEN | DEV_COUNT=0 | WID_LEN=1 | addr | TYPE=0x20 | TAG | value | CRC
+AA | VER | LEN(2) | DEV_COUNT=0 | WID_LEN=1 | addr | TYPE=0x20 | TAG | value | CRC
 ```
 
-Nothing forked. `TYPE_SIGNAL` is a new type code, exactly how `TYPE_HEARTBEAT`
-(0xFE) has always cohabited, so **gesture frames are untouched** and the
-server's parser needs no branch of its own to stay valid.
+Nothing forked. `TYPE_SIGNAL` (0x20) is a type code like `TYPE_HEARTBEAT`
+(0xFE) has always been, so the server's parser needs no branch of its own.
 
 Two slots are reused rather than added: the address takes `WID` on one byte,
-the type tag takes `EVENT`. Zero extra byte — 14 bytes for a float, against 19
-for the same measure named `"gauge1"`.
+the value's type takes `EVENT`. Zero extra byte — 14 bytes for a float,
+against 19 for the same measure named `"gauge1"`.
 
 `DEV_COUNT` is 0: the board never repeats its own identity, since the
 connection is already authenticated by its token.
 
+Tags: `0x01` bool, `0x02` int32, `0x03` float, `0x04` text (48 bytes max).
+
 ### The contract is pinned by a test on the other side
 
 The server repository holds a golden test asserting the exact 14 bytes of
-`write(I5, 23.4f)`. The two repositories are compiled by different toolchains;
-nothing else would catch a reordered field or a flipped endianness — both would
-simply produce wrong values in somebody's history, in silence.
+`write(I5, 23.4f)`. The two repositories are compiled by different
+toolchains; nothing else would catch a reordered field or a flipped
+endianness — both would simply produce wrong values in somebody's history,
+in silence.
 
 If you change `encodeSignal`, that test must change with it, deliberately.
 
-### The other direction — a signal arriving
+---
+
+## 7. A signal arriving
 
 ```
-_transport.read(...) → frame assembled → processFrame(data, len)
+_transport.read(...) → extractFrames() → processFrame(data, len)
   │
-  ├─ BinaryCodec::decodeSignal(...)  ── not a signal ──▶ the widget path, untouched
-  │      • DEV_COUNT must be 0, WID_LEN must be 1, TYPE must be 0x20
-  │      • CRC checked only once those three hold
-  │      • reads the address as the BYTE it is
+  ▼
+BinaryCodec::decodeSignal(...)
+   • DEV_COUNT must be 0, WID_LEN must be 1, TYPE must be 0x20
+   • CRC checked only once those three hold
+   • reads the address as the BYTE it is
+   • the TAG's high bit (0x80) says "this is a restore", and is
+     stripped from the tag before it is returned
+  │
   ▼
 decodeSignalValue(tag, payload, …) → SignalValue
-  │      • int32 is kept as an integer, never round-tripped through a float
-  │      • a text is copied into the core's 49-byte buffer and terminated
+   • int32 stays an integer, never round-tripped through a float
+   • text is copied into the core's 49-byte buffer and terminated
+  │
   ▼
-onSignalWritten(e)  then  dispatchSignal(e)
-       • one uint8 compare per registered block — no strcmp anywhere
+onSignalWritten(e)      the catch-all, weak, overridable by the sketch
+  │
+  ▼
+dispatchSignal(e, restore)
+   • one uint8 compare per registered block — no strcmp anywhere
 ```
 
 ### Why the discriminator has to come first
 
 `decode()` reads the `WID` slot with `readString`: a length byte, then that
 many bytes. A signal puts a raw address there — so `I0` would read as an empty
-string and `I4` would swallow the four bytes behind it, TYPE and TAG included.
-`decodeSignal` therefore runs first and claims the frame or declines it.
+string and `I4` would swallow the four bytes behind it, TYPE and TAG
+included. `decodeSignal` therefore runs first and claims the frame or
+declines it.
 
 Declining is the delicate part, and it rests entirely on the TYPE byte: a
 widget frame with no device list and a one-character id has *exactly* the same
 shape as a signal. That case is in the host tests.
 
-### The handler is not typed, the capture is
+### A restore does not wake a gesture
 
-The board cannot know what the server declared for an address, so `SignalValue`
-carries every reading of itself and the sketch picks one:
+On reconnect the server replays the last value of every signal that asks for
+it. That is what a *state* needs — a setpoint, a threshold: `ISignal(I5,
+float t)` must find it again.
 
-```cpp
-ISignal(I5, float target) { … };
-ISignal(I6, bool on)      { … };
-```
+But `ISimpleButton(I5)` declares something else: "I want to know that
+somebody pressed". Nobody pressed. Delivering it would invent a gesture, and
+the sketch would light a lamp nobody asked for.
 
-The block becomes an ordinary function of that type, and a generated
-trampoline converts the value on the way in. No `WHEN_` guard: a button sends
-several kinds of event to one id and must sort them, a signal has one thing
-that can happen to it.
-
-The conversion operator is a template, so any target type — `uint8_t` included
-— is an exact match rather than an ambiguity between a handful of fixed
-operators. `bool` and text have their own conversions: 0.5 must read as *true*
-and not truncate to 0 first, and a non-empty text is true.
-
-### Running the host tests
-
-```
-./test/host/run.sh
-```
-
-Compiles `test/host/test_signals.cpp` with g++ against a 40-line `Arduino.h`
-shim and runs it in about a second. It pins the golden frames byte for byte
-against the server's, and routes them through the real `processFrame` — not a
-copy of it, because a copy keeps passing on the day the original changes.
+The rule therefore belongs to the **block**, not to the signal's settings.
+Whether replay is ticked or not, a gesture is not replayed. `SignalHandler`
+carries a `gesture` flag for exactly this, set by the `I<Widget>` macros and
+left false by `ISignal`.
 
 ---
 
-## 7. Transports — the `ITransport` contract
+## 8. The DSL — one, not two
+
+There is one style. The callback form (`void onSimpleButtonEvent(…)` with
+`ON_PRESS("btn1")` guards) is gone, along with the widget ids it addressed.
+
+**The head carries the data, `WHEN_` carries the kind.**
+
+One kind of event, and the parameters are enough:
 
 ```cpp
-class ITransport {
-public:
-    virtual bool begin() = 0;          // open the connection
-    virtual void poll() = 0;           // service the underlying stack
-    virtual int  available() = 0;
-    virtual int  read(uint8_t* buf, size_t n) = 0;
-    virtual int  write(const uint8_t* buf, size_t len) = 0;
-    virtual bool connected() = 0;
+IJoystick(I2, float x, float y)  { driveMotors(x, y); };
+IHorizontalSlider(I1, float v)   { analogWrite(PWM, v); };
+IVerticalSlider(I4, float v)     { … };
+ISwitch(I3, bool on)             { digitalWrite(RELAY, on); };
+ISegmentedSwitch(I5, int index)  { mode = index; };
+ISignal(I6, const char* text)    { … };
+```
+
+Several kinds, and `WHEN_` sorts them — which is what stops the sketch from
+growing a staircase of `if`:
+
+```cpp
+ISimpleButton(I0) {
+    WHEN_PRESSED       { … }
+    WHEN_RELEASED      { … }
+    WHEN_LONG_PRESSED  { … }
+};
+
+IDirectionPad(I7) {
+    WHEN_UP           { forward(); }        // one key, one gesture
+    WHEN_UP_LONG      { faster(); }
+    WHEN_RELEASED_ANY { stop(); }
+    WHEN_PAD_PRESSED(key) { … }             // every key, same treatment
+};
+
+IEmergencyButton(I8) {
+    WHEN_TRIGGERED { … }
+    WHEN_RESET     { … }
 };
 ```
 
-Every façade (`InstantIoTWiFiAP`, `InstantIoTBluetoothBLE`, …) creates
-the right `ITransport` implementation for the board and wires it into
-`InstantIoTCoreBase`. The core never sees Wi-Fi or BLE directly — only
-the abstract interface — which is what makes the library trivial to
-extend with new physical media.
+Blocks live at **file scope** and close with `};`. Each expands to a static
+function plus a `SignalRegistrar` whose constructor links a ~12-byte node
+into a global intrusive list, before `setup()` runs. Nothing on the heap.
 
-Currently shipped:
+Several blocks may watch one address — an `ISignal(I0, float v)` next to an
+`ISimpleButton(I0)`. Both run, except on a restore (see §7).
 
-- `SoftAP_ESP32` / `SoftAP_ESP8266` / `SoftAP_R4` — board hosts its own
-  Wi-Fi access point, phone joins it
-- `WiFiServerClient_ESP32` — board connects as a TCP client to a
-  self-hosted InstantIoT Server
-- `BT_ESP32` — Bluetooth Classic SPP (preview, app not exposing it)
-- `BT_ESP32_BLE` — BLE GATT via NimBLE (preview)
-- `InstantSoftwareSerial` — HC-05 / HC-06 (preview)
+### What the board reads
 
----
+A gesture travels as a **value**, by convention: **1 pressed, 0 released, 2
+long-pressed**. A joystick writes `"0.42,-0.15"`, a direction pad writes
+`"UP"`, `"UP_LONG"`, `"UP_RELEASE"`. The decoding lives in
+`SignalToWidget.hpp` — written once instead of in every sketch.
 
-## 8. Memory model
+### The handler is not typed, the capture is
 
-The library is **statically allocated end to end** — predictable for AVR
-and ESP8266 RAM budgets.
-
-| Buffer | Size | Purpose |
-|---|---|---|
-| `_rxBuffer[INSTANT_RX_BUFFER_SIZE]` | 4 KB default | Stream reassembly, frame extraction |
-| `_txBuffer[INSTANT_TX_BUFFER_SIZE]` | 512 B default | Encoded outgoing frame |
-| `body[256]` (local in `BinaryCodec::encode`) | 256 B | Stack scratchpad while assembling a frame |
-
-| Per-widget allocation | Where |
-|---|---|
-| `_gauges[INSTANTIOT_MAX_WIDGETS]` (and similar arrays per widget kind) | Member array in the core — fixed size, typically 16 |
-| `WidgetHandler` nodes from `I<Widget>{}` blocks | One ~12 B static node per block, linked into a global list at startup |
-
-`INSTANTIOT_MAX_WIDGETS` (default 16) caps the number of unique widget
-ids the device can address per kind. Beyond that, new ids are silently
-ignored — keeps Flash and RAM predictable.
-
-No `String` Arduino class, no `std::string` — only fixed-size `char[]`
-of `INSTANTIOT_MAX_WIDGET_ID_LENGTH` (32 by default).
+The board cannot know what the server declared for an address, so
+`SignalValue` carries every reading of itself and the sketch picks one. The
+conversion operator is a template, so any target type — `uint8_t` included —
+is an exact match rather than an ambiguity between a handful of fixed
+operators. `bool` and text have their own conversions: 0.5 must read as
+*true* and not truncate to 0 first, and a non-empty text is true.
 
 ---
 
-## 9. Compile-time configuration — `InstantIoTConfig.h`
-
-Every widget can be turned off at compile time to save Flash and RAM:
+## 9. Transports — the `ITransport` contract
 
 ```cpp
-#define INSTANTIOT_WIDGETS_GAUGE          1
-#define INSTANTIOT_WIDGETS_LED            1
-#define INSTANTIOT_WIDGETS_ADVANCEDCHART  1
-#define INSTANTIOT_WIDGETS_SEGSWITCH      0   // disabled
-…
+struct ITransport {
+    virtual bool   begin() = 0;                            // open
+    virtual void   poll() = 0;                             // service the stack
+    virtual bool   connected() = 0;
+    virtual int    available() = 0;
+    virtual int    read(uint8_t* buf, size_t len) = 0;     // -1 on error
+    virtual size_t write(const uint8_t* buf, size_t len) = 0;
+};
 ```
 
-A flag set to `0` removes:
-- the include of the widget header
-- the array + count member in the core
-- the public accessor (`gauge("id")`, etc.)
-- the corresponding case in `BinaryCodec::decodePayload`'s `switch(typeCode)`
-- the destructor cleanup for that widget kind
+The core never sees WiFi or BLE — only this interface. Adding a physical
+medium is: implement `ITransport`, then add the link that builds it in
+`Links.hpp`.
 
-Useful on Uno / Mega / Nano targets where every kilobyte counts.
-
-Other knobs:
-
-```cpp
-#define INSTANTIOT_DEBUG                  0  // 1 → IIOT_LOG to Serial
-#define INSTANTIOT_MAX_WIDGETS            16
-#define INSTANTIOT_MAX_WIDGET_ID_LENGTH   32
-#define INSTANT_RX_BUFFER_SIZE            4096
-#define INSTANT_TX_BUFFER_SIZE            512
-#define INSTANT_AP_PORT                   8888
-```
+The TCP and TLS clients add three setters the links call before `begin()`:
+`setCredentials(ssid, pass)`, `setHeartbeat(ms)`, and — on the TLS ones only
+— `setCACert(pem)` / `setInsecure()`.
 
 ---
 
-## 10. Heartbeat (TCP server mode only)
+## 10. Memory model
 
-`InstantIoTWiFiServer` exposes `setHeartbeat(uint32_t intervalMs)` (default
-5000 ms). The library periodically emits a tiny frame:
+Statically allocated end to end.
+
+| Buffer | ESP32 | R4 / ESP8266 | other |
+|---|---|---|---|
+| `_rxBuffer` | 2 KB | 1 KB | 512 B |
+| `_txBuffer` | 1 KB | 512 B | 256 B |
+
+Plus a `char[49]` in the core for an incoming text signal, and one ~12-byte
+static node per `I<Widget>` / `ISignal` block. No `String`, no
+`std::string`, no heap.
+
+---
+
+## 11. Compile-time configuration — `InstantIoTConfig.h`
+
+```cpp
+#define INSTANTIOT_DEBUG               0   // 1 → IIOT_LOG to Serial
+#define INSTANTIOT_DEFAULT_SIGNAL_RATE 50  // frames/s ceiling until the
+                                           // server pushes the real one
+#define INSTANT_RX_BUFFER_SIZE         …   // see the table above
+#define INSTANT_TX_BUFFER_SIZE         …
+#define INSTANT_AP_PORT                8080
+```
+
+Destination defaults live in `Destinations.hpp` and are overridable the same
+way: `INSTANTIOT_CLOUD_HOST`, `INSTANTIOT_CLOUD_TLS_PORT` (9443),
+`INSTANTIOT_CLOUD_PLAIN_PORT` (9001), `INSTANTIOT_DEFAULT_HEARTBEAT_MS`
+(5000).
+
+The rate ceiling is **cooperative**: the server never trusts it, its own fuse
+stays. It exists so a beginner writing in the main loop is not disconnected
+for flooding.
+
+---
+
+## 12. Heartbeat
+
+Server modes only — it has no meaning in access-point or BLE mode, where
+there is no server to reassure.
 
 ```
 TYPE = 0xFE (HEARTBEAT)   WID_LEN = 0   EVENT = 0   PAYLOAD = {}
 ```
 
-The server resets the socket read timeout on every received byte, and
-flags the device offline after `intervalMs × 2.5` of silence. Heartbeats
-are **never relayed** to mobile apps — pure liveness plumbing.
+The interval is plumbed on two layers, both from the destination: the
+transport announces it at the handshake, the core emits it in `loop()`. The
+server sets its socket read timeout to about 2.5× the announced interval
+(clamped to 2 s … 120 s) and flags the device offline after that silence.
+Heartbeats are never relayed to apps.
+
+Change it with `Cloud(TOKEN).heartbeatEvery(20000)`, before `begin()`.
 
 ---
 
-## 11. Onboarding — where to start
+## 13. The host bench
 
-Read these files, in this order:
+```
+./test/host/run.sh
+```
 
-1. `src/InstantIoTWiFiAP.hpp` — the most common façade, ~50 lines
-2. `src/core/InstantIoTCore.hpp` — the main loop and RX assembly
-3. `src/core/BinaryCodec.hpp` — the wire protocol, byte by byte
-4. `src/core/Registry.hpp` — dispatch + the `WHEN_*` plumbing
-5. `src/utils/InstantIoTWhen.hpp` — the user-facing declarative macros
-6. `src/widgets/WidgetBase.hpp` + one display widget (e.g. `Gauge.hpp`)
-7. `src/transport/wifi/SoftAP_ESP32.hpp` — a reference `ITransport` impl
+Compiles five test files with a plain `g++` against a 66-line `Arduino.h`
+shim and runs them in about a second: no board, no IDE. It
+does not replace a run on real hardware; it catches what does not need
+hardware to be wrong.
 
-### Adding a new display widget
+| File | What it pins |
+|---|---|
+| `test_signals.cpp` | the golden frames, byte for byte, through the real `processFrame` |
+| `test_singleton.cpp` | calling before `begin()`, writing from inside a block, a second `begin()` |
+| `test_destinations.cpp` | the defaults a sketch gets without asking |
+| `decodeurs.cpp` | the gesture convention, positions, pad names |
+| `dsl_sur_signaux.cpp` | that the macros expand and register |
 
-1. Create `src/widgets/displays/MyWidget.hpp` with a `MyWidgetWidget`
-   class extending `DisplayWidget`. Expose a fluent API
-   (`setValue`, `setColor`, …) that internally calls `sendBinary(…)`.
-2. Pick an unused `TYPE_*` code in `BinaryCodec.hpp`.
-3. Add the include to `WidgetIncludes.hpp` behind a new
-   `INSTANTIOT_WIDGETS_MYWIDGET` flag.
-4. Add the array + accessor in `InstantIoTCore.hpp` (look at `Gauge` for
-   the template).
-5. On the Android side, add the matching TYPE and EVENT codes to
-   `BinaryTypeRegistry` / `BinaryEventRegistry`, and the
-   `decodePayload` / `encodePayload` branches.
+The frames are routed through the real `processFrame`, not a copy of it —
+a copy keeps passing on the day the original changes.
 
-### Adding a new control widget
+What it has caught, in being written: `e.text()` where `text()` belongs to
+`SignalValue`; `ISignal` registered as a gesture block; a `write` before
+`begin()` segfaulting; and `dispatchSignalFrame` delivering *only* restores,
+which had left every `ISignal` and every `ISimpleButton` on the board silent.
+All of them compiled. No review would have seen them.
 
-1. Define an event struct in `InstantIoTMessage.hpp`
-   (e.g. `MyButtonEvent`).
-2. Add the `case` in `WidgetRegistry::dispatch` that builds the struct
-   from the `DecodedMessage` and calls the weak callback +
-   `dispatchToHandlers`.
-3. Add an `IMyButton(id)` macro in `InstantIoTWhen.hpp` mirroring
-   `ISimpleButton`, plus the `WHEN_*` clauses it supports.
-4. Update the Android encoder/decoder symmetrically.
+Compiling for real needs `arduino-cli`:
+
+```sh
+arduino-cli compile --fqbn esp32:esp32:esp32 --library . examples/commandes/Croix
+```
+
+The three supported targets are `esp32:esp32:esp32`,
+`arduino:renesas_uno:unor4wifi` and `esp8266:esp8266:nodemcuv2`. A Bluetooth
+sketch needs the `huge_app` partition scheme — Bluetooth Classic plus WiFi
+does not fit in the default 1.3 MB, and never did.
+
+---
+
+## 14. Onboarding — where to start
+
+1. `src/InstantIoT.h` — the singleton and the three `begin` forms
+2. `src/Links.hpp` + `src/Destinations.hpp` — what a sketch chooses
+3. `src/core/InstantIoTCore.hpp` — the main loop and RX assembly
+4. `src/core/BinaryCodec.hpp` — the wire protocol, byte by byte
+5. `src/core/SignalEvents.hpp` — the handler list and dispatch
+6. `src/utils/InstantIoTWhen.hpp` — the macros a sketch writes
+7. `src/transport/wifi/SoftAP_ESP32.hpp` — a reference `ITransport`
 
 ### Adding a transport
 
 1. Implement `ITransport` in `src/transport/<medium>/<Name>.hpp`.
-2. Create a façade header `src/InstantIoT<Name>.hpp` that instantiates
-   the transport and `InstantIoTCoreBase`.
-3. Document it in `README.md`.
+2. Add the platform branch and the feature macro in `Links.hpp`.
+3. Give it a link struct with `transport()` (direct) or `transportVers(dest)`
+   (reaching a destination), and a `_IIO_LIAISON_ABSENTE` shell for the
+   platforms that lack it.
+4. If it needs a library outside the core, read §5's `__has_include` trap
+   before guarding it.
+5. Compile one example per supported board before claiming it works.
 
 ---
 
-**In one sentence:** the library is a small, transport-agnostic engine
-that turns user-friendly declarative macros (`ISimpleButton` /
-`WHEN_PRESSED`) into compact binary frames over any `ITransport`, with
-zero dynamic memory.
+## 15. Known debt
+
+Written down rather than left to be rediscovered.
+
+- **`test/host/test_events.cpp` is out of the bench.** It asserts
+  `typeAtAddress(5) == TYPE_SIMPLEBUTTON` and `ISimpleButton("btn1")`, both
+  removed on purpose. Making it green again means deciding what an EVENT
+  becomes on the board — work, not a touch-up.
+- **Dead `WHEN_` macros.** `WHEN_TOGGLED`, `WHEN_TURNED_ON`,
+  `WHEN_CHANGING`, `WHEN_SELECTION_CHANGED` and their predicates are
+  unreachable: the blocks they were written for (`ISwitch`, the sliders,
+  `ISegmentedSwitch`) carry their data in the head and have no `e` to
+  question. Coherent — there is only one kind of event left to sort — but
+  the macros still advertise a vocabulary that no longer exists.
+- **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
+  a `src/widgets/` directory that no longer exists.
+- **No Ethernet transport.** The model expects it — `begin(EthernetLink(),
+  Cloud(TOKEN))` would need no change anywhere else — but nothing is written
+  until it has run on a board.
+- **`README.md` still describes the erased model.**
+
+---
+
+**In one sentence:** the board writes values at addresses and reacts to the
+values written to it, over any `ITransport`, with zero dynamic memory — and
+what those values look like is not its business.
