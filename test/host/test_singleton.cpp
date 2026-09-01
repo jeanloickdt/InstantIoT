@@ -134,6 +134,39 @@ int main() {
         ok(autre.sortiLen == 0, "la seconde n'a rien recu — begin() ne se rejoue pas");
     }
 
+    section("Une liaison qui s'ouvre mal continue d'essayer");
+    {
+        // Le cas du terrain : le WiFi n'est pas encore la, ou le serveur
+        // ne repond pas. `begin()` rend faux — et c'est normal. Ce qui ne
+        // doit PAS arriver, c'est que la carte cesse d'essayer : la
+        // reconnexion avec backoff vit dans `poll()` du transport, et
+        // `loop()` est le seul a l'appeler.
+        struct LiaisonQuiEchoue : ITransport {
+            int  polls = 0;
+            bool begin() override      { return false; }   // rien ne repond
+            void poll() override       { polls++; }
+            bool connected() override  { return false; }
+            int  available() override  { return 0; }
+            int  read(uint8_t*, size_t) override { return -1; }
+            size_t write(const uint8_t*, size_t) override { return 0; }
+        };
+        // Vise le cœur et non la facade : le cœur de la facade est un
+        // `static` de fonction, donc UNIQUE. Une seconde `Facade` reutilise
+        // celui de la premiere — c'est ce qui en fait un singleton pour de
+        // bon, et ce qui rend une seconde instance inutile pour ce test.
+        static LiaisonQuiEchoue muette;
+        InstantIoTCoreBase coeur(muette);
+        ok(!coeur.begin(), "begin() dit franchement qu'il a echoue");
+
+        coeur.loop();
+        coeur.loop();
+        coeur.loop();
+        ok(muette.polls == 3,
+           "…et loop() continue de faire tourner le transport, sinon la "
+           "reconnexion avec backoff n'a jamais lieu et la carte est morte "
+           "jusqu'au reset");
+    }
+
     section("Depuis un bloc : ecrire pendant qu'on lit");
     {
         // On fabrique la trame d'arrivee avec notre propre encodeur, puis on
