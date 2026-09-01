@@ -95,12 +95,12 @@
     _IIO_IJOY(ref, _IIO_UID(_iioJyF_), _IIO_UID(_iioJyT_), _IIO_UID(_iioJyR_), __VA_ARGS__)
 #define _IIO_IJOY(ref, FN, TRAMP, REG, ...)                                \
     static void FN(__VA_ARGS__);                                           \
-    static void TRAMP(const InstantIoT::SignalEvent& e) {                  \
+    static void TRAMP(const iiot::SignalEvent& e) {                  \
         float _iioX = 0.0f, _iioY = 0.0f;                                  \
-        if (InstantIoT::decodePosition(e.value.text(), _iioX, _iioY))            \
+        if (iiot::decodePosition(e.value.text(), _iioX, _iioY))            \
             FN(_iioX, _iioY);                                              \
     }                                                                      \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
     static void FN(__VA_ARGS__)
 
 /** `IHorizontalSlider(I4, float v) { … }` */
@@ -121,8 +121,8 @@
 // choisit, pas la trame.
 #define _IIO_INUM(ref, FN, TRAMP, REG, ...)                                \
     static void FN(__VA_ARGS__);                                           \
-    static void TRAMP(const InstantIoT::SignalEvent& e) { FN(e.value); }   \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static void TRAMP(const iiot::SignalEvent& e) { FN(e.value); }   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
     static void FN(__VA_ARGS__)
 
 // ── Plusieurs genres : un bloc, et `WHEN_` pour trier ────────
@@ -135,47 +135,47 @@
     _IIO_IBTN(ref, AdvancedButtonEvent, _IIO_UID(_iioAbF_), _IIO_UID(_iioAbT_), _IIO_UID(_iioAbR_))
 
 #define _IIO_IBTN(ref, EVT, FN, TRAMP, REG)                                \
-    static void FN(const InstantIoT::EVT&);                                \
-    static void TRAMP(const InstantIoT::SignalEvent& s) {                  \
-        InstantIoT::EVT e{};                                               \
+    static void FN(const iiot::EVT&);                                \
+    static void TRAMP(const iiot::SignalEvent& s) {                  \
+        iiot::EVT e{};                                               \
         e.widgetId = "";                                                   \
-        e.kind = InstantIoT::gestureFromValue((float)s.value);             \
-        e.isOn = (e.kind == InstantIoT::ButtonEventKind::Press);           \
+        e.kind = iiot::gestureFromValue((float)s.value);             \
+        e.isOn = (e.kind == iiot::ButtonEventKind::Press);           \
         FN(e);                                                             \
     }                                                                      \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
-    static void FN(const InstantIoT::EVT& e)
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static void FN(const iiot::EVT& e)
 
 /** `IDirectionPad(I3) { WHEN_UP … }` — l'app écrit `"UP"`, `"UP_LONG"`… */
 #define IDirectionPad(ref) \
     _IIO_IDP(ref, _IIO_UID(_iioDpF_), _IIO_UID(_iioDpT_), _IIO_UID(_iioDpR_))
 #define _IIO_IDP(ref, FN, TRAMP, REG)                                      \
-    static void FN(const InstantIoT::DirectionPadEvent&);                  \
-    static void TRAMP(const InstantIoT::SignalEvent& s) {                  \
-        InstantIoT::DirectionPadEvent e{};                                 \
-        if (!InstantIoT::decodePad(s.value.text(), e.button, e.kind)) return;    \
+    static void FN(const iiot::DirectionPadEvent&);                  \
+    static void TRAMP(const iiot::SignalEvent& s) {                  \
+        iiot::DirectionPadEvent e{};                                 \
+        if (!iiot::decodePad(s.value.text(), e.button, e.kind)) return;    \
         e.widgetId   = "";                                                 \
-        e.buttonName = InstantIoT::padName(e.button);                      \
+        e.buttonName = iiot::padName(e.button);                      \
         FN(e);                                                             \
     }                                                                      \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
-    static void FN(const InstantIoT::DirectionPadEvent& e)
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static void FN(const iiot::DirectionPadEvent& e)
 
 /** `IEmergencyButton(I7) { WHEN_TRIGGERED … }` */
 #define IEmergencyButton(ref) \
     _IIO_IEMB(ref, _IIO_UID(_iioEmF_), _IIO_UID(_iioEmT_), _IIO_UID(_iioEmR_))
 #define _IIO_IEMB(ref, FN, TRAMP, REG)                                     \
-    static void FN(const InstantIoT::EmergencyButtonEvent&);               \
-    static void TRAMP(const InstantIoT::SignalEvent& s) {                  \
-        InstantIoT::EmergencyButtonEvent e{};                              \
+    static void FN(const iiot::EmergencyButtonEvent&);               \
+    static void TRAMP(const iiot::SignalEvent& s) {                  \
+        iiot::EmergencyButtonEvent e{};                              \
         e.widgetId = "";                                                   \
         e.kind = ((float)s.value >= 0.5f)                                  \
-            ? InstantIoT::EmergencyEventKind::Trigger                      \
-            : InstantIoT::EmergencyEventKind::Reset;                       \
+            ? iiot::EmergencyEventKind::Trigger                      \
+            : iiot::EmergencyEventKind::Reset;                       \
         FN(e);                                                             \
     }                                                                      \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
-    static void FN(const InstantIoT::EmergencyButtonEvent& e)
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static void FN(const iiot::EmergencyButtonEvent& e)
 
 // ============================================================
 // 📶 ISignal(ref, decl) — declares a handler for a signal ADDRESS
@@ -204,8 +204,8 @@
     _IIO_ISIGNAL_IMPL(ref, decl, _IIO_UID(_iioSigF_), _IIO_UID(_iioSigT_), _IIO_UID(_iioSigR_))
 #define _IIO_ISIGNAL_IMPL(ref, decl, FN, TRAMP, REG)                       \
     static void FN(decl);                                                  \
-    static void TRAMP(const InstantIoT::SignalEvent& e) { FN(e.value); }   \
-    static InstantIoT::SignalRegistrar REG(ref, &TRAMP);                   \
+    static void TRAMP(const iiot::SignalEvent& e) { FN(e.value); }   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP);                   \
     static void FN(decl)
 
 // ============================================================
@@ -213,7 +213,7 @@
 // `WHEN_RELEASED` that works for Button and Joystick
 // ============================================================
 
-namespace InstantIoT {
+namespace iiot {
 
 inline bool _whenPressed(const SimpleButtonEvent& e)       { return e.kind == ButtonEventKind::Press; }
 inline bool _whenPressed(const AdvancedButtonEvent& e)     { return e.kind == ButtonEventKind::Press; }
@@ -257,7 +257,7 @@ inline bool _whenSegmentDeselected(const SegmentedSwitchEvent& e){ return e.kind
 inline bool _whenTriggered(const EmergencyButtonEvent& e)  { return e.kind == EmergencyEventKind::Trigger; }
 inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == EmergencyEventKind::Reset; }
 
-} // namespace InstantIoT
+} // namespace iiot
 
 // ============================================================
 // 🎯 WHEN_* — internal guards inside I<Widget> blocks
@@ -267,21 +267,21 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // ============================================================
 
 // --- Without capture ----------------------------------------
-#define WHEN_PRESSED      if (InstantIoT::_whenPressed(e))
-#define WHEN_RELEASED     if (InstantIoT::_whenReleased(e))
-#define WHEN_LONG_PRESSED if (InstantIoT::_whenLongPressed(e))
+#define WHEN_PRESSED      if (iiot::_whenPressed(e))
+#define WHEN_RELEASED     if (iiot::_whenReleased(e))
+#define WHEN_LONG_PRESSED if (iiot::_whenLongPressed(e))
 
 // --- With capture of a bool variable ------------------------
 // "if init-statement" idiom (C++17) to have only one if
 #define WHEN_TOGGLED(var_isOn)                                                 \
-    if (InstantIoT::_whenToggled(e))                                           \
+    if (iiot::_whenToggled(e))                                           \
         if (bool var_isOn = e.isOn; true)
 
 // --- With capture of two float variables (joystick) --------
 // Two nested if-init (C++17) — each condition is a `true` bool,
 // so the user block always runs once if the kind matches.
 #define WHEN_MOVED(var_x, var_y)                                               \
-    if (InstantIoT::_whenMoved(e))                                             \
+    if (iiot::_whenMoved(e))                                             \
         if (float var_x = e.x; true)                                           \
             if (float var_y = e.y; true)
 
@@ -290,23 +290,23 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // ============================================================
 // Streaming during drag (ValueChanging) — captures the float value
 #define WHEN_CHANGING(var_v)                                                   \
-    if (InstantIoT::_whenChanging(e))                                          \
+    if (iiot::_whenChanging(e))                                          \
         if (float var_v = e.value; true)
 
 // Final value on release (ValueChanged) — captures the float value
 #define WHEN_CHANGED(var_v)                                                    \
-    if (InstantIoT::_whenChanged(e))                                           \
+    if (iiot::_whenChanged(e))                                           \
         if (float var_v = e.value; true)
 
 // ============================================================
 // 🔘 SWITCH
 // ============================================================
-#define WHEN_TURNED_ON     if (InstantIoT::_whenTurnedOn(e))
-#define WHEN_TURNED_OFF    if (InstantIoT::_whenTurnedOff(e))
+#define WHEN_TURNED_ON     if (iiot::_whenTurnedOn(e))
+#define WHEN_TURNED_OFF    if (iiot::_whenTurnedOff(e))
 // WHEN_TOGGLED(isOn) is already defined (overload on SwitchEvent).
 // WHEN_SWITCH_SET(isOn) captures e.isOn for events with kind=SetValue.
 #define WHEN_SWITCH_SET(var_isOn)                                              \
-    if (InstantIoT::_whenSwitchSetValue(e))                                    \
+    if (iiot::_whenSwitchSetValue(e))                                    \
         if (bool var_isOn = e.isOn; true)
 
 // ============================================================
@@ -324,8 +324,8 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // quatre formes — passent par la forme à variable : les nommer ferait
 // trente-neuf macros pour des croquis qui les traitent en boucle.
 #define _IIO_PAD(T, K)                                                         \
-    if (e.button == InstantIoT::DPadButton::T &&                               \
-        e.kind   == InstantIoT::DPadEventKind::K)
+    if (e.button == iiot::DPadButton::T &&                               \
+        e.kind   == iiot::DPadEventKind::K)
 
 #define WHEN_UP              _IIO_PAD(Up, Press)
 #define WHEN_DOWN            _IIO_PAD(Down, Press)
@@ -346,38 +346,38 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 #define WHEN_CENTER_RELEASE  _IIO_PAD(Center, Release)
 
 /** N'importe quelle touche relâchée — savoir laquelle n'intéresse presque jamais. */
-#define WHEN_RELEASED_ANY    if (e.kind == InstantIoT::DPadEventKind::Release)
+#define WHEN_RELEASED_ANY    if (e.kind == iiot::DPadEventKind::Release)
 
 #define WHEN_PAD_PRESSED(var_btn)                                              \
-    if (InstantIoT::_whenPadPressed(e))                                        \
-        if (InstantIoT::DPadButton var_btn = e.button; true)
+    if (iiot::_whenPadPressed(e))                                        \
+        if (iiot::DPadButton var_btn = e.button; true)
 
 #define WHEN_PAD_RELEASED(var_btn)                                             \
-    if (InstantIoT::_whenPadReleased(e))                                       \
-        if (InstantIoT::DPadButton var_btn = e.button; true)
+    if (iiot::_whenPadReleased(e))                                       \
+        if (iiot::DPadButton var_btn = e.button; true)
 
 #define WHEN_PAD_LONG_PRESSED(var_btn)                                         \
-    if (InstantIoT::_whenPadLongPressed(e))                                    \
-        if (InstantIoT::DPadButton var_btn = e.button; true)
+    if (iiot::_whenPadLongPressed(e))                                    \
+        if (iiot::DPadButton var_btn = e.button; true)
 
 // ============================================================
 // 🔀 SEGMENTED SWITCH
 // ============================================================
 // Captures selectedIndex (int)
 #define WHEN_SELECTION_CHANGED(var_idx)                                        \
-    if (InstantIoT::_whenSelectionChanged(e))                                  \
+    if (iiot::_whenSelectionChanged(e))                                  \
         if (int var_idx = e.selectedIndex; true)
 
 #define WHEN_SEGMENT_SELECTED(var_idx)                                         \
-    if (InstantIoT::_whenSegmentSelected(e))                                   \
+    if (iiot::_whenSegmentSelected(e))                                   \
         if (int var_idx = e.selectedIndex; true)
 
 #define WHEN_SEGMENT_DESELECTED(var_idx)                                       \
-    if (InstantIoT::_whenSegmentDeselected(e))                                 \
+    if (iiot::_whenSegmentDeselected(e))                                 \
         if (int var_idx = e.selectedIndex; true)
 
 // ============================================================
 // 🚨 EMERGENCY BUTTON
 // ============================================================
-#define WHEN_TRIGGERED  if (InstantIoT::_whenTriggered(e))
-#define WHEN_RESET      if (InstantIoT::_whenReset(e))
+#define WHEN_TRIGGERED  if (iiot::_whenTriggered(e))
+#define WHEN_RESET      if (iiot::_whenReset(e))

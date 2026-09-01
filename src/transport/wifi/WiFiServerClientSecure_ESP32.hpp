@@ -65,7 +65,7 @@
   #define INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT 25
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class WiFiServerClientSecure_ESP32 : public ITransport {
 public:
@@ -322,4 +322,4 @@ private:
     uint32_t    heartbeatMs_;
 };
 
-} // namespace InstantIoT
+} // namespace iiot

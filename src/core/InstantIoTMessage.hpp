@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include "../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 // ============================================================
 // 🔘 BUTTON EVENTS
@@ -213,27 +213,27 @@ struct SegmentedSwitchEvent {
     bool isSegmentDeselected() const { return kind == SegmentedEventKind::SegmentDeselected; }
 };
 
-} // namespace InstantIoT
+} // namespace iiot
 
 // ============================================================
 // 🌍 EXPOSE GLOBAL
 // ============================================================
 
-using SimpleButtonEvent = InstantIoT::SimpleButtonEvent;
-using AdvancedButtonEvent = InstantIoT::AdvancedButtonEvent;
-using EmergencyButtonEvent = InstantIoT::EmergencyButtonEvent;
-using HorizontalSliderEvent = InstantIoT::HorizontalSliderEvent;
-using VerticalSliderEvent = InstantIoT::VerticalSliderEvent;
-using SwitchEvent = InstantIoT::SwitchEvent;
-using JoystickEvent = InstantIoT::JoystickEvent;
-using DirectionPadEvent = InstantIoT::DirectionPadEvent;
-using SegmentedSwitchEvent = InstantIoT::SegmentedSwitchEvent;
+using SimpleButtonEvent = iiot::SimpleButtonEvent;
+using AdvancedButtonEvent = iiot::AdvancedButtonEvent;
+using EmergencyButtonEvent = iiot::EmergencyButtonEvent;
+using HorizontalSliderEvent = iiot::HorizontalSliderEvent;
+using VerticalSliderEvent = iiot::VerticalSliderEvent;
+using SwitchEvent = iiot::SwitchEvent;
+using JoystickEvent = iiot::JoystickEvent;
+using DirectionPadEvent = iiot::DirectionPadEvent;
+using SegmentedSwitchEvent = iiot::SegmentedSwitchEvent;
 
-using ButtonEventKind = InstantIoT::ButtonEventKind;
-using EmergencyEventKind = InstantIoT::EmergencyEventKind;
-using SliderEventKind = InstantIoT::SliderEventKind;
-using SwitchEventKind = InstantIoT::SwitchEventKind;
-using JoystickEventKind = InstantIoT::JoystickEventKind;
-using DPadButton = InstantIoT::DPadButton;
-using DPadEventKind = InstantIoT::DPadEventKind;
-using SegmentedEventKind = InstantIoT::SegmentedEventKind;
+using ButtonEventKind = iiot::ButtonEventKind;
+using EmergencyEventKind = iiot::EmergencyEventKind;
+using SliderEventKind = iiot::SliderEventKind;
+using SwitchEventKind = iiot::SwitchEventKind;
+using JoystickEventKind = iiot::JoystickEventKind;
+using DPadButton = iiot::DPadButton;
+using DPadEventKind = iiot::DPadEventKind;
+using SegmentedEventKind = iiot::SegmentedEventKind;

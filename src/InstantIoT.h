@@ -1,0 +1,168 @@
+#pragma once
+/**
+ * ============================================================
+ * ⚡ InstantIoT.h — l'objet unique du croquis
+ * ============================================================
+ *
+ * ## Ce qu'il remplace
+ *
+ * Chaque croquis déclarait sa façade en global :
+ *
+ *     InstantIoTWiFiAP instant("MaCarte", "12345678");
+ *     void setup() { instant.begin(); }
+ *     void loop()  { instant.loop();  }
+ *
+ * Et `instant` n'était atteignable que parce que le croquis avait pensé à
+ * la déclarer **hors** de `setup()`. Déclarée dedans, aucune fonction, aucun
+ * bloc `ISignal` ne pouvait plus écrire — et rien dans la lib ne le disait.
+ * Le nom changeait aussi avec le mode de liaison, si bien qu'un exemple ne
+ * se copiait pas d'un mode à l'autre.
+ *
+ *     void setup() { InstantIoT.begin(lien); }
+ *     void loop()  { InstantIoT.loop();      }
+ *
+ * ## Appelable où ?
+ *
+ * Partout, et c'est le sujet. Depuis `loop()`, depuis une fonction à vous,
+ * depuis un bloc `ISignal` ou `ISimpleButton` — répondre à un geste par une
+ * écriture est le cas normal, et la lecture et l'écriture ne se disputent
+ * pas de tampon (`_rxBuffer` d'un côté, `_txBuffer` de l'autre).
+ *
+ * Deux réserves, et elles sont réelles :
+ *
+ * **Avant `begin()`**, il n'y a pas de liaison. L'appel ne fait rien et le
+ * dit une fois au journal. Il ne déréférence rien : les champs de cet objet
+ * sont initialisés à la compilation, donc valides même pendant la
+ * construction des globales des autres unités. C'est ce qu'un global
+ * ordinaire ne garantit pas, et pourquoi ils n'ont pas de constructeur.
+ *
+ * **Depuis une interruption**, non — écrire sur une socket depuis un ISR
+ * n'est sûr avec aucune bibliothèque. La règle Arduino ne change pas :
+ * l'interruption pose un drapeau, `loop()` écrit.
+ * ============================================================
+ */
+
+#include "core/InstantIoTCore.hpp"
+
+/**
+ * Le DSL vient avec.
+ *
+ * Aucun en-tête ne tirait `InstantIoTWhen.hpp` : un croquis n'avait
+ * `ISignal` que s'il pensait à l'inclure lui-même, et aucun des vingt-cinq
+ * exemples ne le faisait — ils ne compilent plus depuis que le DSL s'est
+ * rebâti sur les signaux. Un seul `#include <InstantIoT.h>` doit suffire
+ * pour tout ce qu'un croquis écrit.
+ */
+#include "utils/InstantIoTWhen.hpp"
+
+namespace iiot {
+
+/**
+ * La façade. Un seul exemplaire, nommé `InstantIoT`, déclaré plus bas.
+ *
+ * Elle ne fait pas le travail : elle tient le cœur et lui passe la main.
+ * Le cœur n'existe qu'à partir de `begin()`, parce que c'est là seulement
+ * qu'on sait par quelle liaison la carte parle.
+ */
+class Facade {
+public:
+
+    /**
+     * Ouvre la liaison. À appeler une fois, dans `setup()`.
+     *
+     * @param lien le transport — le croquis en déclare un, la façade s'en
+     *        souvient. Il doit vivre aussi longtemps que le programme :
+     *        une globale ou un `static`, jamais un temporaire.
+     * @return vrai si la liaison s'est ouverte.
+     */
+    bool begin(ITransport& lien) {
+        // Le `static` est construit au premier passage, avec CETTE liaison,
+        // et jamais reconstruit. Un second `begin()` ne rebâtirait donc pas
+        // le cœur : il se contenterait de laisser croire qu'il l'a fait.
+        // Autant le dire.
+        if (_coeur) {
+            IIOT_LOG("[InstantIoT] begin() a deja ete appele — le second est ignore");
+            return _coeur->connected();
+        }
+        static InstantIoTCoreBase coeur(lien);
+        _coeur = &coeur;
+        return coeur.begin();
+    }
+
+    /** À appeler dans `loop()`, sans condition. */
+    void loop() { if (_coeur) _coeur->loop(); }
+
+    bool connected() { return _coeur && _coeur->connected(); }
+
+    void setHeartbeat(uint32_t intervalMs) {
+        if (_coeur) _coeur->setHeartbeat(intervalMs);
+        else tropTot();
+    }
+
+    void setSignalRateLimit(uint16_t framesPerSecond) {
+        if (_coeur) _coeur->setSignalRateLimit(framesPerSecond);
+        else tropTot();
+    }
+
+    /**
+     * Écrit une valeur sur un signal.
+     *
+     * Le gabarit ne fait que relayer : c'est le cœur qui porte les
+     * surcharges, `double` et `unsigned long` compris, pour que
+     * `write(I0, analogRead(A0) * 3.3 / 4095.0)` compile.
+     *
+     * @return faux si rien n'est parti — pas de liaison, ou le plafond de
+     *         trames par seconde a mangé l'appel. Aucun des deux n'est une
+     *         erreur du croquis, et aucun ne mérite un redémarrage.
+     */
+    template <class V>
+    bool write(SignalRef sig, V valeur) {
+        if (!_coeur) return tropTot();
+        return _coeur->write(sig, valeur);
+    }
+
+    /**
+     * La configuration de la carte.
+     *
+     * Elle appartient au cœur, qui n'existe qu'après `begin()`. Avant,
+     * il n'y a rien à rendre et pas de référence à inventer : ce dépôt
+     * vide encaisse les écritures pour que l'appel ait un sens même trop
+     * tôt, et le journal dit qu'elles ne s'appliqueront pas.
+     */
+    DeviceConfig& config() {
+        if (_coeur) return _coeur->config();
+        tropTot();
+        static DeviceConfig sansEffet;
+        return sansEffet;
+    }
+
+private:
+    InstantIoTCoreBase* _coeur = nullptr;
+
+    /**
+     * Le seul point où l'on répond « pas encore ».
+     *
+     * Une fois, et pas à chaque tour : appelé depuis `loop()`, un journal
+     * bavard noie la ligne utile et ralentit assez pour changer le
+     * symptôme observé.
+     */
+    bool _plainteFaite = false;
+    bool tropTot() {
+        if (!_plainteFaite) {
+            _plainteFaite = true;
+            IIOT_LOG("[InstantIoT] appel avant begin() — sans liaison, rien ne part");
+        }
+        return false;
+    }
+};
+
+}  // namespace iiot
+
+/**
+ * L'objet unique.
+ *
+ * Il porte le nom que portait le namespace, devenu `iiot` pour le lui
+ * laisser : en C++ un objet et un espace de noms ne cohabitent pas sous le
+ * même nom, et c'est le croquis qui a besoin du beau nom.
+ */
+extern iiot::Facade InstantIoT;

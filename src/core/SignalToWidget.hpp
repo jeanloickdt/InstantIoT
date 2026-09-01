@@ -13,7 +13,7 @@
  * Écrit une fois, ici, plutôt que dans chaque croquis. Une bibliothèque
  * existe pour ça.
  */
-namespace InstantIoT {
+namespace iiot {
 
 /**
  * La convention des gestes : **1 appui, 0 relâchement, 2 appui long**.
@@ -116,4 +116,4 @@ inline const char* padName(DPadButton t) {
     }
 }
 
-} // namespace InstantIoT
+} // namespace iiot

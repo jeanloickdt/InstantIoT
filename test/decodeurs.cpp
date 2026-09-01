@@ -1,5 +1,5 @@
 #include "core/SignalToWidget.hpp"
-using namespace InstantIoT;
+using namespace iiot;
 static int echecs = 0;
 #define VERIFIE(cond, quoi) do { if(!(cond)) { printf("ECHEC: %s\n", quoi); echecs++; } } while(0)
 

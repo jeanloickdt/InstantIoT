@@ -15,7 +15,7 @@
 #include "MessageSender.h"
 #include "../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 class InstantIoTCoreBase : public IMessageSender {
 public:
@@ -339,11 +339,7 @@ protected:
         //
         // La règle appartient donc au BLOC, pas au réglage du signal : peu
         // importe que le rejeu soit coché, un geste ne se rejoue pas.
-        if (rappel) {
-            dispatchSignal(e, /* restore */ true);
-            return true;
-        }
-
+        dispatchSignal(e, rappel);
         return true;
     }
 
@@ -365,4 +361,4 @@ protected:
     char _signalText[49] = {0};
 };
 
-} // namespace InstantIoT
+} // namespace iiot

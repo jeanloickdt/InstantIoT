@@ -32,14 +32,14 @@
     #error "InstantIoTWiFiAP: Unsupported platform (ESP32, ESP8266 or Arduino Uno R4 WiFi required)"
 #endif
 
-class InstantIoTWiFiAP : public InstantIoT::InstantIoTCoreBase {
+class InstantIoTWiFiAP : public iiot::InstantIoTCoreBase {
 public:
 
     InstantIoTWiFiAP(
         const char* ssid,
         const char* password,
         uint16_t port = 8080
-    ) : InstantIoT::InstantIoTCoreBase(_transportImpl)
+    ) : iiot::InstantIoTCoreBase(_transportImpl)
       , _transportImpl(ssid, password, port)
     {}
 
@@ -56,10 +56,10 @@ public:
 
 private:
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
-    InstantIoT::SoftAP_ESP32 _transportImpl;
+    iiot::SoftAP_ESP32 _transportImpl;
 #elif defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
-    InstantIoT::SoftAP_ESP8266 _transportImpl;
+    iiot::SoftAP_ESP8266 _transportImpl;
 #elif defined(ARDUINO_UNOWIFIR4)
-    InstantIoT::SoftAP_R4 _transportImpl;
+    iiot::SoftAP_R4 _transportImpl;
 #endif
 };

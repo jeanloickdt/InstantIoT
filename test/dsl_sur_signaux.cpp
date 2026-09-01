@@ -30,15 +30,15 @@ ISignal(I5, float v) { consigne = v; }
 
 // ── Le banc ───────────────────────────────────────────────────
 static void envoie(uint8_t addr, float v) {
-    InstantIoT::SignalEvent e; e.address = addr;
-    e.value.tag = InstantIoT::SIGNAL_TAG_FLOAT;
+    iiot::SignalEvent e; e.address = addr;
+    e.value.tag = iiot::SIGNAL_TAG_FLOAT;
     e.value.number = v; e.value.integer = (long)v; e.value.flag = (v != 0.0f);
-    InstantIoT::dispatchSignal(e);
+    iiot::dispatchSignal(e);
 }
 static void envoieTexte(uint8_t addr, const char* t) {
-    InstantIoT::SignalEvent e; e.address = addr;
-    e.value.tag = InstantIoT::SIGNAL_TAG_STRING; e.value.string = t;
-    InstantIoT::dispatchSignal(e);
+    iiot::SignalEvent e; e.address = addr;
+    e.value.tag = iiot::SIGNAL_TAG_STRING; e.value.string = t;
+    iiot::dispatchSignal(e);
 }
 
 int main() {
@@ -64,14 +64,14 @@ int main() {
 
     // ── Un RAPPEL ne reveille pas un geste ──
     appui = false; consigne = 0;
-    InstantIoT::SignalEvent r; r.address = 0;
-    r.value.tag = InstantIoT::SIGNAL_TAG_FLOAT; r.value.number = 1.0f;
-    InstantIoT::dispatchSignal(r, /* restore */ true);
+    iiot::SignalEvent r; r.address = 0;
+    r.value.tag = iiot::SIGNAL_TAG_FLOAT; r.value.number = 1.0f;
+    iiot::dispatchSignal(r, /* restore */ true);
     VERIFIE(!appui, "un rappel ne declenche pas ISimpleButton");
 
-    InstantIoT::SignalEvent r5; r5.address = 5;
-    r5.value.tag = InstantIoT::SIGNAL_TAG_FLOAT; r5.value.number = 19.0f;
-    InstantIoT::dispatchSignal(r5, /* restore */ true);
+    iiot::SignalEvent r5; r5.address = 5;
+    r5.value.tag = iiot::SIGNAL_TAG_FLOAT; r5.value.number = 19.0f;
+    iiot::dispatchSignal(r5, /* restore */ true);
     VERIFIE(consigne > 18.9f && consigne < 19.1f, "mais il rend sa consigne a ISignal");
 
     printf(echecs ? "%d ECHEC(S)\n" : "tout passe\n", echecs);

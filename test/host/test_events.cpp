@@ -18,7 +18,7 @@
 #include "../../src/core/InstantIoTCore.hpp"
 #include "../../src/utils/InstantIoTWhen.hpp"
 
-using namespace InstantIoT;
+using namespace iiot;
 
 static int failures = 0;
 static int checks   = 0;

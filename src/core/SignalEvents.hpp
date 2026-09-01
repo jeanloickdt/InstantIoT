@@ -31,7 +31,7 @@
 #include "InstantIoTSignals.hpp"
 #include "BinaryCodec.hpp"
 
-namespace InstantIoT {
+namespace iiot {
 
 // ============================================================
 //  A VALUE THAT DOES NOT KNOW WHAT IT WILL BE READ AS
@@ -246,10 +246,10 @@ inline bool hasSignalHandlerAt(uint8_t address) {
     return false;
 }
 
-}  // namespace InstantIoT
+}  // namespace iiot
 
-using SignalEvent = InstantIoT::SignalEvent;
-using SignalValue = InstantIoT::SignalValue;
+using SignalEvent = iiot::SignalEvent;
+using SignalValue = iiot::SignalValue;
 
 /** Called for every signal written to this board, before the `ISignal` blocks. */
 __attribute__((weak)) void onSignalWritten(const SignalEvent& e);

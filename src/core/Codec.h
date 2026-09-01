@@ -14,7 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-namespace InstantIoT {
+namespace iiot {
 
 /**
  * Message decoded from an iWidgets v1 binary frame
@@ -60,4 +60,4 @@ struct DecodedMessage {
     }
 };
 
-} // namespace InstantIoT
+} // namespace iiot
