@@ -1,26 +1,26 @@
 #pragma once
 /**
  * ============================================================
- *  InstantIoTWhen.hpp — un bloc par ADRESSE
+ *  InstantIoTWhen.hpp — one block per ADDRESS
  * ============================================================
  *
- * Un bloc vise une adresse — `I0`, `I2` — et non un nom de widget. L'app
- * n'envoie plus d'evenements de widget : elle ecrit un SIGNAL, et ces blocs
- * le decodent.
+ * A block aims at an address — `I0`, `I2` — not at a widget name. The app
+ * no longer sends widget events: it writes a SIGNAL, and these blocks
+ * decode it.
  *
- * ## La regle de forme
+ * ## The shape rule
  *
- * **La tete porte la donnee, `WHEN_` porte le genre.**
+ * **The head carries the data, `WHEN_` carries the kind.**
  *
- * Un seul genre d'evenement — une position, une valeur — et les parametres
- * suffisent :
+ * One kind of event — a position, a value — and the parameters are enough:
  *
  *   IJoystick(I2, float x, float y) { driveMotors(x, y); }
  *   IHorizontalSlider(I1, float v)  { analogWrite(LED_PIN, v); }
  *   ISwitch(I3, bool on)            { digitalWrite(RELAY_PIN, on); }
  *   ISegmentedSwitch(I4, int index) { mode = index; }
  *
- * Plusieurs genres, et `WHEN_` les trie — ce qui evite l'escalier de `if` :
+ * Several kinds, and `WHEN_` sorts them — which avoids the staircase of
+ * `if`:
  *
  *   ISimpleButton(I0) {
  *       WHEN_PRESSED      { Serial.println("press"); }
@@ -29,32 +29,32 @@
  *   };
  *
  *   IDirectionPad(I5) {
- *       WHEN_UP      { avancer(); }
- *       WHEN_UP_LONG { accelerer(); }
- *       WHEN_PAD_PRESSED(btn) { moteur(btn); }   // les cinq d'un coup
+ *       WHEN_UP      { forward(); }
+ *       WHEN_UP_LONG { faster(); }
+ *       WHEN_PAD_PRESSED(btn) { motor(btn); }   // all five at once
  *   };
  *
- * ## Ce que la carte lit
+ * ## What the board reads
  *
- * Un bouton ecrit une VALEUR, et le geste y est par convention : **1 appui,
- * 0 relachement, 2 appui long**. Une manette ecrit `"0.42,-0.15"`, une croix
- * ecrit `"UP"`, `"UP_LONG"`, `"UP_RELEASE"`. Le decodage vit dans
- * `SignalToWidget.hpp`, ecrit une fois plutot que dans chaque croquis.
+ * A button writes a VALUE, and the gesture is in it by convention:
+ * **1 press, 0 release, 2 long press**. A joystick writes `"0.42,-0.15"`,
+ * a direction pad writes `"UP"`, `"UP_LONG"`, `"UP_RELEASE"`. The decoding
+ * lives in `SignalToWidget.hpp`, written once rather than in every sketch.
  *
- * ## Plusieurs blocs, une adresse
+ * ## Several blocks, one address
  *
- * Des blocs de types differents peuvent viser la meme adresse — un
- * `ISignal(I0, float v)` a cote d'un `ISimpleButton(I0)`. Les deux sont
- * appeles, sauf pour un RAPPEL : au redemarrage, le serveur renvoie la
- * derniere valeur, et seul `ISignal` la recoit. Un etat se rappelle, un geste
- * ne se rejoue pas.
+ * Blocks of different kinds may aim at the same address — an
+ * `ISignal(I0, float v)` next to an `ISimpleButton(I0)`. Both are called,
+ * except on a RESTORE: on reconnect the server sends back the last value,
+ * and only `ISignal` receives it. A state is restored, a gesture is not
+ * replayed.
  *
- * Chaque bloc coute un maillon de liste chainee, sans allocation.
+ * Each block costs one linked-list node, with no allocation.
  *
- * ## Le point-virgule final
+ * ## The trailing semicolon
  *
- * Le bloc se ferme par `};` — le `;` termine la definition du registrar que
- * la macro engendre.
+ * A block closes with `};` — the `;` ends the definition of the registrar
+ * the macro generates.
  *
  * ============================================================
  */
@@ -73,24 +73,24 @@
 #endif
 
 // ============================================================
-// 🎯 I<Widget>(Ix) — un bloc, à une ADRESSE
+// 🎯 I<Widget>(Ix) — one block, at one ADDRESS
 //
-// Ces blocs écoutaient un canal que plus personne n'alimente : ils étaient
-// enregistrés par NOM, sur des événements de widget que l'app n'envoie plus.
-// Elle écrit un SIGNAL, à une adresse, et le contenu est un nombre ou du
-// texte. Ils l'écoutent donc, et le décodent — c'est tout ce qui change.
+// These blocks listened on a channel nobody feeds any more: they were
+// registered by NAME, on widget events the app no longer sends. It writes
+// a SIGNAL, at an address, and the content is a number or text. So they
+// listen to that, and decode it — that is all that changes.
 //
-// Le vocabulaire ne bouge pas : `WHEN_PRESSED` reçoit ce qu'il recevait, et
-// un croquis ne change que `"btn1"` en `I0`.
+// The vocabulary does not move: `WHEN_PRESSED` receives what it used to,
+// and a sketch only changes `"btn1"` into `I0`.
 //
-// **La tête porte la donnée, `WHEN_` porte le genre.** Un seul genre
-// d'événement — une position, une valeur — et les paramètres suffisent.
-// Plusieurs genres, et `WHEN_` les trie, ce qui évite l'escalier de `if`.
+// **The head carries the data, `WHEN_` carries the kind.** One kind of
+// event — a position, a value — and the parameters are enough. Several
+// kinds, and `WHEN_` sorts them, which avoids the staircase of `if`.
 // ============================================================
 
-// ── Un seul genre : la donnée dans la tête ───────────────────
+// ── One kind: the data in the head ───────────────────────────
 
-/** `IJoystick(I2, float x, float y) { … }` — l'app écrit `"0.42,-0.15"`. */
+/** `IJoystick(I2, float x, float y) { … }` — the app writes `"0.42,-0.15"`. */
 #define IJoystick(ref, ...) \
     _IIO_IJOY(ref, _IIO_UID(_iioJyF_), _IIO_UID(_iioJyT_), _IIO_UID(_iioJyR_), __VA_ARGS__)
 #define _IIO_IJOY(ref, FN, TRAMP, REG, ...)                                \
@@ -100,7 +100,7 @@
         if (iiot::decodePosition(e.value.text(), _iioX, _iioY))            \
             FN(_iioX, _iioY);                                              \
     }                                                                      \
-    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* gesture */ true);                   \
     static void FN(__VA_ARGS__)
 
 /** `IHorizontalSlider(I4, float v) { … }` */
@@ -109,25 +109,25 @@
 /** `IVerticalSlider(I5, float v) { … }` */
 #define IVerticalSlider(ref, ...) \
     _IIO_INUM(ref, _IIO_UID(_iioVsF_), _IIO_UID(_iioVsT_), _IIO_UID(_iioVsR_), __VA_ARGS__)
-/** `ISwitch(I1, bool on) { … }` — le type du paramètre fait la conversion. */
+/** `ISwitch(I1, bool on) { … }` — the parameter type does the conversion. */
 #define ISwitch(ref, ...) \
     _IIO_INUM(ref, _IIO_UID(_iioSwF_), _IIO_UID(_iioSwT_), _IIO_UID(_iioSwR_), __VA_ARGS__)
 /** `ISegmentedSwitch(I6, int index) { … }` */
 #define ISegmentedSwitch(ref, ...) \
     _IIO_INUM(ref, _IIO_UID(_iioSgF_), _IIO_UID(_iioSgT_), _IIO_UID(_iioSgR_), __VA_ARGS__)
 
-// Une valeur, rendue dans le type que le bloc demande. `SignalValue` sait se
-// convertir en `float`, `int` ou `bool` — c'est la déclaration du croquis qui
-// choisit, pas la trame.
+// A value, returned in the type the block asks for. `SignalValue` knows how
+// to convert to `float`, `int` or `bool` — the sketch's declaration chooses,
+// not the frame.
 #define _IIO_INUM(ref, FN, TRAMP, REG, ...)                                \
     static void FN(__VA_ARGS__);                                           \
     static void TRAMP(const iiot::SignalEvent& e) { FN(e.value); }   \
-    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* gesture */ true);                   \
     static void FN(__VA_ARGS__)
 
-// ── Plusieurs genres : un bloc, et `WHEN_` pour trier ────────
+// ── Several kinds: one block, and `WHEN_` to sort them ───────
 
-/** `ISimpleButton(I0) { WHEN_PRESSED … }` — 1 appui, 0 relâchement, 2 long. */
+/** `ISimpleButton(I0) { WHEN_PRESSED … }` — 1 press, 0 release, 2 long. */
 #define ISimpleButton(ref) \
     _IIO_IBTN(ref, SimpleButtonEvent, _IIO_UID(_iioSbF_), _IIO_UID(_iioSbT_), _IIO_UID(_iioSbR_))
 /** `IAdvancedButton(I0) { WHEN_PRESSED … }` */
@@ -143,10 +143,10 @@
         e.isOn = (e.kind == iiot::ButtonEventKind::Press);           \
         FN(e);                                                             \
     }                                                                      \
-    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* gesture */ true);                   \
     static void FN(const iiot::EVT& e)
 
-/** `IDirectionPad(I3) { WHEN_UP … }` — l'app écrit `"UP"`, `"UP_LONG"`… */
+/** `IDirectionPad(I3) { WHEN_UP … }` — the app writes `"UP"`, `"UP_LONG"`… */
 #define IDirectionPad(ref) \
     _IIO_IDP(ref, _IIO_UID(_iioDpF_), _IIO_UID(_iioDpT_), _IIO_UID(_iioDpR_))
 #define _IIO_IDP(ref, FN, TRAMP, REG)                                      \
@@ -158,7 +158,7 @@
         e.buttonName = iiot::padName(e.button);                      \
         FN(e);                                                             \
     }                                                                      \
-    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* gesture */ true);                   \
     static void FN(const iiot::DirectionPadEvent& e)
 
 /** `IEmergencyButton(I7) { WHEN_TRIGGERED … }` */
@@ -174,7 +174,7 @@
             : iiot::EmergencyEventKind::Reset;                       \
         FN(e);                                                             \
     }                                                                      \
-    static iiot::SignalRegistrar REG(ref, &TRAMP, /* geste */ true);                   \
+    static iiot::SignalRegistrar REG(ref, &TRAMP, /* gesture */ true);                   \
     static void FN(const iiot::EmergencyButtonEvent& e)
 
 // ============================================================
@@ -251,16 +251,16 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 // 🎮 DIRECTION PAD
 // ============================================================
 // Captures e.button (DPadButton enum) — user inspects with a switch
-// ── La croix, touche par touche ──────────────────────────────
+// ── The pad, key by key ──────────────────────────────────────
 //
-// `WHEN_PAD_PRESSED(btn)` rend la touche dans une variable, et on se retrouve
-// à écrire un `switch` dedans — l'escalier de `if` déplacé d'un cran. Les
-// formes nommées évitent ça quand les touches font des choses différentes ;
-// la forme à variable reste pour quand elles font la même avec un paramètre.
+// `WHEN_PAD_PRESSED(btn)` hands the key back in a variable, and you end up
+// writing a `switch` inside it — the staircase of `if` moved one floor
+// down. The named forms avoid that when the keys do different things; the
+// variable form remains for when they do the same thing with a parameter.
 //
-// Les cinq de la croix sont nommées. Les huit autres — A, B, X, Y et les
-// quatre formes — passent par la forme à variable : les nommer ferait
-// trente-neuf macros pour des croquis qui les traitent en boucle.
+// The five pad keys are named. The other eight — A, B, X, Y and the four
+// shapes — go through the variable form: naming them would make
+// thirty-nine macros for sketches that handle them in a loop.
 #define _IIO_PAD(T, K)                                                         \
     if (e.button == iiot::DPadButton::T &&                               \
         e.kind   == iiot::DPadEventKind::K)
@@ -283,7 +283,7 @@ inline bool _whenReset(const EmergencyButtonEvent& e)      { return e.kind == Em
 #define WHEN_RIGHT_RELEASE   _IIO_PAD(Right, Release)
 #define WHEN_CENTER_RELEASE  _IIO_PAD(Center, Release)
 
-/** N'importe quelle touche relâchée — savoir laquelle n'intéresse presque jamais. */
+/** Any key released — which one is almost never interesting. */
 #define WHEN_RELEASED_ANY    if (e.kind == iiot::DPadEventKind::Release)
 
 #define WHEN_PAD_PRESSED(var_btn)                                              \

@@ -1,46 +1,47 @@
 #pragma once
 /**
  * ============================================================
- * 🔌 Links.hpp — comment la carte atteint le réseau
+ * 🔌 Links.hpp — how the board reaches the network
  * ============================================================
  *
- * Une liaison est le **chemin**, une destination est le **bout**. Le
- * `begin()` se lit dans l'ordre où les choses se passent : la carte rejoint
- * d'abord un réseau, puis atteint un serveur.
+ * A link is the **path**, a destination is the **far end**. `begin()`
+ * reads in the order things happen: the board joins a network first,
+ * then reaches a server.
  *
- *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), Cloud(TOKEN));
- *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
+ *     InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
+ *     InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
  *
- * Trois liaisons n'ont pas de bout à nommer : l'app est déjà au bout du
- * fil. Elles se passent seules, et le premier argument ne change pas.
+ * Three links have no far end to name: the app is already at the other
+ * end of the wire. They stand alone, and the first argument does not
+ * change.
  *
- *     InstantIoT.begin(AccessPoint("MaCarte", "12345678"));
- *     InstantIoT.begin(BluetoothLink("MaCarte"));
+ *     InstantIoT.begin(AccessPoint("MyBoard", "12345678"));
+ *     InstantIoT.begin(BluetoothLink("MyBoard"));
  *     InstantIoT.begin(SerialLink(10, 11));
  *
- * ## Le suffixe
+ * ## The suffix
  *
- * `WiFiLink` et non `WiFi` : le cœur Arduino a déjà un objet global nommé
- * `WiFi`, et deux choses ne portent pas le même nom. Le suffixe dit aussi
- * ce que c'est — un chemin, pas une destination — ce qui est exactement la
- * distinction que ce fichier existe pour tenir.
+ * `WiFiLink` and not `WiFi`: the Arduino core already has a global object
+ * called `WiFi`, and two things do not share a name. The suffix also says
+ * what it is — a path, not a destination — which is exactly the
+ * distinction this file exists to hold.
  *
  * ## Ethernet
  *
- * Le modèle l'attend : `InstantIoT.begin(EthernetLink(), Cloud(TOKEN))`
- * n'aurait rien à changer ailleurs, puisque la destination ne sait pas par
- * où on l'atteint. Le transport, lui, n'existe pas encore — il n'est pas
- * écrit ici tant qu'il n'a pas tourné sur une carte.
+ * The model expects it: `InstantIoT.begin(EthernetLink(), Cloud(TOKEN))`
+ * would change nothing elsewhere, since a destination does not know how
+ * it is reached. The transport itself does not exist yet — it is not
+ * written here until it has run on a board.
  *
- * ## Ce que chaque carte sait faire
+ * ## What each board can do
  *
- * ESP32       AccessPoint, WiFiLink (clair et TLS), BluetoothLink, BLELink
- * Uno R4 WiFi AccessPoint, WiFiLink (clair et TLS)
- * ESP8266     AccessPoint, SerialLink
- * AVR         SerialLink
+ * ESP32        AccessPoint, WiFiLink (plain and TLS), BluetoothLink, BLELink
+ * Uno R4 WiFi  AccessPoint, WiFiLink (plain and TLS)
+ * ESP8266      AccessPoint, SerialLink
+ * AVR          SerialLink
  *
- * Un couple que la carte ne sait pas faire ne compile pas, et le dit en
- * une phrase plutôt qu'en une page de gabarits.
+ * A pairing the board cannot do fails to compile, and says so in one
+ * sentence rather than a page of templates.
  * ============================================================
  */
 
@@ -48,7 +49,7 @@
 #include "core/Transport.h"
 
 // ════════════════════════════════════════════════════════════
-//  Ce que la plateforme apporte
+//  What the platform provides
 // ════════════════════════════════════════════════════════════
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
@@ -83,9 +84,9 @@
     #define INSTANTIOT_HAS_ACCESS_POINT 1
 #endif
 
-// Bluetooth classique : présent dans le cœur ESP32, absent des puces qui
-// n'ont pas de radio BR/EDR. L'en-tete du cœur refuse d'etre inclus dans ce
-// cas — c'est donc la condition qu'il pose que l'on pose ici.
+// Bluetooth Classic: present in the ESP32 core, absent from the chips
+// with no BR/EDR radio. The core's own header refuses to be included in
+// that case — so we pose the condition it poses.
 #if (defined(ARDUINO_ARCH_ESP32) || defined(ESP32)) \
     && defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
     #include "transport/bluetooth/Bluetooth_ESP32.hpp"
@@ -93,15 +94,16 @@
     #define INSTANTIOT_HAS_BLUETOOTH 1
 #endif
 
-// BLE passe par NimBLE, qui est une bibliotheque a installer et non une
-// partie du cœur.
+// BLE goes through NimBLE, a library you install rather than part of a
+// core.
 //
-// `__has_include` ne suffit PAS a la trouver, et c'est un piege du systeme
-// de compilation d'Arduino : il decouvre les bibliotheques en lisant les
-// directives `#include`, et rend disponible celle qu'il voit manquer. Un
-// `__has_include` ne manque jamais — il rend faux, en silence — donc la
-// bibliotheque n'est jamais ajoutee au chemin, donc il rend faux. Le
-// croquis doit l'inclure lui-meme, ce qui declenche la decouverte :
+// `__has_include` is NOT enough to find it, and that is a trap in
+// Arduino's build system: it discovers libraries by READING `#include`
+// directives — it preprocesses, sees an include it cannot resolve, finds
+// the library providing it, adds it to the path, and tries again.
+// `__has_include` never fails to resolve: it quietly returns 0, so the
+// library is never added to the path, so it returns 0. The sketch has to
+// break the cycle itself, which also triggers discovery:
 //
 //     #include <NimBLEDevice.h>
 //     #include <InstantIoT.h>
@@ -113,13 +115,13 @@
     #endif
 #endif
 
-// SoftwareSerial appartient au cœur AVR et se pose a cote sur ESP8266 ;
-// l'ESP32 ne l'a pas du tout.
+// SoftwareSerial belongs to the AVR core and ships alongside the ESP8266
+// one; the ESP32 does not have it at all.
 //
-// La plateforme, et non `__has_include`, pour la meme raison que ci-dessus :
-// l'inclusion doit etre VUE pour que la bibliotheque soit ajoutee au chemin.
-// Avec `__has_include`, `SerialLink` etait inatteignable sur toutes les
-// cartes, un Uno compris.
+// Platform macros, not `__has_include`, for the reason above: the include
+// must be SEEN for the library to be added to the search path. With
+// `__has_include`, `SerialLink` was unreachable on every board, an Uno
+// included.
 #if defined(ARDUINO_ARCH_AVR) || defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
     #include "transport/serial/SoftSerial.hpp"
     namespace iiot { using TransportSerial = SoftSerial; }
@@ -129,37 +131,38 @@
 namespace iiot {
 
 /**
- * Le message d'un couple impossible.
+ * The message for an impossible pairing.
  *
- * Sans lui, `begin(AccessPoint(…), Cloud(…))` sort « aucun membre nommé
- * transportVers », ce qui décrit ma mise en œuvre et non son erreur.
+ * Without it, `begin(AccessPoint(…), Cloud(…))` reports "no member named
+ * transportTo", which describes my implementation rather than their
+ * mistake.
  */
 template <class T>
 struct AlwaysFalse { static const bool value = false; };
 
-/** Le port du serveur qu'une carte en point d'acces ouvre. */
+/** The port a board in access-point mode opens. */
 #ifndef INSTANT_AP_PORT
   #define INSTANT_AP_PORT 8080
 #endif
 
 // ════════════════════════════════════════════════════════════
-//  Les liaisons directes — l'app est au bout du fil
+//  Direct links — the app is at the other end of the wire
 // ════════════════════════════════════════════════════════════
 
 #if defined(INSTANTIOT_HAS_ACCESS_POINT)
 /**
- * La carte **est** le réseau : le téléphone rejoint son WiFi et lui parle.
+ * The board **is** the network: the phone joins its WiFi and talks to it.
  *
- * Pas de serveur, donc pas de jeton, pas d'internet, et pas de rappel des
- * dernières valeurs — il n'y a personne pour les avoir gardées.
+ * No server, so no token, no internet, and no replay of the last values —
+ * there is nobody to have kept them.
  */
 struct AccessPoint {
     const char* ssid;
     const char* pass;
     uint16_t    port;
 
-    AccessPoint(const char* reseau, const char* motDePasse, uint16_t p = INSTANT_AP_PORT)
-        : ssid(reseau), pass(motDePasse), port(p) {}
+    AccessPoint(const char* network, const char* password, uint16_t p = INSTANT_AP_PORT)
+        : ssid(network), pass(password), port(p) {}
 
     ITransport& transport() const {
         static TransportAP t(ssid, pass, port);
@@ -167,21 +170,21 @@ struct AccessPoint {
     }
 
     template <class D>
-    ITransport& transportVers(const D&) const {
+    ITransport& transportTo(const D&) const {
         static_assert(AlwaysFalse<D>::value,
-            "AccessPoint est deja le bout du fil : la carte EST le reseau, et "
-            "l'app s'y connecte directement. Pour atteindre un serveur, la "
-            "liaison est WiFiLink(ssid, mot_de_passe).");
+            "AccessPoint is already the far end: the board IS the network, and "
+            "the app connects straight to it. To reach a server, the link is "
+            "WiFiLink(ssid, password).");
         return transport();
     }
 };
 #endif
 
 #if defined(INSTANTIOT_HAS_BLUETOOTH)
-/** Bluetooth classique — l'app s'appaire et parle. */
+/** Bluetooth Classic — the app pairs and talks. */
 struct BluetoothLink {
     const char* name;
-    explicit BluetoothLink(const char* nom = "InstantIoT") : name(nom) {}
+    explicit BluetoothLink(const char* deviceName = "InstantIoT") : name(deviceName) {}
 
     ITransport& transport() const {
         static TransportBluetooth t(name);
@@ -191,10 +194,10 @@ struct BluetoothLink {
 #endif
 
 #if defined(INSTANTIOT_HAS_BLE)
-/** Bluetooth basse consommation. */
+/** Bluetooth Low Energy. */
 struct BLELink {
     const char* name;
-    explicit BLELink(const char* nom = "InstantIoT") : name(nom) {}
+    explicit BLELink(const char* deviceName = "InstantIoT") : name(deviceName) {}
 
     ITransport& transport() const {
         static TransportBLE t(name);
@@ -204,13 +207,13 @@ struct BLELink {
 #endif
 
 #if defined(INSTANTIOT_HAS_SERIAL_LINK)
-/** Deux fils. Pour une carte sans radio, ou pour mettre au point. */
+/** Two wires. For a board with no radio, or for bring-up. */
 struct SerialLink {
     uint8_t rx, tx;
     long    baud;
 
-    SerialLink(uint8_t brocheRx, uint8_t brocheTx, long vitesse = INSTANT_SERIAL_BAUDRATE)
-        : rx(brocheRx), tx(brocheTx), baud(vitesse) {}
+    SerialLink(uint8_t rxPin, uint8_t txPin, long speed = INSTANT_SERIAL_BAUDRATE)
+        : rx(rxPin), tx(txPin), baud(speed) {}
 
     ITransport& transport() const {
         static TransportSerial t(rx, tx, baud);
@@ -220,24 +223,24 @@ struct SerialLink {
 #endif
 
 // ════════════════════════════════════════════════════════════
-//  La liaison qui mène ailleurs
+//  The link that leads elsewhere
 // ════════════════════════════════════════════════════════════
 
 #if defined(INSTANTIOT_HAS_WIFI_LINK)
 /**
- * La carte rejoint un WiFi existant, puis atteint la destination.
+ * The board joins an existing WiFi, then reaches the destination.
  *
- * Elle ne sait rien du bout : c'est ce qui permettra à `EthernetLink()` de
- * prendre sa place sans qu'aucune destination ne change.
+ * It knows nothing about the far end: that is what will let
+ * `EthernetLink()` take its place without any destination changing.
  */
 struct WiFiLink {
     const char* ssid;
     const char* pass;
 
-    WiFiLink(const char* reseau, const char* motDePasse)
-        : ssid(reseau), pass(motDePasse) {}
+    WiFiLink(const char* network, const char* password)
+        : ssid(network), pass(password) {}
 
-    ITransport& transportVers(const PlainDestination& d) const {
+    ITransport& transportTo(const PlainDestination& d) const {
         static TransportWiFiPlain t(d.host, d.port, d.token);
         t.setCredentials(ssid, pass);
         t.setHeartbeat(d.heartbeatMs);
@@ -245,88 +248,88 @@ struct WiFiLink {
     }
 
 #if defined(INSTANTIOT_HAS_TLS)
-    ITransport& transportVers(const SecureDestination& d) const {
+    ITransport& transportTo(const SecureDestination& d) const {
         static TransportWiFiSecure t(d.host, d.port, d.token);
         t.setCredentials(ssid, pass);
         t.setHeartbeat(d.heartbeatMs);
-        // L'ordre compte : une racine fournie remplace les racines
-        // embarquees, et « ne rien verifier » a le dernier mot parce que
-        // c'est le choix le plus explicite des deux.
+        // Order matters: a supplied root replaces the embedded ones, and
+        // "check nothing" has the last word because it is the more
+        // explicit of the two choices.
         if (d.caPem) t.setCACert(d.caPem);
         if (!d.checksIdentity) t.setInsecure();
         return t;
     }
 #else
-    // Gabarit, et non surcharge sur SecureDestination : une assertion qui
-    // ne depend pas d'un parametre se declenche des la lecture de la classe,
-    // donc sur toute carte sans TLS, meme celles qui ne visent que le clair.
+    // A template, not an overload on SecureDestination: an assertion that
+    // does not depend on a parameter fires as soon as the class is read,
+    // so on every board without TLS — including those that only ever aim
+    // for plaintext.
     template <class D>
-    ITransport& transportVers(const D& d) const {
+    ITransport& transportTo(const D& d) const {
         static_assert(AlwaysFalse<D>::value,
-            "Cette carte n'a pas de pile TLS. Le cloud reste atteignable en "
-            "clair — Cloud(TOKEN).plaintext() — et le jeton passe alors "
-            "lisible sur le reseau.");
-        return transportVers(d.plaintext());
+            "This board has no TLS stack. The cloud is still reachable in "
+            "plaintext — Cloud(TOKEN).plaintext() — and the token then "
+            "travels readable on the network.");
+        return transportTo(d.plaintext());
     }
 #endif
 };
 #endif
 
 // ════════════════════════════════════════════════════════════
-//  Les liaisons que cette carte n'a pas
+//  The links this board does not have
 // ════════════════════════════════════════════════════════════
 //
-// Sans ces coquilles, `WiFiLink` sur un ESP8266 sort « was not declared
-// in this scope; did you mean 'WiFiClient'? » — et l'utilisateur part
-// corriger une faute de frappe qu'il n'a pas faite. La coquille existe,
-// donc le nom se resout, et le message dit la vraie raison.
+// Without these shells, `WiFiLink` on an ESP8266 reports "was not
+// declared in this scope; did you mean 'WiFiClient'?" — and the user goes
+// off correcting a typo they never made. The shell exists, so the name
+// resolves, and the message states the real reason.
 //
-// `sizeof...(A) < 0` est toujours faux, et depend d'un parametre de
-// gabarit : l'assertion n'est donc evaluee que si le croquis construit
-// vraiment cette liaison.
-#define _IIO_LIAISON_ABSENTE(NOM, POURQUOI)                                \
-    struct NOM {                                                           \
+// `sizeof...(A) < 0` is always false and depends on a template
+// parameter: the assertion is only evaluated if the sketch really builds
+// this link.
+#define _IIO_LINK_ABSENT(NAME, WHY)                                        \
+    struct NAME {                                                          \
         template <class... A>                                              \
-        explicit NOM(A&&...) { static_assert(sizeof...(A) < 0, POURQUOI); } \
+        explicit NAME(A&&...) { static_assert(sizeof...(A) < 0, WHY); }    \
         ITransport& transport() const;                                     \
     };
 
 #if !defined(INSTANTIOT_HAS_ACCESS_POINT)
-_IIO_LIAISON_ABSENTE(AccessPoint,
-    "InstantIoT n'a pas de point d'acces pour cette carte. Il en existe un "
-    "pour ESP32, ESP8266 et Uno R4 WiFi ; en ajouter un pour la votre, "
-    "c'est un ITransport dans src/transport/wifi/ et une branche dans "
-    "Links.hpp.")
+_IIO_LINK_ABSENT(AccessPoint,
+    "InstantIoT has no access point for this board. There is one for ESP32, "
+    "ESP8266 and Uno R4 WiFi; adding one for yours is an ITransport in "
+    "src/transport/wifi/ and a branch in Links.hpp.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_WIFI_LINK)
-_IIO_LIAISON_ABSENTE(WiFiLink,
-    "InstantIoT ne sait pas rejoindre un WiFi existant depuis cette carte. "
-    "Sur ESP8266, qui n'a que le point d'acces, ecrivez plutot "
-    "AccessPoint(nom, mot_de_passe) : le telephone rejoint le WiFi de la "
-    "carte. Sur une carte non portee, c'est un ITransport a ecrire et une "
-    "branche a ajouter dans Links.hpp.")
+_IIO_LINK_ABSENT(WiFiLink,
+    "InstantIoT cannot join an existing WiFi from this board. On the ESP8266, "
+    "which only has the access point, write AccessPoint(name, password) "
+    "instead: the phone joins the board's own WiFi. On a board that has not "
+    "been ported, it is an ITransport to write and a branch to add in "
+    "Links.hpp.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_BLUETOOTH)
-_IIO_LIAISON_ABSENTE(BluetoothLink,
-    "InstantIoT n'a de Bluetooth classique que pour l'ESP32, et seulement "
-    "ceux qui ont une radio BR/EDR — pas les -S2 ni les -C3.")
+_IIO_LINK_ABSENT(BluetoothLink,
+    "InstantIoT only has Bluetooth Classic for the ESP32, and only those with "
+    "a BR/EDR radio — not the -S2 nor the -C3.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_BLE)
-_IIO_LIAISON_ABSENTE(BLELink,
-    "BLE demande un ESP32 et la bibliotheque NimBLE-Arduino. Si elle est "
-    "installee, le croquis doit l'inclure LUI-MEME avant InstantIoT.h — "
-    "#include <NimBLEDevice.h> — sans quoi le compilateur Arduino ne "
-    "l'ajoute pas au chemin de recherche.")
+_IIO_LINK_ABSENT(BLELink,
+    "BLE needs an ESP32 and the NimBLE-Arduino library. If it is installed, "
+    "the sketch must include it ITSELF before InstantIoT.h — "
+    "#include <NimBLEDevice.h> — otherwise the Arduino compiler does not add "
+    "it to the search path.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_SERIAL_LINK)
-_IIO_LIAISON_ABSENTE(SerialLink,
-    "SoftwareSerial n'existe pas sur cette carte. Elle est dans le cœur AVR "
-    "et dans celui de l'ESP8266 ; ni l'ESP32, ni l'Uno R4 WiFi, ni le cœur "
-    "SAMD ne l'ont.")
+_IIO_LINK_ABSENT(SerialLink,
+    "SoftwareSerial does not exist on this board. It is in the AVR core and "
+    "in the ESP8266 one; neither the ESP32, nor the Uno R4 WiFi, nor the SAMD "
+    "core has it.")
 #endif
 
 }  // namespace iiot

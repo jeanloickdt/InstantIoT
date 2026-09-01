@@ -1,14 +1,14 @@
 /*
- * Les destinations — ce qu'un croquis obtient sans le demander.
+ * Destinations — what a sketch gets without asking.
  *
- * Une destination n'a pas de comportement : c'est un hôte, un port, un
- * jeton. Ce qui peut être faux, ce sont donc les **défauts** — et un défaut
- * faux ne se voit pas à la relecture, il se voit quand la carte n'arrive
- * pas à joindre le serveur et que personne ne sait pourquoi.
+ * A destination has no behaviour: it is a host, a port, a token. So what
+ * can be wrong are the **defaults** — and a wrong default is invisible on
+ * reading; it shows up when the board cannot reach the server and nobody
+ * knows why.
  *
- * Le cas qui a motivé ce fichier : `Cloud(T).plaintext()`. Le port du
- * portier TLS ne veut plus rien dire une fois qu'on ne chiffre plus, mais
- * un port que le croquis a nommé lui-même, si.
+ * The case that motivated this file: `Cloud(T).plaintext()`. The TLS
+ * gateway's port means nothing once we stop encrypting, but a port the
+ * sketch named itself does.
  */
 
 #include <stdio.h>
@@ -29,76 +29,77 @@ static void ok(bool cond, const char* what) {
 static void section(const char* name) { printf("── %s\n", name); }
 
 int main() {
-    const char* T = "JETON";
+    const char* T = "TOKEN";
 
-    section("Cloud : ce qu'on obtient sans rien demander");
+    section("Cloud: what you get without asking for anything");
     {
         SecureDestination d = Cloud(T);
-        ok(strcmp(d.host, "instantiot.cloud") == 0, "l'hote du cloud");
-        ok(d.port == 9443, "le portier TLS");
-        ok(d.token == T, "le jeton");
-        ok(d.checksIdentity, "l'identite du serveur est verifiee");
-        ok(d.caPem == nullptr, "contre les racines embarquees");
-        ok(d.heartbeatMs == 5000, "et la carte signale sa presence");
+        ok(strcmp(d.host, "instantiot.cloud") == 0, "the cloud host");
+        ok(d.port == 9443, "the TLS gateway");
+        ok(d.token == T, "the token");
+        ok(d.checksIdentity, "the server identity is verified");
+        ok(d.caPem == nullptr, "against the embedded roots");
+        ok(d.heartbeatMs == 5000, "and the board announces its presence");
     }
 
-    section("Le clair : un choix explicite, jamais un defaut");
+    section("Plaintext: an explicit choice, never a default");
     {
-        // Le type change, et c'est le sujet : sans TLS dans le type, aucune
-        // pile TLS n'est embarquee. Une carte qui n'en a pas peut compiler.
-        auto clair = Cloud(T).plaintext();
-        ok((std::is_same<decltype(clair), PlainDestination>::value),
-           "plaintext() rend une destination d'un AUTRE type");
-        ok(clair.port == 9001, "et le port suit : le portier en clair, pas celui du TLS");
-        ok(strcmp(clair.host, "instantiot.cloud") == 0, "l'hote ne bouge pas");
-        ok(clair.token == T, "le jeton non plus — il passera lisible, et c'est le prix");
+        // The type changes, and that is the point: with no TLS in the
+        // type, no TLS stack is embedded. A board that has none can
+        // compile.
+        auto plain = Cloud(T).plaintext();
+        ok((std::is_same<decltype(plain), PlainDestination>::value),
+           "plaintext() returns a destination of ANOTHER type");
+        ok(plain.port == 9001, "and the port follows: the plain gateway, not the TLS one");
+        ok(strcmp(plain.host, "instantiot.cloud") == 0, "the host does not move");
+        ok(plain.token == T, "nor the token — it will travel readable, and that is the price");
     }
     {
-        // Un port nomme par le croquis sait quelque chose que le defaut
-        // ignore. Le remplacer serait le contredire.
-        auto clair = Cloud(T).at("preprod.exemple", 8443).plaintext();
-        ok(clair.port == 8443, "un port nomme survit au passage en clair");
-        ok(strcmp(clair.host, "preprod.exemple") == 0, "l'hote nomme aussi");
+        // A port named by the sketch knows something the default does
+        // not. Replacing it would contradict it.
+        auto plain = Cloud(T).at("staging.example", 8443).plaintext();
+        ok(plain.port == 8443, "a named port survives the switch to plaintext");
+        ok(strcmp(plain.host, "staging.example") == 0, "so does a named host");
     }
 
-    section("Les deux facons de sortir de la verification");
+    section("The two ways out of verification");
     {
         SecureDestination d = Cloud(T).withCertificate("-----BEGIN CERTIFICATE-----");
-        ok(d.caPem != nullptr, "une racine a soi est fournie");
-        ok(d.checksIdentity, "…et l'identite reste verifiee — contre elle");
+        ok(d.caPem != nullptr, "a root of your own is supplied");
+        ok(d.checksIdentity, "…and the identity is still verified — against it");
     }
     {
         SecureDestination d = Cloud(T).withoutCertCheck();
-        ok(!d.checksIdentity, "la verification tombe");
+        ok(!d.checksIdentity, "verification falls away");
         ok((std::is_same<decltype(d), SecureDestination>::value),
-           "mais le trajet reste chiffre : le type ne change pas");
+           "but the journey stays encrypted: the type does not change");
     }
 
-    section("MyServer : chez soi, en clair");
+    section("MyServer: at home, in plaintext");
     {
         PlainDestination d = MyServer("192.168.1.42", T);
-        ok(strcmp(d.host, "192.168.1.42") == 0, "l'hote donne");
-        ok(d.port == 9001, "le port par defaut d'un serveur InstantIoT");
+        ok(strcmp(d.host, "192.168.1.42") == 0, "the given host");
+        ok(d.port == 9001, "the default port of an InstantIoT server");
 
         PlainDestination p = MyServer("192.168.1.42", 9002, T);
-        ok(p.port == 9002, "…ou celui qu'on nomme");
+        ok(p.port == 9002, "…or the one you name");
     }
     {
-        // Un auto-hebergeur qui met du TLS devant garde son port : c'est
-        // lui qui a choisi ou ecoute son serveur.
-        auto sur = MyServer("maison.exemple", 9002, T).secure();
-        ok((std::is_same<decltype(sur), SecureDestination>::value), "secure() chiffre");
-        ok(sur.port == 9002, "et garde le port nomme");
-        ok(sur.plaintext().port == 9002, "l'aller-retour ne perd pas le port");
+        // A self-hoster putting TLS in front keeps their port: they chose
+        // where their server listens.
+        auto secure = MyServer("home.example", 9002, T).secure();
+        ok((std::is_same<decltype(secure), SecureDestination>::value), "secure() encrypts");
+        ok(secure.port == 9002, "and keeps the named port");
+        ok(secure.plaintext().port == 9002, "the round trip does not lose the port");
     }
 
-    section("Le battement");
+    section("The heartbeat");
     {
-        ok(Cloud(T).heartbeatEvery(0).heartbeatMs == 0, "0 le coupe");
-        ok(MyServer("h", T).heartbeatEvery(20000).heartbeatMs == 20000, "et il se regle");
+        ok(Cloud(T).heartbeatEvery(0).heartbeatMs == 0, "0 disables it");
+        ok(MyServer("h", T).heartbeatEvery(20000).heartbeatMs == 20000, "and it is settable");
     }
 
-    printf(failures ? "\n%d ECHEC(S) sur %d\n" : "\ntout passe (%d/%d)\n",
+    printf(failures ? "\n%d FAILURE(S) of %d\n" : "\nall pass (%d/%d)\n",
            failures ? failures : checks, checks);
     return failures ? 1 : 0;
 }

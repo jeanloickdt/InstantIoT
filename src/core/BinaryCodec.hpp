@@ -64,12 +64,12 @@ static const uint8_t TYPE_HEARTBEAT         = 0xFE;
 // InstantIoT 2.0 — the value path. Free: widget types stop at 0x11.
 static const uint8_t TYPE_SIGNAL            = 0x20;
 
-// Un EVENT — un fait, pas un état. Même disposition qu'un signal : une
-// adresse d'un octet dans le créneau WID, et le créneau EVENT porte enfin un
-// événement (CMD_PRESS, CMD_TOGGLE…), ce pour quoi il a été fait.
+// An EVENT — a fact, not a state. Same layout as a signal: a one-byte
+// address in the WID slot, and the EVENT slot finally carrying an event
+// (CMD_PRESS, CMD_TOGGLE…), which is what it was made for.
 //
-// Pourquoi il ne peut pas être un signal : une valeur est idempotente. Trois
-// appuis écrivent 1, 1, 1 — une seule transition est observable, donc deux
+// Why it cannot be a signal: a value is idempotent. Three presses write
+// 1, 1, 1 — only one transition is observable, so two
 // appuis disparaissent. Aucun réglage ne comble cet écart.
 static const uint8_t SIGNAL_TAG_BOOL        = 0x01;
 static const uint8_t SIGNAL_TAG_INT         = 0x02;
@@ -77,15 +77,14 @@ static const uint8_t SIGNAL_TAG_FLOAT       = 0x03;
 static const uint8_t SIGNAL_TAG_STRING      = 0x04;
 
 /**
- * Le bit haut du tag : cette valeur est un RAPPEL, pas une écriture vive.
+ * The tag's high bit: this value is a RESTORE, not a live write.
  *
- * La carte se reconnecte et le serveur lui renvoie sa dernière valeur. La
- * trame est autrement identique à ce qu'un doigt vient d'écrire — sans cette
- * marque, un `ISimpleButton(I5)` se déclencherait au démarrage, sans que
- * personne n'ait appuyé.
+ * The board reconnects and the server sends back its last value. The frame
+ * is otherwise identical to what a finger just wrote — without this mark,
+ * an `ISimpleButton(I5)` would fire at boot, with nobody having pressed.
  *
- * Un état se rappelle, un geste ne se rejoue pas. C'est toute la différence
- * que ce bit porte.
+ * A state is restored, a gesture is not replayed. That whole difference
+ * is what this bit carries.
  */
 static const uint8_t SIGNAL_TAG_RESTORE     = 0x80;
 
@@ -222,16 +221,16 @@ class BinaryCodec {
     }
 
     /**
-     * `dtostrf` n'existe pas partout.
+     * `dtostrf` does not exist everywhere.
      *
-     * Elle vient d'avr-libc, et les cœurs ESP la reprennent — mais pas le
-     * cœur SAMD, ni celui du Nano 33 IoT. Le seul appel de toute la lib
-     * suffisait a la rendre incompilable sur cette famille, alors que rien
-     * d'autre ne s'y opposait.
+     * It comes from avr-libc, and the ESP cores carry it over — but not
+     * the SAMD core, nor the Nano 33 IoT's. That single call in the whole
+     * library was enough to make it uncompilable on that family, when
+     * nothing else stood in the way.
      *
-     * `snprintf` est standard et fait la meme chose ici. Sur les cœurs AVR,
-     * la variante flottante de `printf` n'est pas liee par defaut — d'ou
-     * `dtostrf` la-bas, et lui seul.
+     * `snprintf` is standard and does the same job here. On AVR cores the
+     * floating-point variant of `printf` is not linked by default — hence
+     * `dtostrf` there, and only there.
      */
     void addParamFloat(DecodedMessage& msg, const char* key, float val) {
         char buf[16];
@@ -547,11 +546,11 @@ public:
         const uint8_t*& outPayload,
         size_t& outPayloadLen,
         /**
-         * Vrai si la trame est un rappel.
+         * True if the frame is a restore.
          *
-         * Séparé de `outTag`, qui garde son sens d'origine — le type de la
-         * valeur. Les appelants qui décodent ne changent pas d'une ligne ;
-         * seul celui qui doit trancher pose la question.
+         * Kept separate from `outTag`, which keeps its original meaning —
+         * the value's type. Callers that only decode do not change a line;
+         * only the one that must decide asks the question.
          */
         bool& outRestore
     ) {

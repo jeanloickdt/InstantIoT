@@ -33,7 +33,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "../../core/Transport.h"
-#include "RaisonWiFi_ESP32.hpp"
+#include "WiFiReason_ESP32.hpp"
 #include "../../InstantIoTConfig.h"
 
 #ifndef INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS
@@ -119,41 +119,41 @@ public:
     }
 
     void poll() override {
-        // Sans identifiants, il n'y a rien a retenter — et `WiFi.begin(nullptr)`
-        // ne pardonne pas. Le garde-fou vivait dans `begin()` seul ; depuis que
-        // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
-        // etre ici aussi.
+        // With no credentials there is nothing to retry — and
+        // `WiFi.begin(nullptr)` is unforgiving. The guard used to live in
+        // `begin()` alone; now that `loop()` runs `poll()` even after a
+        // failed `begin()`, it must be here too.
         if (!ssid_ || !pass_) return;
-        // ── Le WiFi n'est pas la ────────────────────────────────
+        // ── WiFi is not there ───────────────────────────────────
         //
-        // Une association peut etre EN COURS. Relancer `WiFi.begin()` a ce
-        // moment-la ne la relance pas : elle la TUE et la fait repartir de
-        // zero. L'ESP32 le dit lui-meme —
+        // An association may be IN FLIGHT. Calling `WiFi.begin()` at that
+        // moment does not restart it: it KILLS it and starts from zero.
+        // The ESP32 says so itself —
         //
         //     E (86789) wifi:sta is connecting, cannot set config
         //
-        // — et une carte sur un reseau lent n'arrive alors jamais : chaque
-        // reprise l'interrompt juste avant qu'elle n'aboutisse. La pile
-        // continue toute seule ; il suffit de ne plus lui couper la parole.
+        // — and a board on a slow network then never arrives: every retry
+        // interrupts the attempt just before it completes. The stack keeps
+        // trying on its own; we only have to stop cutting it off.
         if (WiFi.status() != WL_CONNECTED) {
             if (client_) client_.stop();
 
-            // La puce sait POURQUOI, et elle le sait tout de suite : le refus
-            // d'une cle arrive en deux secondes. Le dire ici plutot qu'a
-            // l'expiration du delai, c'est treize secondes de moins a se
-            // demander ce qui se passe. Une fois par raison, pas par essai.
-            diLaRaisonWiFi();
+            // The chip knows WHY, and knows at once: a refused key comes
+            // back in two seconds. Saying it here rather than at the
+            // timeout is thirteen seconds less spent wondering. Once per
+            // reason, not per attempt.
+            tellWiFiReason();
 
-            if (tentativeWiFiDepuis_ != 0) {
-                // Une tentative est en vol : on regarde, on ne touche pas.
-                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+            if (wifiAttemptStartedAt_ != 0) {
+                // An attempt is in flight: watch, do not touch.
+                if (millis() - wifiAttemptStartedAt_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
                     return;
-                // Elle a assez dure. On la coupe proprement — sans
-                // `disconnect()`, le `begin()` suivant retombe sur la meme
-                // erreur — et on laisse le backoff decider du moment.
+                // It has lasted long enough. Cut it cleanly — without
+                // `disconnect()` the next `begin()` hits the same error —
+                // and let the backoff decide when to try again.
                 IIOT_LOG("[WiFiServer] WiFi attempt timed out — will retry");
                 WiFi.disconnect();
-                tentativeWiFiDepuis_ = 0;
+                wifiAttemptStartedAt_ = 0;
                 scheduleRetry();
                 return;
             }
@@ -162,14 +162,14 @@ public:
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiServer] WiFi reconnect attempt #", retryAttempt_);
-            lanceLaTentativeWiFi();
-            return;   // on rendra la main a la prochaine passe
+            startWiFiAttempt();
+            return;   // we will look again on the next pass
         }
 
-        // Le WiFi est la : plus rien en vol, et la raison precedente
-        // n'a plus cours.
-        tentativeWiFiDepuis_ = 0;
-        oublieLaRaisonWiFi();
+        // WiFi is up: nothing in flight, and the previous reason no
+        // longer applies.
+        wifiAttemptStartedAt_ = 0;
+        forgetWiFiReason();
 
         // TCP dropped → reconnect (with backoff)
         if (!client_.connected()) {
@@ -229,33 +229,33 @@ public:
 
 private:
 
-    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
-    void lanceLaTentativeWiFi() {
-        ecouteLesRaisonsWiFi();
+    /** The ONLY place that calls `WiFi.begin`, and it records when. */
+    void startWiFiAttempt() {
+        listenForWiFiReasons();
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid_, pass_);
-        tentativeWiFiDepuis_ = millis();
+        wifiAttemptStartedAt_ = millis();
     }
 
     // ----- WiFi -----
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiServer] WiFi connecting to: ", ssid_);
 
-        lanceLaTentativeWiFi();
+        startWiFiAttempt();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                // La tentative reste EN VOL : la pile continue d'essayer, et
-                // `poll()` la laissera aboutir plutot que de la relancer.
-                IIOT_LOG("[WiFiServer] WiFi timeout — la tentative continue en fond");
+                // The attempt stays IN FLIGHT: the stack keeps trying, and
+                // `poll()` will let it finish rather than restart it.
+                IIOT_LOG("[WiFiServer] WiFi timeout — the attempt continues in the background");
                 return false;
             }
             delay(100);
         }
 
-        tentativeWiFiDepuis_ = 0;
-        oublieLaRaisonWiFi();
+        wifiAttemptStartedAt_ = 0;
+        forgetWiFiReason();
         IIOT_LOG_VAL("[WiFiServer] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -355,8 +355,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
-    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
-    uint32_t    tentativeWiFiDepuis_ = 0;  // monotonic counter for debug logs
+    /** When the last `WiFi.begin` happened, or 0 if nothing is in flight. */
+    uint32_t    wifiAttemptStartedAt_ = 0;  // monotonic counter for debug logs
     uint32_t    heartbeatMs_;       // 0 = legacy, >0 = announced to server
 };
 

@@ -1,25 +1,18 @@
 #pragma once
 /**
  * ============================================================
- * 🔐 TlsClient_R4.hpp — TLS transport (Arduino Uno R4 WiFi)
+ * 🔐 TlsClient_R4.hpp — TLS transport for the Uno R4 WiFi
  * ============================================================
  *
- * Variante TLS pour l'Uno R4 WiFi (jalon M2). Le TLS est réalisé par
- * le modem ESP32-S3 embarqué via `WiFiSSLClient` (lib WiFiS3) — donc
- * la SRAM du RA4M1 n'est pas le mur, le chiffrement vit sur le modem.
+ * The TLS variant for the Uno R4 WiFi. TLS is performed by the on-board
+ * ESP32-S3 modem through `WiFiSSLClient` (WiFiS3 library) — so the
+ * RA4M1's SRAM is not the wall; the encryption lives on the modem.
  *
- * Confiance TLS :
- *   - Par défaut : racines Let's Encrypt embarquées via setCACert().
- *   - useDefaultCABundle() : utilise le bundle CA intégré au modem
- *     (setCACert(nullptr)) — utile en secours si l'embarqué échoue.
- *   - ⚠️ PAS de setInsecure() : l'API WiFiSSLClient du R4 valide
- *     toujours l'identité du serveur (pas de mode non vérifié). La
- *     méthode existe pour l'uniformité de la façade mais no-op ici.
+ *   - useDefaultCABundle() : use the CA bundle built into the modem
+ *   - setCACert(pem) is kept for facade uniformity but is a no-op here.
  *
- * IMPORTANT : passer le **hostname** (pas une IP) pour le SNI + la
- * vérification du certificat.
- *
- * Copyright (c) 2025 InstantIoT — MIT License
+ * IMPORTANT: pass the **hostname** (not an IP) so that SNI and
+ * certificate validation work.
  * ============================================================
  */
 
@@ -67,10 +60,10 @@ public:
       , token_(token)
       , ssid_(nullptr)
       , pass_(nullptr)
-      , caCert_(INSTANTIOT_LE_ROOT_X1)   // défaut R4 : X1 SEUL — le modem WiFiS3
-                                         // n'accepte qu'un cert ; X1 suffit car la
+      , caCert_(INSTANTIOT_LE_ROOT_X1)   // R4 default: X1 ALONE — the WiFiS3 modem
+                                         // takes one cert only; X1 is enough since the
                                          // chaîne de instantiot.cloud remonte à X1.
-                                         // (X1+X2 concaténés échouent sur le modem.)
+                                         // (X1+X2 concatenated fail on the modem.)
       , nextRetryAt_(0)
       , backoffMs_(INSTANTIOT_RECONNECT_BACKOFF_MIN_MS)
       , heartbeatMs_(0)
@@ -89,10 +82,10 @@ public:
     void useDefaultCABundle()        { caCert_ = nullptr; }    // bundle du modem
 
     // ⚠️ No-op sur R4 : WiFiSSLClient valide toujours l'identité, il
-    // n'existe pas de mode "insecure". Présent pour l'uniformité de la
+    // there is no "insecure" mode. Present for facade uniformity, a
     // façade multi-plateforme.
     void setInsecure() {
-        IIOT_LOG("[WiFiR4Sec] setInsecure() ignoré — le R4 valide toujours le certificat");
+        IIOT_LOG("[WiFiR4Sec] setInsecure() ignored — the R4 always validates the certificate");
     }
 
     // ============================================================
@@ -115,29 +108,29 @@ public:
     }
 
     void poll() override {
-        // Sans identifiants, il n'y a rien a retenter — et `WiFi.begin(nullptr)`
-        // ne pardonne pas. Le garde-fou vivait dans `begin()` seul ; depuis que
-        // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
-        // etre ici aussi.
+        // With no credentials there is nothing to retry — and
+        // `WiFi.begin(nullptr)` is unforgiving. The guard used to live in
+        // `begin()` alone; now that `loop()` runs `poll()` even after a
+        // failed `begin()`, it must be here too.
         if (!ssid_ || !pass_) return;
-        // ── Le reseau n'est pas pret ────────────────────────────
+        // ── The network is not ready ────────────────────────────
         //
-        // Meme regle que sur ESP32 : une association peut etre EN COURS, et
-        // la relancer la tue au lieu de l'aider. On regarde, on ne touche
-        // pas, jusqu'a ce que le delai soit ecoule.
+        // Same rule as on ESP32: an association may be IN FLIGHT, and
+        // restarting it kills it instead of helping. Watch, do not touch,
+        // until the window has passed.
         //
-        // « Pret » veut dire une IP, pas seulement `WL_CONNECTED` : WiFiS3
-        // annonce la connexion AVANT la fin du DHCP, et partir en TLS avec
-        // 0.0.0.0 echoue sans rien expliquer.
-        if (!reseauPret()) {
+        // "Ready" means an IP, not just `WL_CONNECTED`: WiFiS3 announces
+        // the connection BEFORE DHCP finishes, and going to TLS with
+        // 0.0.0.0 fails without explaining anything.
+        if (!networkReady()) {
             client_.stop();
 
-            if (tentativeWiFiDepuis_ != 0) {
-                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+            if (wifiAttemptStartedAt_ != 0) {
+                if (millis() - wifiAttemptStartedAt_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
                     return;
                 IIOT_LOG("[WiFiR4Sec] WiFi attempt timed out — will retry");
                 WiFi.disconnect();
-                tentativeWiFiDepuis_ = 0;
+                wifiAttemptStartedAt_ = 0;
                 scheduleRetry();
                 return;
             }
@@ -146,11 +139,11 @@ public:
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiR4Sec] WiFi reconnect attempt #", retryAttempt_);
-            lanceLaTentativeWiFi();
-            return;   // on rendra la main a la prochaine passe
+            startWiFiAttempt();
+            return;   // we will look again on the next pass
         }
 
-        tentativeWiFiDepuis_ = 0;
+        wifiAttemptStartedAt_ = 0;
 
         if (!client_.connected()) {
             client_.stop();
@@ -188,34 +181,34 @@ public:
 
 private:
 
-    /** Une IP, et pas seulement `WL_CONNECTED` — voir `poll()`. */
-    bool reseauPret() const {
+    /** An IP, not just `WL_CONNECTED` — see `poll()`. */
+    bool networkReady() const {
         return WiFi.status() == WL_CONNECTED
             && WiFi.localIP() != IPAddress(0, 0, 0, 0);
     }
 
-    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
-    void lanceLaTentativeWiFi() {
+    /** The ONLY place that calls `WiFi.begin`, and it records when. */
+    void startWiFiAttempt() {
         WiFi.begin(ssid_, pass_);
-        tentativeWiFiDepuis_ = millis();
+        wifiAttemptStartedAt_ = millis();
     }
 
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiR4Sec] WiFi connecting to: ", ssid_);
-        lanceLaTentativeWiFi();
+        startWiFiAttempt();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                // La tentative reste EN VOL : `poll()` la laissera aboutir
-                // plutot que de la relancer.
-                IIOT_LOG("[WiFiR4Sec] WiFi timeout — la tentative continue en fond");
+                // The attempt stays IN FLIGHT: `poll()` will let it finish
+                // rather than restart it.
+                IIOT_LOG("[WiFiR4Sec] WiFi timeout — the attempt continues in the background");
                 return false;
             }
             delay(100);
         }
-        // WiFiS3 annonce WL_CONNECTED AVANT la fin du DHCP → attendre une IP
-        // valide, sinon le TLS part sans réseau (localIP == 0.0.0.0).
+        // WiFiS3 announces WL_CONNECTED BEFORE DHCP finishes → wait for a
+        // valid IP, or TLS starts with no network (localIP == 0.0.0.0).
         while (WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
                 IIOT_LOG("[WiFiR4Sec] No DHCP IP (still 0.0.0.0)");
@@ -223,7 +216,7 @@ private:
             }
             delay(100);
         }
-        tentativeWiFiDepuis_ = 0;
+        wifiAttemptStartedAt_ = 0;
         IIOT_LOG_VAL("[WiFiR4Sec] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -231,11 +224,11 @@ private:
     bool connectServer() {
         IIOT_LOG_2("[WiFiR4Sec] TLS connecting: ", serverIp_, ":", serverPort_);
 
-        // Confiance : racine(s) embarquée(s), ou bundle modem si nullptr.
+        // Trust: embedded root(s), or the modem bundle if nullptr.
         client_.setCACert(caCert_);
-        // NB : PAS de setConnectionTimeout() — un timeout non nul bascule
-        // connect() sur la commande modem _CLIENTCONNECT (capricieuse) au
-        // lieu de _CLIENTCONNECTNAME (le chemin fiable de WiFiS3).
+        // NB: NO setConnectionTimeout() — a non-zero timeout switches
+        // connect() to the _CLIENTCONNECT modem command (temperamental)
+        // instead of _CLIENTCONNECTNAME (WiFiS3's reliable path).
         if (!client_.connect(serverIp_, serverPort_)) {
             IIOT_LOG("[WiFiR4Sec] TLS connect FAILED (check CA / port / hostname)");
             return false;
@@ -304,8 +297,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
-    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
-    uint32_t    tentativeWiFiDepuis_ = 0;
+    /** When the last `WiFi.begin` happened, or 0 if nothing is in flight. */
+    uint32_t    wifiAttemptStartedAt_ = 0;
     uint32_t    heartbeatMs_;
 };
 

@@ -5,7 +5,7 @@
 
 
 #######################################
-# L'objet unique, les liaisons, les destinations (KEYWORD1)
+# The one object, the links, the destinations (KEYWORD1)
 #######################################
 
 InstantIoT	KEYWORD1

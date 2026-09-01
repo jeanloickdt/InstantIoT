@@ -1,23 +1,18 @@
 #pragma once
 /**
  * ============================================================
- * 🌐 TcpClient_R4.hpp — TCP client transport (Arduino Uno R4 WiFi)
+ * 🌐 TcpClient_R4.hpp — plaintext TCP transport for the Uno R4 WiFi
  * ============================================================
  *
- * Équivalent de TcpClient_ESP32 pour l'Uno R4 WiFi. Le R4
- * utilise la lib `WiFiS3` (WiFi géré par le modem ESP32-S3 embarqué),
- * donc quelques différences avec l'ESP32 :
- *   - include <WiFiS3.h> (pas <WiFi.h>)
- *   - pas de WiFi.mode(WIFI_STA) — WiFi.begin() connecte en station
- *   - pas de setNoDelay() ; le timeout se règle via setConnectionTimeout(ms)
+ * The equivalent of TcpClient_ESP32 for the Uno R4 WiFi. The R4 uses the
+ * `WiFiS3` library (WiFi handled by the on-board ESP32-S3 modem), with
+ * two differences from the ESP32:
+ *   - no setNoDelay(); the timeout is set with setConnectionTimeout(ms)
+ *   - WL_CONNECTED is announced BEFORE DHCP finishes, so we wait for a
+ *     valid IP.
  *
- * Protocole identique : handshake [LEN | "token:heartbeatMs"] puis
- * frames binaires iWidgets v1. Backoff exponentiel + jitter.
- *
- * PLAINTEXT — pour le LAN/selfhost ou un test. Pour le cloud sur
- * internet, préférer la variante TLS (TlsClient_R4).
- *
- * Copyright (c) 2025 InstantIoT — MIT License
+ * PLAINTEXT — for LAN, self-hosting or a test. For the cloud over the
+ * internet, prefer the TLS variant (TlsClient_R4).
  * ============================================================
  */
 
@@ -97,29 +92,29 @@ public:
     }
 
     void poll() override {
-        // Sans identifiants, il n'y a rien a retenter — et `WiFi.begin(nullptr)`
-        // ne pardonne pas. Le garde-fou vivait dans `begin()` seul ; depuis que
-        // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
-        // etre ici aussi.
+        // With no credentials there is nothing to retry — and
+        // `WiFi.begin(nullptr)` is unforgiving. The guard used to live in
+        // `begin()` alone; now that `loop()` runs `poll()` even after a
+        // failed `begin()`, it must be here too.
         if (!ssid_ || !pass_) return;
-        // ── Le reseau n'est pas pret ────────────────────────────
+        // ── The network is not ready ────────────────────────────
         //
-        // Meme regle que sur ESP32 : une association peut etre EN COURS, et
-        // la relancer la tue au lieu de l'aider. On regarde, on ne touche
-        // pas, jusqu'a ce que le delai soit ecoule.
+        // Same rule as on ESP32: an association may be IN FLIGHT, and
+        // restarting it kills it instead of helping. Watch, do not touch,
+        // until the window has passed.
         //
-        // « Pret » veut dire une IP, pas seulement `WL_CONNECTED` : WiFiS3
-        // annonce la connexion AVANT la fin du DHCP, et partir en TLS avec
-        // 0.0.0.0 echoue sans rien expliquer.
-        if (!reseauPret()) {
+        // "Ready" means an IP, not just `WL_CONNECTED`: WiFiS3 announces
+        // the connection BEFORE DHCP finishes, and going to TLS with
+        // 0.0.0.0 fails without explaining anything.
+        if (!networkReady()) {
             client_.stop();
 
-            if (tentativeWiFiDepuis_ != 0) {
-                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+            if (wifiAttemptStartedAt_ != 0) {
+                if (millis() - wifiAttemptStartedAt_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
                     return;
                 IIOT_LOG("[WiFiR4] WiFi attempt timed out — will retry");
                 WiFi.disconnect();
-                tentativeWiFiDepuis_ = 0;
+                wifiAttemptStartedAt_ = 0;
                 scheduleRetry();
                 return;
             }
@@ -128,11 +123,11 @@ public:
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiR4] WiFi reconnect attempt #", retryAttempt_);
-            lanceLaTentativeWiFi();
-            return;   // on rendra la main a la prochaine passe
+            startWiFiAttempt();
+            return;   // we will look again on the next pass
         }
 
-        tentativeWiFiDepuis_ = 0;
+        wifiAttemptStartedAt_ = 0;
 
         if (!client_.connected()) {
             client_.stop();
@@ -170,34 +165,34 @@ public:
 
 private:
 
-    /** Une IP, et pas seulement `WL_CONNECTED` — voir `poll()`. */
-    bool reseauPret() const {
+    /** An IP, not just `WL_CONNECTED` — see `poll()`. */
+    bool networkReady() const {
         return WiFi.status() == WL_CONNECTED
             && WiFi.localIP() != IPAddress(0, 0, 0, 0);
     }
 
-    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
-    void lanceLaTentativeWiFi() {
+    /** The ONLY place that calls `WiFi.begin`, and it records when. */
+    void startWiFiAttempt() {
         WiFi.begin(ssid_, pass_);
-        tentativeWiFiDepuis_ = millis();
+        wifiAttemptStartedAt_ = millis();
     }
 
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiR4] WiFi connecting to: ", ssid_);
-        lanceLaTentativeWiFi();
+        startWiFiAttempt();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                // La tentative reste EN VOL : `poll()` la laissera aboutir
-                // plutot que de la relancer.
-                IIOT_LOG("[WiFiR4] WiFi timeout — la tentative continue en fond");
+                // The attempt stays IN FLIGHT: `poll()` will let it finish
+                // rather than restart it.
+                IIOT_LOG("[WiFiR4] WiFi timeout — the attempt continues in the background");
                 return false;
             }
             delay(100);
         }
-        // WiFiS3 annonce WL_CONNECTED AVANT la fin du DHCP → attendre une IP
-        // valide, sinon la connexion serveur part sans réseau (0.0.0.0).
+        // WiFiS3 announces WL_CONNECTED BEFORE DHCP finishes → wait for a
+        // valid IP, or the server connection starts with no network.
         while (WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
                 IIOT_LOG("[WiFiR4] No DHCP IP (still 0.0.0.0)");
@@ -205,7 +200,7 @@ private:
             }
             delay(100);
         }
-        tentativeWiFiDepuis_ = 0;
+        wifiAttemptStartedAt_ = 0;
         IIOT_LOG_VAL("[WiFiR4] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -214,9 +209,9 @@ private:
         IIOT_LOG_2("[WiFiR4] TCP connecting: ", serverIp_, ":", serverPort_);
 
         // NB : on n'appelle PAS setConnectionTimeout() — un timeout non nul
-        // fait basculer WiFiClient::connect() sur la commande modem
-        // _CLIENTCONNECT (capricieuse) au lieu de _CLIENTCONNECTNAME, le
-        // chemin standard fiable de WiFiS3. Laisser le défaut (0).
+        // switches WiFiClient::connect() to the _CLIENTCONNECT modem
+        // command (temperamental) instead of _CLIENTCONNECTNAME, WiFiS3's
+        // reliable standard path. Leave the default (0).
         if (!client_.connect(serverIp_, serverPort_)) {
             IIOT_LOG("[WiFiR4] TCP connect FAILED");
             return false;
@@ -284,8 +279,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
-    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
-    uint32_t    tentativeWiFiDepuis_ = 0;
+    /** When the last `WiFi.begin` happened, or 0 if nothing is in flight. */
+    uint32_t    wifiAttemptStartedAt_ = 0;
     uint32_t    heartbeatMs_;
 };
 
