@@ -55,6 +55,9 @@
  */
 #include "utils/InstantIoTWhen.hpp"
 
+/** Les liaisons et les destinations que `begin()` accepte. */
+#include "Links.hpp"
+
 namespace iiot {
 
 /**
@@ -68,11 +71,51 @@ class Facade {
 public:
 
     /**
-     * Ouvre la liaison. À appeler une fois, dans `setup()`.
+     * Ouvre une liaison directe — l'app est au bout du fil.
      *
-     * @param lien le transport — le croquis en déclare un, la façade s'en
-     *        souvient. Il doit vivre aussi longtemps que le programme :
-     *        une globale ou un `static`, jamais un temporaire.
+     *     InstantIoT.begin(AccessPoint("MaCarte", "12345678"));
+     *     InstantIoT.begin(BluetoothLink("MaCarte"));
+     *
+     * La liaison passée est une description : elle ne survit pas à la
+     * ligne, et c'est la façade qui garde le transport qu'elle en tire.
+     *
+     * Le `decltype` n'est pas de la coquetterie : sans lui, cette surcharge
+     * prendrait aussi les transports bruts, qui n'ont pas de `transport()`,
+     * et le message parlerait de gabarits au lieu de dire quoi corriger.
+     */
+    template <class Link>
+    auto begin(const Link& lien) -> decltype(lien.transport(), bool()) {
+        return begin(lien.transport());
+    }
+
+    /**
+     * Ouvre une liaison vers une destination.
+     *
+     *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), Cloud(TOKEN));
+     *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), MyMyServer("192.168.1.42", TOKEN));
+     *
+     * La liaison ne sait pas ce qu'est le bout, et la destination ne sait
+     * pas par où on l'atteint. C'est ce qui permettra à une liaison de plus
+     * — Ethernet, demain — de n'obliger aucune destination à changer.
+     */
+    template <class Link, class Dest>
+    bool begin(const Link& lien, const Dest& dest) {
+        const bool premier = (_coeur == nullptr);
+        const bool ouverte = begin(lien.transportVers(dest));
+        // Le battement est plombé sur les deux couches : le transport
+        // l'annonce au serveur à la poignee de main, le cœur l'émet. Pas
+        // sur un second `begin()`, qui ne rebâtit rien.
+        if (premier) setHeartbeat(dest.heartbeatMs);
+        return ouverte;
+    }
+
+    /**
+     * Ouvre une liaison déjà construite.
+     *
+     * L'échappatoire : un transport à vous, ou un des transports de la lib
+     * instancié à la main. Il doit vivre aussi longtemps que le programme —
+     * une globale ou un `static`, jamais un temporaire.
+     *
      * @return vrai si la liaison s'est ouverte.
      */
     bool begin(ITransport& lien) {
