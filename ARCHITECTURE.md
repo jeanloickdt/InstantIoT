@@ -116,6 +116,7 @@ src/
 │   ├─ wifi/SoftAP_{ESP32,ESP8266,R4}.hpp     board hosts its own WiFi
 │   ├─ wifi/TcpClient_{ESP32,R4}.hpp          plain TCP to a server
 │   ├─ wifi/TlsClient_{ESP32,R4}.hpp          TLS to a server
+│   ├─ wifi/WiFiReason_ESP32.hpp              why the association failed
 │   ├─ bluetooth/{Bluetooth_ESP32,BLE_ESP32}.hpp
 │   └─ serial/SoftSerial.hpp
 │
@@ -347,6 +348,22 @@ Declining is the delicate part, and it rests entirely on the TYPE byte: a
 widget frame with no device list and a one-character id has *exactly* the same
 shape as a signal. That case is in the host tests.
 
+### A frame the board cannot read
+
+`processFrame` counts it and says so once. It used to drop it in silence,
+which is how the removal of the EVENT path went unnoticed: the app kept
+sending `TYPE_EVENT` frames, the relay kept forwarding them, and the board
+kept swallowing them.
+
+```cpp
+InstantIoT.write(I9, InstantIoT.ignoredFrames());   // readable from the app
+```
+
+`ignoredFrames()` is readable from a sketch, so the symptom can be published
+on a signal and seen from the app rather than guessed at over a serial cable.
+Zero is the normal answer; a counter that climbs means the other end is
+sending something this version does not understand.
+
 ### A restore does not wake a gesture
 
 On reconnect the server replays the last value of every signal that asks for
@@ -541,7 +558,7 @@ hardware to be wrong.
 | File | What it pins |
 |---|---|
 | `test_signals.cpp` | the golden frames, byte for byte, through the real `processFrame` |
-| `test_singleton.cpp` | calling before `begin()`, writing from inside a block, a second `begin()` |
+| `test_singleton.cpp` | calling before `begin()`, writing from inside a block, a second `begin()`, a link that opens badly, an unreadable frame |
 | `test_destinations.cpp` | the defaults a sketch gets without asking |
 | `decoders.cpp` | the gesture convention, positions, pad names |
 | `dsl_on_signals.cpp` | that the macros expand and register |
@@ -549,10 +566,17 @@ hardware to be wrong.
 The frames are routed through the real `processFrame`, not a copy of it —
 a copy keeps passing on the day the original changes.
 
-What it has caught, in being written: `e.text()` where `text()` belongs to
-`SignalValue`; `ISignal` registered as a gesture block; a `write` before
-`begin()` segfaulting; and `dispatchSignalFrame` delivering *only* restores,
-which had left every `ISignal` and every `ISimpleButton` on the board silent.
+What it has caught, in being written:
+
+- `e.text()` where `text()` belongs to `SignalValue`, not to `SignalEvent`
+- `ISignal` registered as a GESTURE block, so a restore no longer handed it
+  back its setpoint
+- a `write` before `begin()` segfaulting — on a board, a reboot
+- `dispatchSignalFrame` delivering *only* restores, which had left every
+  `ISignal` and every `ISimpleButton` on the board silent
+- a board that gave up for good after one failed `begin()`
+- a frame the board cannot read vanishing without a word
+
 All of them compiled. No review would have seen them.
 
 Compiling for real needs `arduino-cli`:
@@ -568,8 +592,8 @@ does not fit in the default 1.3 MB, and never did.
 
 PlatformIO works with no configuration of its own: drop the library in
 `lib/`, and its dependency finder resolves the rest. Verified on `esp32dev`
-(the DSL example and the TLS one) and on `uno` (`SerialLink`, same 6 554
-bytes as arduino-cli).
+(the DSL example and the TLS one) and on `uno` (`SerialLink`), where it
+produces the same binary size as arduino-cli.
 
 ---
 
