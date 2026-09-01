@@ -15,7 +15,7 @@
 
 #include <Arduino.h>
 
-namespace InstantIoT {
+namespace iiot {
 
 /**
  * RGB color with utilities for IoT use cases
@@ -105,4 +105,4 @@ struct Color {
     bool operator!=(const Color& o) const { return !(*this == o); }
 };
 
-} // namespace InstantIoT
+} // namespace iiot

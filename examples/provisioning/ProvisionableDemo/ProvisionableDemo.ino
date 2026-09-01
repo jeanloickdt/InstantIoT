@@ -82,7 +82,7 @@ void setup() {
     //     l'app, COMMIT côté app → ESP.restart() (cette ligne ne return
     //     pas en mode cold).
     //   - Si NVS plein : retourne immédiatement la config.
-    InstantIoT::ProvisionedConfig cfg = provisioner.awaitConfig();
+    iiot::ProvisionedConfig cfg = provisioner.awaitConfig();
 
     Serial.println("[InstantIoT] Provisioning OK — connecting...");
     Serial.print("  SSID:        "); Serial.println(cfg.ssid);

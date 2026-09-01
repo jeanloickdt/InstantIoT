@@ -28,16 +28,16 @@
 #include "core/InstantIoTCore.hpp"
 #include "transport/bluetooth/BT_ESP32_BLE.hpp"
 
-class InstantIoTBluetoothBLE : public InstantIoT::InstantIoTCoreBase {
+class InstantIoTBluetoothBLE : public iiot::InstantIoTCoreBase {
 public:
 
     InstantIoTBluetoothBLE(const char* deviceName = "InstantIoT")
-        : InstantIoT::InstantIoTCoreBase(_transportImpl)
+        : iiot::InstantIoTCoreBase(_transportImpl)
         , _transportImpl(deviceName)
     {}
 
 private:
-    InstantIoT::BT_ESP32_BLE _transportImpl;
+    iiot::BT_ESP32_BLE _transportImpl;
 };
 
 #endif // ESP32

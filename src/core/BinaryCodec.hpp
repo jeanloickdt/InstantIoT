@@ -31,7 +31,7 @@
 #include "Codec.h"
 #include "../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 // ============================================================
 //  TYPE CODES
@@ -681,4 +681,4 @@ public:
     }
 };
 
-} // namespace InstantIoT
+} // namespace iiot

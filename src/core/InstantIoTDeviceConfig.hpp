@@ -12,7 +12,7 @@
 #include <Arduino.h>
 #include "../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 /**
  * @brief InstantIoT device configuration
@@ -104,4 +104,4 @@ private:
     }
 };
 
-} // namespace InstantIoT
+} // namespace iiot

@@ -34,7 +34,7 @@
     #define INSTANT_SERIAL_TIMEOUT_MS 5000
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class InstantSoftwareSerial : public ITransport {
 public:
@@ -100,4 +100,4 @@ private:
     uint32_t       _lastRxMs;
 };
 
-} // namespace InstantIoT
+} // namespace iiot

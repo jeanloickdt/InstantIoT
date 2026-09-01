@@ -40,10 +40,10 @@
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     #include "transport/wifi/WiFiServerClientSecure_ESP32.hpp"
-    namespace InstantIoT { using InstantWiFiSecureTransport = WiFiServerClientSecure_ESP32; }
+    namespace iiot { using InstantWiFiSecureTransport = WiFiServerClientSecure_ESP32; }
 #elif defined(ARDUINO_UNOWIFIR4)
     #include "transport/wifi/WiFiServerClientSecure_R4.hpp"
-    namespace InstantIoT { using InstantWiFiSecureTransport = WiFiServerClientSecure_R4; }
+    namespace iiot { using InstantWiFiSecureTransport = WiFiServerClientSecure_R4; }
 #else
     #error "InstantIoTWiFiServerSecure: TLS cloud mode is supported on ESP32 and Arduino Uno R4 WiFi"
 #endif
@@ -53,14 +53,14 @@
   #define INSTANTIOT_CLOUD_TLS_PORT 9443
 #endif
 
-class InstantIoTWiFiServerSecure : public InstantIoT::InstantIoTCoreBase {
+class InstantIoTWiFiServerSecure : public iiot::InstantIoTCoreBase {
 public:
 
     InstantIoTWiFiServerSecure(
         const char* serverHost,
         const char* token,
         uint16_t    serverPort = INSTANTIOT_CLOUD_TLS_PORT
-    ) : InstantIoT::InstantIoTCoreBase(_transportImpl)
+    ) : iiot::InstantIoTCoreBase(_transportImpl)
       , _transportImpl(serverHost, serverPort, token)
     {
         // Heartbeat actif par défaut (5s), plombé sur les deux couches.
@@ -70,7 +70,7 @@ public:
     // ----- Heartbeat — appeler avant begin() -----
     void setHeartbeat(uint32_t intervalMs) {
         _transportImpl.setHeartbeat(intervalMs);
-        InstantIoT::InstantIoTCoreBase::setHeartbeat(intervalMs);
+        iiot::InstantIoTCoreBase::setHeartbeat(intervalMs);
     }
 
     // ----- Confiance TLS — appeler avant begin() -----
@@ -80,7 +80,7 @@ public:
     // ----- Connexion : WiFi puis TLS + handshake -----
     bool begin(const char* ssid, const char* pass) {
         _transportImpl.setCredentials(ssid, pass);
-        return InstantIoT::InstantIoTCoreBase::begin();
+        return iiot::InstantIoTCoreBase::begin();
     }
 
     // ----- Getters -----
@@ -96,5 +96,5 @@ public:
     bool        isWiFiConnected() const { return _transportImpl.isWiFiConnected(); }
 
 private:
-    InstantIoT::InstantWiFiSecureTransport _transportImpl;
+    iiot::InstantWiFiSecureTransport _transportImpl;
 };

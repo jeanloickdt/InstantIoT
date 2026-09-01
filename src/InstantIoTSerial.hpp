@@ -31,14 +31,14 @@
 #include "core/InstantIoTCore.hpp"
 #include "transport/serial/InstantSoftwareSerial.hpp"
 
-class InstantIoTSerial : public InstantIoT::InstantIoTCoreBase {
+class InstantIoTSerial : public iiot::InstantIoTCoreBase {
 public:
 
     InstantIoTSerial(uint8_t rxPin, uint8_t txPin, long baud = INSTANT_SERIAL_BAUDRATE)
-        : InstantIoT::InstantIoTCoreBase(_transportImpl)
+        : iiot::InstantIoTCoreBase(_transportImpl)
         , _transportImpl(rxPin, txPin, baud)
     {}
 
 private:
-    InstantIoT::InstantSoftwareSerial _transportImpl;
+    iiot::InstantSoftwareSerial _transportImpl;
 };

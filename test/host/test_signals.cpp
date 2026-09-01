@@ -16,7 +16,7 @@
 #include "../../src/core/InstantIoTCore.hpp"
 #include "../../src/utils/InstantIoTWhen.hpp"
 
-using namespace InstantIoT;
+using namespace iiot;
 
 static int failures = 0;
 static int checks   = 0;
@@ -56,7 +56,8 @@ static Parsed parse(const uint8_t* frame, size_t len) {
     uint8_t tag = 0;
     const uint8_t* payload = nullptr;
     size_t payloadLen = 0;
-    if (!BinaryCodec::decodeSignal(frame, len, p.address, tag, payload, payloadLen)) return p;
+    bool rappel = false;
+    if (!BinaryCodec::decodeSignal(frame, len, p.address, tag, payload, payloadLen, rappel)) return p;
     p.recognised = decodeSignalValue(tag, payload, payloadLen, p.value, p.text, sizeof(p.text));
     return p;
 }
@@ -82,9 +83,10 @@ ISignal(I0, bool on) {
     i0Last = on;
 };
 
-// A widget handler, to prove the new branch did not eat the old path.
+// Un bloc de geste, pour prouver que la branche des signaux ne mange pas
+// les appuis : il ecoute I1 comme les ISignal ecoutent I5.
 static int btnCalls = 0;
-ISimpleButton("btn1") {
+ISimpleButton(I1) {
     WHEN_PRESSED { btnCalls++; }
 };
 
@@ -115,7 +117,7 @@ struct NullTransport : ITransport {
 
 static NullTransport nullTransport;
 
-struct TestCore : InstantIoT::InstantIoTCoreBase {
+struct TestCore : iiot::InstantIoTCoreBase {
     TestCore() : InstantIoTCoreBase(nullTransport) {}
     using InstantIoTCoreBase::processFrame;
 };
@@ -199,8 +201,8 @@ int main() {
         size_t n = codec.encode(frame, sizeof(frame), "dev1", "btn1",
                                 TYPE_SIMPLEBUTTON, CMD_PRESS);
         ok(n > 0, "a widget frame still encodes");
-        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0;
-        ok(!BinaryCodec::decodeSignal(frame, n, a, t, pl, pn),
+        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0; bool rp = false;
+        ok(!BinaryCodec::decodeSignal(frame, n, a, t, pl, pn, rp),
            "…and the signal decoder leaves it alone, or every button press would vanish");
 
         DecodedMessage msg; uint8_t tc = 0, ec = 0;
@@ -216,23 +218,23 @@ int main() {
                                 TYPE_SIMPLEBUTTON, CMD_PRESS);
         ok(n > 0 && frame[4] == 0x00 && frame[5] == 0x01,
            "the collision case is really built: DEV_COUNT 0, WID_LEN 1");
-        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0;
-        ok(!BinaryCodec::decodeSignal(frame, n, a, t, pl, pn),
+        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0; bool rp = false;
+        ok(!BinaryCodec::decodeSignal(frame, n, a, t, pl, pn, rp),
            "a one-letter widget id on a device-less frame is not a signal");
     }
     {
         uint8_t corrupted[sizeof(GOLD_FLOAT_23_4_AT_I5)];
         memcpy(corrupted, GOLD_FLOAT_23_4_AT_I5, sizeof(corrupted));
         corrupted[sizeof(corrupted) - 2] ^= 0xFF;   // one byte of the value
-        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0;
-        ok(!BinaryCodec::decodeSignal(corrupted, sizeof(corrupted), a, t, pl, pn),
+        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0; bool rp = false;
+        ok(!BinaryCodec::decodeSignal(corrupted, sizeof(corrupted), a, t, pl, pn, rp),
            "a corrupted value is refused, not applied — a setpoint acts on hardware");
     }
     {
         uint8_t truncated[sizeof(GOLD_FLOAT_23_4_AT_I5) - 3];
         memcpy(truncated, GOLD_FLOAT_23_4_AT_I5, sizeof(truncated));
-        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0;
-        ok(!BinaryCodec::decodeSignal(truncated, sizeof(truncated), a, t, pl, pn),
+        uint8_t a = 0, t = 0; const uint8_t* pl = nullptr; size_t pn = 0; bool rp = false;
+        ok(!BinaryCodec::decodeSignal(truncated, sizeof(truncated), a, t, pl, pn, rp),
            "a frame cut short by the transport is refused");
     }
 
@@ -413,14 +415,17 @@ int main() {
         ok(strcmp(i9Last, "ECO") == 0, "a text signal reaches a const char* capture");
     }
     {
-        // The regression the new branch could have caused: swallowing frames
-        // that were never signals in the first place.
+        // La regression que la branche des signaux pouvait causer : perdre
+        // les appuis. Un geste voyage maintenant comme une valeur — 1 pour
+        // l'appui, par convention — et doit reveiller son bloc.
         btnCalls = 0;
-        uint8_t frame[128];
-        size_t n = codec.encode(frame, sizeof(frame), "dev1", "btn1",
-                                TYPE_SIMPLEBUTTON, CMD_PRESS);
+        uint8_t frame[64];
+        uint8_t appui[4];
+        float un = 1.0f;
+        memcpy(appui, &un, 4);
+        size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_FLOAT, appui, 4);
         core.processFrame(frame, n);
-        ok(btnCalls == 1, "a button press still reaches its block, through the same core");
+        ok(btnCalls == 1, "un appui atteint toujours son bloc, par le meme coeur");
     }
 
     printf("\n%d checks, %d failure%s\n", checks, failures, failures == 1 ? "" : "s");

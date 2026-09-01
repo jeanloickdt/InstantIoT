@@ -27,7 +27,7 @@
 #include "../../core/Transport.h"
 #include "../../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 class BT_ESP32 : public ITransport {
 public:
@@ -69,6 +69,6 @@ private:
     const char*     _deviceName;
 };
 
-} // namespace InstantIoT
+} // namespace iiot
 
 #endif // ESP32

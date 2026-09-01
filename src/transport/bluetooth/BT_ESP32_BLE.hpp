@@ -37,7 +37,7 @@
     #define INSTANT_BLE_MTU 512
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class BT_ESP32_BLE : public ITransport {
 public:
@@ -185,6 +185,6 @@ private:
     };
 };
 
-} // namespace InstantIoT
+} // namespace iiot
 
 #endif // ESP32

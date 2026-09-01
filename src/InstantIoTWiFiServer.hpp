@@ -40,22 +40,22 @@
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     #include "transport/wifi/WiFiServerClient_ESP32.hpp"
-    namespace InstantIoT { using InstantWiFiServerTransport = WiFiServerClient_ESP32; }
+    namespace iiot { using InstantWiFiServerTransport = WiFiServerClient_ESP32; }
 #elif defined(ARDUINO_UNOWIFIR4)
     #include "transport/wifi/WiFiServerClient_R4.hpp"
-    namespace InstantIoT { using InstantWiFiServerTransport = WiFiServerClient_R4; }
+    namespace iiot { using InstantWiFiServerTransport = WiFiServerClient_R4; }
 #else
     #error "InstantIoTWiFiServer: supported on ESP32 and Arduino Uno R4 WiFi"
 #endif
 
-class InstantIoTWiFiServer : public InstantIoT::InstantIoTCoreBase {
+class InstantIoTWiFiServer : public iiot::InstantIoTCoreBase {
 public:
 
     InstantIoTWiFiServer(
         const char* serverIp,
         uint16_t    serverPort,
         const char* token
-    ) : InstantIoT::InstantIoTCoreBase(_transportImpl)
+    ) : iiot::InstantIoTCoreBase(_transportImpl)
       , _transportImpl(serverIp, serverPort, token)
     {
         // Heartbeat active by default in server mode (5s).
@@ -71,13 +71,13 @@ public:
     // Server clamps to [2s, 120s]. Value 0 disables (legacy mode).
     void setHeartbeat(uint32_t intervalMs) {
         _transportImpl.setHeartbeat(intervalMs);
-        InstantIoT::InstantIoTCoreBase::setHeartbeat(intervalMs);
+        iiot::InstantIoTCoreBase::setHeartbeat(intervalMs);
     }
 
     // ----- Connection: WiFi then TCP + handshake -----
     bool begin(const char* ssid, const char* pass) {
         _transportImpl.setCredentials(ssid, pass);
-        return InstantIoT::InstantIoTCoreBase::begin();
+        return iiot::InstantIoTCoreBase::begin();
     }
 
     // ----- Getters -----
@@ -93,5 +93,5 @@ public:
     bool        isWiFiConnected() const { return _transportImpl.isWiFiConnected(); }
 
 private:
-    InstantIoT::InstantWiFiServerTransport _transportImpl;
+    iiot::InstantWiFiServerTransport _transportImpl;
 };
