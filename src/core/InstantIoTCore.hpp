@@ -99,6 +99,9 @@ public:
         return _transport.connected();
     }
 
+    /** Combien de trames sont arrivees sans que la carte sache les lire. */
+    uint32_t ignoredFrames() const { return _framesIgnorees; }
+
     /**
      * One place decides whether a signal frame leaves.
      *
@@ -244,6 +247,9 @@ protected:
     /** Vrai des que `begin()` a ete appele — pas des que la liaison tient. */
     bool _begun;
 
+    /** Voir `processFrame`. */
+    uint32_t _framesIgnorees = 0;
+
     // ─── Heartbeat state (server mode) ────────────────────
     uint32_t _heartbeatMs       = 0;   // 0 = disabled
     uint32_t _lastHeartbeatSent = 0;
@@ -317,9 +323,29 @@ protected:
      * blocs de la DSL écoutent les signaux, et plus aucun bloc ne s'inscrivait
      * dans la table des adresses.
      */
+    /**
+     * Une trame qu'on ne sait pas traiter est une INFORMATION.
+     *
+     * Elle disparaissait sans un mot. Deux choses peuvent l'expliquer, et
+     * les deux meritent d'etre sues : l'autre bout parle une langue qu'on a
+     * cesse de comprendre — c'est arrive avec les trames EVENT, que l'app
+     * envoyait encore quand la carte avait cesse de les lire — ou bien c'est
+     * du bruit sur le fil.
+     *
+     * Le compteur est la parce qu'un journal ne se lit pas apres coup : un
+     * croquis peut publier `InstantIoT.ignoredFrames()` sur un signal et
+     * voir le probleme depuis l'app.
+     */
     void processFrame(const uint8_t* data, size_t len) {
-        dispatchSignalFrame(data, len);
+        if (dispatchSignalFrame(data, len)) return;
+
+        if (_framesIgnorees == 0) {
+            IIOT_LOG("[InstantIoT] trame non reconnue — l'autre bout parle "
+                     "une langue que cette version ne lit pas");
+        }
+        _framesIgnorees++;
     }
+
 
     /**
      * Returns true once the frame has been recognised as a signal — whether or

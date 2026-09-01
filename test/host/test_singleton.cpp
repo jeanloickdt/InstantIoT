@@ -167,6 +167,33 @@ int main() {
            "jusqu'au reset");
     }
 
+    section("Une trame que la carte ne sait pas traiter ne s'evapore pas");
+    {
+        // Le cas qui a failli passer inapercu : l'app envoyait des trames
+        // EVENT (TYPE 0x21) que la carte ne decode plus. Elles
+        // disparaissaient sans un mot, et le croquis n'avait aucun moyen de
+        // savoir que quelque chose etait arrive.
+        //
+        // Une trame qu'on ne sait pas traiter est une INFORMATION : soit
+        // l'autre bout parle une langue qu'on a cessé de comprendre, soit
+        // c'est du bruit sur le fil. Les deux se diagnostiquent, aucun ne se
+        // tait.
+        BinaryCodec codec;
+        uint8_t evenement[64];
+        // Une trame de la meme forme qu'un signal, mais TYPE 0x21.
+        size_t n = codec.encodeSignal(evenement, sizeof(evenement), 5,
+                                      SIGNAL_TAG_FLOAT, nullptr, 0);
+        ok(n > 0, "la trame se fabrique");
+        evenement[7] = 0x21;                    // TYPE_SIGNAL → TYPE_EVENT
+        evenement[n - 1] = crc8(evenement + 4, n - 5);
+
+        uint32_t avant = InstantIoT.ignoredFrames();
+        liaison.depose(evenement, n);
+        InstantIoT.loop();
+        ok(InstantIoT.ignoredFrames() == avant + 1,
+           "la carte compte la trame qu'elle n'a pas su lire");
+    }
+
     section("Depuis un bloc : ecrire pendant qu'on lit");
     {
         // On fabrique la trame d'arrivee avec notre propre encodeur, puis on

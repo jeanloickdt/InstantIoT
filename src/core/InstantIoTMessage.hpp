@@ -61,86 +61,18 @@ struct EmergencyButtonEvent {
     bool isReset() const { return kind == EmergencyEventKind::Reset; }
 };
 
-// ============================================================
-// 🎚️ SLIDER EVENTS
-// ============================================================
-
-enum class SliderEventKind : uint8_t {
-    ValueChanging = 0,
-    ValueChanged,
-    DragStarted,
-    DragEnded
-};
-
-struct HorizontalSliderEvent {
-    const char* widgetId;
-    SliderEventKind kind;
-    float value;
-
-    bool isValueChanging() const { return kind == SliderEventKind::ValueChanging; }
-    bool isValueChanged() const { return kind == SliderEventKind::ValueChanged; }
-    bool isDragStarted() const { return kind == SliderEventKind::DragStarted; }
-    bool isDragEnded() const { return kind == SliderEventKind::DragEnded; }
-};
-
-struct VerticalSliderEvent {
-    const char* widgetId;
-    SliderEventKind kind;
-    float value;
-
-    bool isValueChanging() const { return kind == SliderEventKind::ValueChanging; }
-    bool isValueChanged() const { return kind == SliderEventKind::ValueChanged; }
-    bool isDragStarted() const { return kind == SliderEventKind::DragStarted; }
-    bool isDragEnded() const { return kind == SliderEventKind::DragEnded; }
-};
-
-// ============================================================
-// 🔘 SWITCH EVENTS
-// ============================================================
-
-enum class SwitchEventKind : uint8_t {
-    TurnOn = 0,
-    TurnOff,
-    Toggle,
-    SetValue
-};
-
-struct SwitchEvent {
-    const char* widgetId;
-    SwitchEventKind kind;
-    bool isOn;
-    
-    bool isTurnOn() const { return kind == SwitchEventKind::TurnOn; }
-    bool isTurnOff() const { return kind == SwitchEventKind::TurnOff; }
-    bool isToggle() const { return kind == SwitchEventKind::Toggle; }
-    bool isSetValue() const { return kind == SwitchEventKind::SetValue; }
-};
-
-// ============================================================
-// 🕹️ JOYSTICK EVENTS
-// ============================================================
-
-enum class JoystickEventKind : uint8_t {
-    PositionChanged = 0,
-    Released
-};
-
-struct JoystickEvent {
-    const char* widgetId;
-    JoystickEventKind kind;
-    float x;    // -1.0 to 1.0
-    float y;    // -1.0 to 1.0
-    
-    bool isPositionChanged() const { return kind == JoystickEventKind::PositionChanged; }
-    bool isReleased() const { return kind == JoystickEventKind::Released; }
-    
-    float magnitude() const { return sqrt(x * x + y * y); }
-    float angle() const { return atan2(y, x) * 180.0f / PI; }
-};
-
-// ============================================================
-// 🎮 DIRECTION PAD EVENTS
-// ============================================================
+/**
+ * Ce que la 2.0 n'a plus a representer.
+ *
+ * Les structures des curseurs, de l'interrupteur, de la manette et du choix
+ * segmente vivaient ici. Plus rien ne les construisait : leurs blocs portent
+ * la valeur dans leur TETE — `ISwitch(I3, bool on)` — et il n'y a plus
+ * d'evenement a emballer.
+ *
+ * Ce qui reste ci-dessous a un producteur : `SignalToWidget` fabrique un
+ * geste de bouton depuis une valeur (1, 0, 2) et une touche de croix depuis
+ * un mot ("UP", "UP_LONG").
+ */
 
 /**
  * Les touches d'une croix, telles que l'app les nomme.
@@ -190,29 +122,6 @@ struct DirectionPadEvent {
     bool isCenter() const { return button == DPadButton::Center; }
 };
 
-// ============================================================
-// 🔀 SEGMENTED SWITCH EVENTS
-// ============================================================
-
-enum class SegmentedEventKind : uint8_t {
-    SelectionChanged = 0,
-    SegmentSelected,
-    SegmentDeselected
-};
-
-struct SegmentedSwitchEvent {
-    const char* widgetId;
-    SegmentedEventKind kind;
-    int selectedIndex;
-    const char* segmentId;      // ID of the segment concerned
-    const char* selectedIds;    // selected IDs (multi-select)
-    int count;
-    
-    bool isSelectionChanged() const { return kind == SegmentedEventKind::SelectionChanged; }
-    bool isSegmentSelected() const { return kind == SegmentedEventKind::SegmentSelected; }
-    bool isSegmentDeselected() const { return kind == SegmentedEventKind::SegmentDeselected; }
-};
-
 } // namespace iiot
 
 // ============================================================
@@ -222,18 +131,9 @@ struct SegmentedSwitchEvent {
 using SimpleButtonEvent = iiot::SimpleButtonEvent;
 using AdvancedButtonEvent = iiot::AdvancedButtonEvent;
 using EmergencyButtonEvent = iiot::EmergencyButtonEvent;
-using HorizontalSliderEvent = iiot::HorizontalSliderEvent;
-using VerticalSliderEvent = iiot::VerticalSliderEvent;
-using SwitchEvent = iiot::SwitchEvent;
-using JoystickEvent = iiot::JoystickEvent;
 using DirectionPadEvent = iiot::DirectionPadEvent;
-using SegmentedSwitchEvent = iiot::SegmentedSwitchEvent;
 
 using ButtonEventKind = iiot::ButtonEventKind;
 using EmergencyEventKind = iiot::EmergencyEventKind;
-using SliderEventKind = iiot::SliderEventKind;
-using SwitchEventKind = iiot::SwitchEventKind;
-using JoystickEventKind = iiot::JoystickEventKind;
 using DPadButton = iiot::DPadButton;
 using DPadEventKind = iiot::DPadEventKind;
-using SegmentedEventKind = iiot::SegmentedEventKind;
