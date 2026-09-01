@@ -16,11 +16,42 @@ ISimpleButton(I0) {
 }
 
 static bool haut = false, hautLong = false, basRelache = false;
+static bool bas = false, gauche = false, droite = false, centre = false;
+static bool relacheQuelconque = false;
+static int  toucheVue = -1, toucheLongue = -1, toucheRelachee = -1;
 IDirectionPad(I3) {
     WHEN_UP           { haut = true; }
+    WHEN_DOWN         { bas = true; }
+    WHEN_LEFT         { gauche = true; }
+    WHEN_RIGHT        { droite = true; }
+    WHEN_CENTER       { centre = true; }
     WHEN_UP_LONG      { hautLong = true; }
     WHEN_DOWN_RELEASE { basRelache = true; }
+    WHEN_RELEASED_ANY { relacheQuelconque = true; }
+    WHEN_PAD_PRESSED(t)      { toucheVue = (int)t; }
+    WHEN_PAD_LONG_PRESSED(t) { toucheLongue = (int)t; }
+    WHEN_PAD_RELEASED(t)     { toucheRelachee = (int)t; }
 }
+
+static bool appui2 = false, relache2 = false, long2 = false;
+IAdvancedButton(I4) {
+    WHEN_PRESSED      { appui2 = true; }
+    WHEN_RELEASED     { relache2 = true; }
+    WHEN_LONG_PRESSED { long2 = true; }
+}
+
+static bool arret = false, rearme = false;
+IEmergencyButton(I6) {
+    WHEN_TRIGGERED { arret = true; }
+    WHEN_RESET     { rearme = true; }
+}
+
+static float curseurH = -1, curseurV = -1;
+IHorizontalSlider(I7, float v) { curseurH = v; }
+IVerticalSlider(I8, float v)   { curseurV = v; }
+
+static int segment = -1;
+ISegmentedSwitch(I10, int index) { segment = index; }
 
 static bool lampe = false;
 ISwitch(I1, bool on) { lampe = on; }
@@ -51,8 +82,31 @@ int main() {
     envoie(0, 2.0f); VERIFIE(longAppui, "2 = appui long");
 
     envoieTexte(3, "UP");           VERIFIE(haut, "UP");
+    envoieTexte(3, "DOWN");         VERIFIE(bas, "DOWN");
+    envoieTexte(3, "LEFT");         VERIFIE(gauche, "LEFT");
+    envoieTexte(3, "RIGHT");        VERIFIE(droite, "RIGHT");
+    envoieTexte(3, "CENTER");       VERIFIE(centre, "CENTER");
     envoieTexte(3, "UP_LONG");      VERIFIE(hautLong, "UP_LONG");
     envoieTexte(3, "DOWN_RELEASE"); VERIFIE(basRelache, "DOWN_RELEASE");
+    VERIFIE(relacheQuelconque, "WHEN_RELEASED_ANY prend n'importe quel relachement");
+    envoieTexte(3, "A");            VERIFIE(toucheVue == (int)iiot::DPadButton::A,
+                                            "WHEN_PAD_PRESSED rend la touche");
+    envoieTexte(3, "B_LONG");       VERIFIE(toucheLongue == (int)iiot::DPadButton::B,
+                                            "WHEN_PAD_LONG_PRESSED rend la touche");
+    envoieTexte(3, "LEFT_RELEASE"); VERIFIE(toucheRelachee == (int)iiot::DPadButton::Left,
+                                            "WHEN_PAD_RELEASED rend la touche");
+
+    envoie(4, 1.0f); VERIFIE(appui2,   "IAdvancedButton : appui");
+    envoie(4, 0.0f); VERIFIE(relache2, "IAdvancedButton : relachement");
+    envoie(4, 2.0f); VERIFIE(long2,    "IAdvancedButton : appui long");
+
+    envoie(6, 1.0f); VERIFIE(arret,  "WHEN_TRIGGERED");
+    envoie(6, 0.0f); VERIFIE(rearme, "WHEN_RESET");
+
+    envoie(7, 42.0f); VERIFIE(curseurH > 41.9f && curseurH < 42.1f, "curseur horizontal");
+    envoie(8, 17.0f); VERIFIE(curseurV > 16.9f && curseurV < 17.1f, "curseur vertical");
+
+    envoie(10, 2.0f); VERIFIE(segment == 2, "choix segmente");
 
     envoie(1, 1.0f); VERIFIE(lampe, "l'interrupteur s'allume");
     envoie(1, 0.0f); VERIFIE(!lampe, "et s'eteint");
@@ -60,7 +114,7 @@ int main() {
     envoie(5, 21.5f); VERIFIE(consigne > 21.4f && consigne < 21.6f, "ISignal recoit sa consigne");
 
     // Une adresse sans bloc ne casse rien.
-    envoie(9, 1.0f);
+    envoie(20, 1.0f);
 
     // ── Un RAPPEL ne reveille pas un geste ──
     appui = false; consigne = 0;
