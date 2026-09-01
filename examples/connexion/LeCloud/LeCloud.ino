@@ -14,7 +14,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 const char* WIFI_SSID    = "MonWiFi";
 const char* WIFI_PASS    = "MonMotDePasse";
@@ -24,8 +23,17 @@ const char* DEVICE_TOKEN = "COLLEZ_LE_JETON_ICI";
   #define LED_BUILTIN 2
 #endif
 
-uint32_t dernierClignotement = 0;
+InstantTimer timers;
 bool     allumee = false;
+
+// Le battement de la LED, une fois par seconde. `timers.every` plutot
+// qu'un `millis() - dernier >= …` recopie a la main, et surtout pas un
+// `delay()` : il arreterait aussi la lecture des trames qui arrivent.
+void battement() {
+    allumee = InstantIoT.connected() && !allumee;
+    digitalWrite(LED_BUILTIN, allumee ? HIGH : LOW);
+    Serial.println(InstantIoT.connected() ? "cloud : joint (TLS)" : "cloud : pas joint");
+}
 
 void setup() {
     delay(2000);
@@ -50,16 +58,11 @@ void setup() {
     } else {
         Serial.println("Pas encore connecte — la carte reessaie.");
     }
+
+    timers.every(2000, battement);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    if (millis() - dernierClignotement >= 2000) {
-        dernierClignotement = millis();
-        allumee = InstantIoT.connected() && !allumee;
-        digitalWrite(LED_BUILTIN, allumee ? HIGH : LOW);
-        Serial.println(InstantIoT.connected() ? "cloud : joint (TLS)"
-                                              : "cloud : pas joint");
-    }
+    timers.run();
 }

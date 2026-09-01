@@ -291,19 +291,27 @@ struct WiFiLink {
         ITransport& transport() const;                                     \
     };
 
+#if !defined(INSTANTIOT_HAS_ACCESS_POINT)
+_IIO_LIAISON_ABSENTE(AccessPoint,
+    "InstantIoT n'a pas de point d'acces pour cette carte. Il en existe un "
+    "pour ESP32, ESP8266 et Uno R4 WiFi ; en ajouter un pour la votre, "
+    "c'est un ITransport dans src/transport/wifi/ et une branche dans "
+    "Links.hpp.")
+#endif
+
 #if !defined(INSTANTIOT_HAS_WIFI_LINK)
 _IIO_LIAISON_ABSENTE(WiFiLink,
-    "Cette carte ne sait pas rejoindre un WiFi existant pour atteindre un "
-    "serveur — l'ESP8266 n'a que le point d'acces. Utilisez "
+    "InstantIoT ne sait pas rejoindre un WiFi existant depuis cette carte. "
+    "Sur ESP8266, qui n'a que le point d'acces, ecrivez plutot "
     "AccessPoint(nom, mot_de_passe) : le telephone rejoint le WiFi de la "
-    "carte et lui parle directement.")
+    "carte. Sur une carte non portee, c'est un ITransport a ecrire et une "
+    "branche a ajouter dans Links.hpp.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_BLUETOOTH)
 _IIO_LIAISON_ABSENTE(BluetoothLink,
-    "Cette carte n'a pas de Bluetooth classique. Il demande un ESP32 avec "
-    "une radio BR/EDR — ni l'ESP8266 ni l'Uno R4 WiFi n'en ont, ni les "
-    "ESP32 en -S2 et -C3.")
+    "InstantIoT n'a de Bluetooth classique que pour l'ESP32, et seulement "
+    "ceux qui ont une radio BR/EDR — pas les -S2 ni les -C3.")
 #endif
 
 #if !defined(INSTANTIOT_HAS_BLE)
@@ -316,8 +324,9 @@ _IIO_LIAISON_ABSENTE(BLELink,
 
 #if !defined(INSTANTIOT_HAS_SERIAL_LINK)
 _IIO_LIAISON_ABSENTE(SerialLink,
-    "SoftwareSerial n'existe pas sur cette carte : elle est dans le cœur AVR "
-    "et dans celui de l'ESP8266. Ni l'ESP32 ni l'Uno R4 WiFi ne l'ont.")
+    "SoftwareSerial n'existe pas sur cette carte. Elle est dans le cœur AVR "
+    "et dans celui de l'ESP8266 ; ni l'ESP32, ni l'Uno R4 WiFi, ni le cœur "
+    "SAMD ne l'ont.")
 #endif
 
 }  // namespace iiot

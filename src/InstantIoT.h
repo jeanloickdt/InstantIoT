@@ -58,6 +58,9 @@
 /** Les liaisons et les destinations que `begin()` accepte. */
 #include "Links.hpp"
 
+/** Les minuteries — `timers.every(1000, publier)` plutôt qu'un `millis()`. */
+#include "utils/InstantIoTTimer.hpp"
+
 namespace iiot {
 
 /**
@@ -209,3 +212,32 @@ private:
  * même nom, et c'est le croquis qui a besoin du beau nom.
  */
 extern iiot::Facade InstantIoT;
+
+/**
+ * Les noms que le croquis écrit, à portée sans rien déclarer.
+ *
+ * Sans ces lignes, chaque croquis devait commencer par
+ * `using namespace iiot;` — une formule à recopier sans la comprendre,
+ * dans une bibliothèque dont le but est qu'il n'y en ait pas.
+ *
+ * Ce sont des `using` nommés et non un `using namespace` : seuls ces
+ * noms-là sortent, et les internes — `Facade`, `InstantIoTCoreBase`,
+ * `SignalRegistrar`, les transports — restent rangés. Un croquis qui en
+ * veut un écrit `iiot::` et sait alors qu'il descend d'un étage.
+ *
+ * Ils sont inconditionnels : une liaison qu'une carte n'a pas existe
+ * quand même, en coquille, pour que le message d'erreur soit le vrai.
+ */
+using iiot::AccessPoint;
+using iiot::WiFiLink;
+using iiot::BluetoothLink;
+using iiot::BLELink;
+using iiot::SerialLink;
+
+using iiot::Cloud;
+using iiot::MyServer;
+using iiot::SecureDestination;
+using iiot::PlainDestination;
+
+/** Les touches d'une croix — `WHEN_PAD_PRESSED(t) { if (t == DPadButton::A) … }` */
+using iiot::DPadButton;

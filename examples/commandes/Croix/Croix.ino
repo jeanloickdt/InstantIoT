@@ -18,7 +18,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #define MOTEUR_GAUCHE 5
 #define MOTEUR_DROIT  18

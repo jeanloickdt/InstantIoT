@@ -15,7 +15,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #if defined(ESP32)
   #define BROCHE_CAPTEUR 34
@@ -24,7 +23,7 @@ using namespace iiot;
 #endif
 
 float seuilAlerte = 30.0f;   // modifiable depuis l'app
-uint32_t derniereMesure = 0;
+InstantTimer timers;
 
 /** LM35 : 10 mV par degre. TMP36 : ajoutez le decalage de 0,5 V. */
 float temperature() {
@@ -38,18 +37,19 @@ ISignal(I2, float seuil) {
     seuilAlerte = seuil;
 };
 
+void publier() {
+    float t = temperature();
+    InstantIoT.write(I0, t);
+    InstantIoT.write(I1, t > seuilAlerte);
+}
+
 void setup() {
     Serial.begin(115200);
     InstantIoT.begin(AccessPoint("InstantIoT_Temperature", "12345678"));
+    timers.every(2000, publier);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    if (millis() - derniereMesure >= 2000) {
-        derniereMesure = millis();
-        float t = temperature();
-        InstantIoT.write(I0, t);
-        InstantIoT.write(I1, t > seuilAlerte);
-    }
+    timers.run();
 }
