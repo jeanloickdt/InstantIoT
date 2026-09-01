@@ -97,7 +97,7 @@ Cloud(TOKEN).plaintext()               // no encryption at all
 ```
 
 `plaintext()` returns a **different type**, so no TLS stack is linked at all:
-898 847 bytes against 991 823 on an ESP32 — 93 KB the board never has to
+898 975 bytes against 991 947 on an ESP32 — 93 KB the board never has to
 carry. A board with no TLS can reach the
 cloud for real, instead of failing to compile over a path it never takes. The
 token then travels readable — that is the price, and it is a decision, never a
@@ -259,6 +259,19 @@ For the full trace — every step of Wi-Fi, TLS and handshake:
 Failing on the first attempt is normal: at boot the router is not always ready.
 `loop()` keeps retrying with a growing backoff — call it unconditionally, even
 when `begin()` returned `false`.
+
+### When frames arrive but nothing happens
+
+A frame the board cannot read is counted, and said once. Publish the counter
+and you can watch it from the app instead of from a serial cable:
+
+```cpp
+InstantIoT.write(I9, InstantIoT.ignoredFrames());
+```
+
+Zero is the normal answer. A counter that climbs means the server or the app
+is sending something this version does not understand — the kind of fault
+that otherwise looks exactly like "my button does nothing".
 
 ---
 
