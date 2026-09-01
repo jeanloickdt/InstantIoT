@@ -62,7 +62,7 @@ static Parsed parse(const uint8_t* frame, size_t len) {
     return p;
 }
 
-// ── Les blocs ISignal, tels qu'un sketch les écrit ────────────────────────
+// ── The ISignal blocks, as a sketch writes them ──────────────────────────
 
 static int   i5Calls = 0;   static float i5Last = 0;
 static int   i0Calls = 0;   static bool  i0Last = false;
@@ -83,8 +83,8 @@ ISignal(I0, bool on) {
     i0Last = on;
 };
 
-// Un bloc de geste, pour prouver que la branche des signaux ne mange pas
-// les appuis : il ecoute I1 comme les ISignal ecoutent I5.
+// A gesture block, to prove the signal branch does not eat presses: it
+// listens on I1 the way the ISignal blocks listen on I5.
 static int btnCalls = 0;
 ISimpleButton(I1) {
     WHEN_PRESSED { btnCalls++; }
@@ -100,7 +100,7 @@ ISignal(I9, const char* mode) {
 static int weakCalls = 0;
 void onSignalWritten(const SignalEvent& e) { (void)e; weakCalls++; }
 
-// ── Le vrai coeur, avec un transport qui ne transporte rien ───────────────
+// ── The real core, with a transport that transports nothing ──────────────
 //
 // The routing is tested through InstantIoTCoreBase::processFrame itself
 // rather than a copy of it, because a copy would keep passing on the day the
@@ -129,12 +129,12 @@ static bool route(const uint8_t* frame, size_t len) {
     return weakCalls > before;
 }
 
-// ── Ce que l'utilisateur ecrit vraiment ───────────────────────────────────
+// ── What a user actually writes ───────────────────────────────────────────
 //
-// Ce bloc ne s'execute pas : il doit COMPILER. C'est le seul test possible
-// pour une ambiguite de surcharge, et il aurait attrape le defaut qui a
-// bloque un vrai croquis — `3.3 / 4095.0` vaut un double, et sans surcharge
-// dediee le compilateur voit trois candidats a egalite.
+// This block never runs: it has to COMPILE. That is the only possible test
+// for an overload ambiguity, and it would have caught the defect that
+// blocked a real sketch — `3.3 / 4095.0` is a double, and without a
+// dedicated overload the compiler sees three candidates tied.
 struct NullTx2 : ITransport {
     bool   begin() override                           { return true; }
     void   poll() override                            {}
@@ -148,8 +148,8 @@ static InstantIoTCoreBase writeCompiles(tx2);
 
 static void everyNaturalWriteCompiles() {
     int raw = 2048;
-    writeCompiles.write(I0, raw * (3.3 / 4095.0) * 100.0);  // double — le cas reel
-    writeCompiles.write(I1, 23.4);                          // litteral decimal
+    writeCompiles.write(I0, raw * (3.3 / 4095.0) * 100.0);  // double — the real case
+    writeCompiles.write(I1, 23.4);                          // decimal literal
     writeCompiles.write(I2, 23.4f);
     writeCompiles.write(I3, true);
     writeCompiles.write(I4, 42);
@@ -160,9 +160,8 @@ static void everyNaturalWriteCompiles() {
     writeCompiles.write(I9, (uint8_t)7);
     writeCompiles.write(I10, "OK");
 
-    // Toute la bibliotheque mathematique rend des `double`. Une courbe de
-    // test, une conversion, une moyenne : c'est le cas le PLUS courant, pas
-    // un cas limite.
+    // The whole maths library returns `double`. A test curve, a conversion,
+    // an average: this is the MOST common case, not an edge case.
     writeCompiles.write(I11, sin(millis() / 1000.0));
     writeCompiles.write(I12, sqrt(2.0));
     writeCompiles.write(I13, (raw + 0.5) / 2);
@@ -173,7 +172,7 @@ int main() {
 
     BinaryCodec codec;
 
-    section("La trame que le serveur envoie vraiment");
+    section("The frame the server really sends");
     {
         Parsed p = parse(GOLD_FLOAT_23_4_AT_I5, sizeof(GOLD_FLOAT_23_4_AT_I5));
         ok(p.recognised, "a float setpoint from the server is recognised");
@@ -195,7 +194,7 @@ int main() {
         ok(asLong == 16777217L, "…and keeps every bit: a counter is not a rounded counter");
     }
 
-    section("Ce qui n'est pas un signal n'est pas réclamé");
+    section("What is not a signal is not claimed");
     {
         uint8_t frame[128];
         size_t n = codec.encode(frame, sizeof(frame), "dev1", "btn1",
@@ -238,7 +237,7 @@ int main() {
            "a frame cut short by the transport is refused");
     }
 
-    section("Aller-retour avec notre propre encodeur");
+    section("Round trip through our own encoder");
     {
         uint8_t frame[64];
         uint8_t payload[4];
@@ -273,7 +272,7 @@ int main() {
            "a text longer than the buffer is cut, never written past it");
     }
 
-    section("Les lectures d'une même valeur");
+    section("The readings of one value");
     {
         uint8_t frame[64];
         uint8_t payload[4];
@@ -320,7 +319,7 @@ int main() {
         ok((bool)p.value, "a bool payload of 2 is still true");
     }
 
-    section("Le desaccord entre la declaration et la capture");
+    section("The disagreement between declaration and capture");
     {
         // The server owns the type, the sketch owns the capture, and no
         // compiler sees both. The only mismatch that lies outright is a text
@@ -367,7 +366,7 @@ int main() {
         ok(Serial.saw("not a text signal"), "…and the mirror case warns too");
     }
 
-    section("Les charges utiles qui ne tiennent pas leur promesse");
+    section("Payloads that do not keep their promise");
     {
         uint8_t frame[64];
         uint8_t half[2] = {0x33, 0x33};
@@ -383,7 +382,7 @@ int main() {
         ok(!p.recognised, "a tag we do not know is refused, not guessed");
     }
 
-    section("Le routage");
+    section("Routing");
     {
         i5Calls = i5CallsSecond = i0Calls = weakCalls = 0;
 
@@ -415,9 +414,9 @@ int main() {
         ok(strcmp(i9Last, "ECO") == 0, "a text signal reaches a const char* capture");
     }
     {
-        // La regression que la branche des signaux pouvait causer : perdre
-        // les appuis. Un geste voyage maintenant comme une valeur — 1 pour
-        // l'appui, par convention — et doit reveiller son bloc.
+        // The regression the signal branch could have caused: losing the
+        // presses. A gesture now travels as a value — 1 for a press, by
+        // convention — and must wake its block.
         btnCalls = 0;
         uint8_t frame[64];
         uint8_t appui[4];
@@ -425,7 +424,7 @@ int main() {
         memcpy(appui, &un, 4);
         size_t n = codec.encodeSignal(frame, sizeof(frame), 1, SIGNAL_TAG_FLOAT, appui, 4);
         core.processFrame(frame, n);
-        ok(btnCalls == 1, "un appui atteint toujours son bloc, par le meme coeur");
+        ok(btnCalls == 1, "a press still reaches its block, through the same core");
     }
 
     printf("\n%d checks, %d failure%s\n", checks, failures, failures == 1 ? "" : "s");

@@ -4,25 +4,25 @@
  * 🔐 TlsClient_ESP32.hpp — TLS transport to InstantIoT Cloud
  * ============================================================
  *
- * Variante **TLS** de TcpClient_ESP32 : l'ESP32 se connecte en
- * WiFi Station puis ouvre une connexion **chiffrée (TLS)** vers un
- * serveur InstantIoT Cloud. Le token et toutes les frames voyagent
- * chiffrés — jamais en clair sur internet (cf. jalon M2).
+ * The **TLS** variant of TcpClient_ESP32: the ESP32 joins a WiFi network
+ * as a station, then opens an **encrypted (TLS)** connection to an
+ * InstantIoT cloud server. The token and every frame travel encrypted —
+ * never readable on the internet.
  *
- * Identique au transport clair pour tout le reste :
+ * Identical to the plaintext transport for everything else:
  *   Handshake: [PAYLOAD_LEN(1B) | "token" | "token:heartbeatMs"]
- *   puis frames binaires iWidgets v1.
- *   Heartbeat piloté par la façade, backoff exponentiel + jitter.
+ *   then binary frames. Heartbeat driven by the facade, exponential
+ *   backoff with jitter.
  *
- * Validation du serveur (par défaut) : les racines Let's Encrypt
- * (ISRG Root X1 + X2) sont embarquées → l'ESP32 vérifie l'identité
- * du serveur. Pour du hardware/débogage :
- *   - setCACert(pem) : fournir sa propre racine (serveur self-hosted).
- *   - setInsecure()  : chiffrer SANS vérifier l'identité (déconseillé
- *                      en prod — MITM possible ; utile en bring-up).
+ * Server verification (default): the Let's Encrypt roots (ISRG Root X1
+ * and X2) are embedded, so the ESP32 checks the server's identity. For
+ * hardware bring-up or debugging:
+ *   - setCACert(pem) : supply your own root (self-hosted server).
+ *   - setInsecure()  : encrypt WITHOUT verifying identity (not for
+ *                      production — MITM is possible).
  *
- * Côté serveur (M2), un portier TLS (caddy-l4) termine le TLS sur le
- * port 9443 et forwarde vers le relais en interne.
+ * On the server side, a TLS gateway (caddy-l4) terminates TLS on port
+ * 9443 and forwards to the relay internally.
  *
  * Copyright (c) 2025 InstantIoT — MIT License
  * ============================================================
@@ -36,7 +36,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include "../../core/Transport.h"
-#include "RaisonWiFi_ESP32.hpp"
+#include "WiFiReason_ESP32.hpp"
 #include "../../InstantIoTConfig.h"
 #include "../../certs/InstantIoT_LE_Roots.h"
 
@@ -48,8 +48,8 @@
   #define INSTANTIOT_TCP_CONNECT_TIMEOUT_MS 5000
 #endif
 
-// Handshake TLS : borne le temps de négociation (secondes) pour éviter
-// qu'une connexion muette bloque le boot du device.
+// TLS handshake: bounds the negotiation time (seconds) so a silent
+// connection cannot block the device's boot.
 #ifndef INSTANTIOT_TLS_HANDSHAKE_TIMEOUT_S
   #define INSTANTIOT_TLS_HANDSHAKE_TIMEOUT_S 10
 #endif
@@ -88,7 +88,7 @@ public:
     {}
 
     // ============================================================
-    // 💓 Heartbeat — appelé par la façade avant begin()
+    // 💓 Heartbeat — called by the facade before begin()
     // ============================================================
     void setHeartbeat(uint32_t intervalMs) {
         heartbeatMs_ = intervalMs;
@@ -97,7 +97,7 @@ public:
     uint32_t getHeartbeat() const { return heartbeatMs_; }
 
     // ============================================================
-    // 🔑 WiFi credentials — appelé par la façade avant begin()
+    // 🔑 WiFi credentials — called by the facade before begin()
     // ============================================================
     void setCredentials(const char* ssid, const char* pass) {
         ssid_ = ssid;
@@ -105,18 +105,18 @@ public:
     }
 
     // ============================================================
-    // 🔐 Confiance TLS — appeler AVANT begin()
+    // 🔐 TLS trust — call BEFORE begin()
     // ============================================================
     //
-    // setCACert : fournir sa propre racine (ex. serveur self-hosted
-    //   avec un cert maison). Remplace les racines Let's Encrypt.
+    // setCACert: supply your own root (e.g. a self-hosted server with
+    //   its own certificate). Replaces the Let's Encrypt roots.
     void setCACert(const char* pem) {
         caCert_   = pem;
         insecure_ = false;
     }
 
-    // setInsecure : chiffre SANS vérifier l'identité du serveur.
-    //   ⚠️ MITM possible — bring-up/débogage uniquement, pas la prod.
+    // setInsecure: encrypts WITHOUT verifying the server's identity.
+    //   ⚠️ MITM possible — bring-up/debugging only, not production.
     void setInsecure() {
         insecure_ = true;
     }
@@ -139,42 +139,42 @@ public:
     }
 
     void poll() override {
-        // Sans identifiants, il n'y a rien a retenter — et `WiFi.begin(nullptr)`
-        // ne pardonne pas. Le garde-fou vivait dans `begin()` seul ; depuis que
-        // `loop()` fait tourner `poll()` meme apres un `begin()` rate, il doit
-        // etre ici aussi.
+        // With no credentials there is nothing to retry — and
+        // `WiFi.begin(nullptr)` is unforgiving. The guard used to live in
+        // `begin()` alone; now that `loop()` runs `poll()` even after a
+        // failed `begin()`, it must be here too.
         if (!ssid_ || !pass_) return;
 
-        // ── Le WiFi n'est pas la ────────────────────────────────
+        // ── WiFi is not there ───────────────────────────────────
         //
-        // Une association peut etre EN COURS. Relancer `WiFi.begin()` a ce
-        // moment-la ne la relance pas : elle la TUE et la fait repartir de
-        // zero. L'ESP32 le dit lui-meme —
+        // An association may be IN FLIGHT. Calling `WiFi.begin()` at that
+        // moment does not restart it: it KILLS it and starts from zero.
+        // The ESP32 says so itself —
         //
         //     E (86789) wifi:sta is connecting, cannot set config
         //
-        // — et une carte sur un reseau lent n'arrive alors jamais : chaque
-        // reprise l'interrompt juste avant qu'elle n'aboutisse. La pile
-        // continue toute seule ; il suffit de ne plus lui couper la parole.
+        // — and a board on a slow network then never arrives: every retry
+        // interrupts the attempt just before it completes. The stack keeps
+        // trying on its own; we only have to stop cutting it off.
         if (WiFi.status() != WL_CONNECTED) {
             client_.stop();
 
-            // La puce sait POURQUOI, et elle le sait tout de suite : le refus
-            // d'une cle arrive en deux secondes. Le dire ici plutot qu'a
-            // l'expiration du delai, c'est treize secondes de moins a se
-            // demander ce qui se passe. Une fois par raison, pas par essai.
-            diLaRaisonWiFi();
+            // The chip knows WHY, and knows at once: a refused key comes
+            // back in two seconds. Saying it here rather than at the
+            // timeout is thirteen seconds less spent wondering. Once per
+            // reason, not per attempt.
+            tellWiFiReason();
 
-            if (tentativeWiFiDepuis_ != 0) {
-                // Une tentative est en vol : on regarde, on ne touche pas.
-                if (millis() - tentativeWiFiDepuis_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
+            if (wifiAttemptStartedAt_ != 0) {
+                // An attempt is in flight: watch, do not touch.
+                if (millis() - wifiAttemptStartedAt_ < INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS)
                     return;
-                // Elle a assez dure. On la coupe proprement — sans
-                // `disconnect()`, le `begin()` suivant retombe sur la meme
-                // erreur — et on laisse le backoff decider du moment.
+                // It has lasted long enough. Cut it cleanly — without
+                // `disconnect()` the next `begin()` hits the same error —
+                // and let the backoff decide when to try again.
                 IIOT_LOG("[WiFiSecure] WiFi attempt timed out — will retry");
                 WiFi.disconnect();
-                tentativeWiFiDepuis_ = 0;
+                wifiAttemptStartedAt_ = 0;
                 scheduleRetry();
                 return;
             }
@@ -183,14 +183,14 @@ public:
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiSecure] WiFi reconnect attempt #", retryAttempt_);
-            lanceLaTentativeWiFi();
-            return;   // on rendra la main a la prochaine passe
+            startWiFiAttempt();
+            return;   // we will look again on the next pass
         }
 
-        // Le WiFi est la : plus rien en vol, et la raison precedente
-        // n'a plus cours.
-        tentativeWiFiDepuis_ = 0;
-        oublieLaRaisonWiFi();
+        // WiFi is up: nothing in flight, and the previous reason no
+        // longer applies.
+        wifiAttemptStartedAt_ = 0;
+        forgetWiFiReason();
 
         // TLS/TCP tombé → reconnexion (avec backoff)
         if (!client_.connected()) {
@@ -249,33 +249,33 @@ public:
 
 private:
 
-    /** Le SEUL endroit qui appelle `WiFi.begin`, et il note l'heure. */
-    void lanceLaTentativeWiFi() {
-        ecouteLesRaisonsWiFi();
+    /** The ONLY place that calls `WiFi.begin`, and it records when. */
+    void startWiFiAttempt() {
+        listenForWiFiReasons();
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid_, pass_);
-        tentativeWiFiDepuis_ = millis();
+        wifiAttemptStartedAt_ = millis();
     }
 
     // ----- WiFi -----
     bool connectWiFi() {
         IIOT_LOG_VAL("[WiFiSecure] WiFi connecting to: ", ssid_);
 
-        lanceLaTentativeWiFi();
+        startWiFiAttempt();
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS) {
-                // La tentative reste EN VOL : la pile continue d'essayer, et
-                // `poll()` la laissera aboutir plutot que de la relancer.
-                IIOT_LOG("[WiFiSecure] WiFi timeout — la tentative continue en fond");
+                // The attempt stays IN FLIGHT: the stack keeps trying, and
+                // `poll()` will let it finish rather than restart it.
+                IIOT_LOG("[WiFiSecure] WiFi timeout — the attempt continues in the background");
                 return false;
             }
             delay(100);
         }
 
-        tentativeWiFiDepuis_ = 0;
-        oublieLaRaisonWiFi();
+        wifiAttemptStartedAt_ = 0;
+        forgetWiFiReason();
         IIOT_LOG_VAL("[WiFiSecure] WiFi OK - IP: ", WiFi.localIP().toString().c_str());
         return true;
     }
@@ -371,8 +371,8 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
-    /** Heure du dernier `WiFi.begin`, ou 0 si rien n'est en vol. */
-    uint32_t    tentativeWiFiDepuis_ = 0;
+    /** When the last `WiFi.begin` happened, or 0 if nothing is in flight. */
+    uint32_t    wifiAttemptStartedAt_ = 0;
     uint32_t    heartbeatMs_;
 };
 

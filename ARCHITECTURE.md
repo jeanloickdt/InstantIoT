@@ -7,11 +7,6 @@
 >
 > Read this end to end (~10 min) before contributing.
 
-*(This file is in English because the repository is public and the README is.
-The source comments are in French — that is deliberate and not an
-inconsistency to "fix": the comments argue about design decisions, and they
-were written in the language those decisions were made in.)*
-
 ---
 
 ## 1. The one idea
@@ -467,7 +462,7 @@ without touching until the window has passed. `WiFi.begin` is called from one
 place only, `lanceLaTentativeWiFi()`, so the rule is enforceable.
 
 **Say why it failed, out loud.** The ESP32 emits a disconnect reason within
-about two seconds; `RaisonWiFi_ESP32.hpp` catches it and prints it in plain
+about two seconds; `WiFiReason_ESP32.hpp` catches it and prints it in plain
 words — once per distinct reason, and *not* behind `INSTANTIOT_DEBUG`. It is
 the one moment where the board can do nothing else and the person watching
 has no other source of truth. A password that lost two characters in a
@@ -548,8 +543,8 @@ hardware to be wrong.
 | `test_signals.cpp` | the golden frames, byte for byte, through the real `processFrame` |
 | `test_singleton.cpp` | calling before `begin()`, writing from inside a block, a second `begin()` |
 | `test_destinations.cpp` | the defaults a sketch gets without asking |
-| `decodeurs.cpp` | the gesture convention, positions, pad names |
-| `dsl_sur_signaux.cpp` | that the macros expand and register |
+| `decoders.cpp` | the gesture convention, positions, pad names |
+| `dsl_on_signals.cpp` | that the macros expand and register |
 
 The frames are routed through the real `processFrame`, not a copy of it —
 a copy keeps passing on the day the original changes.
@@ -563,7 +558,7 @@ All of them compiled. No review would have seen them.
 Compiling for real needs `arduino-cli`:
 
 ```sh
-arduino-cli compile --fqbn esp32:esp32:esp32 --library . examples/commandes/Croix
+arduino-cli compile --fqbn esp32:esp32:esp32 --library . examples/controls/DirectionPad
 ```
 
 The three supported targets are `esp32:esp32:esp32`,
@@ -611,6 +606,9 @@ Written down rather than left to be rediscovered.
   more — that was the point of 2.0. What it does is turn a raw value into
   what a *block* expects. The name will send someone looking in the wrong
   place; it was left alone deliberately, since no sketch names it.
+- **`decodeEvent` is gone, and so is the app's `buildEvent`.** A gesture now
+  travels as a value, by the 1 / 0 / 2 convention, and there is only one way
+  to send a press. The relay no longer knows about EVENT either.
 - **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
   a `src/widgets/` directory that no longer exists.
 - **No Ethernet transport.** The model expects it — `begin(EthernetLink(),
@@ -618,7 +616,7 @@ Written down rather than left to be rediscovered.
   until it has run on a board.
 - **`README.md` still describes the erased model.**
 - **No disconnect reason on Uno R4.** WiFiS3 has no event API, so the
-  `RaisonWiFi_ESP32` treatment stops at the ESP32. An R4 that cannot join a
+  `WiFiReason_ESP32` treatment stops at the ESP32. An R4 that cannot join a
   network still says only "WiFi timeout".
 
 ---

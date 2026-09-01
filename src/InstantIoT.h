@@ -1,212 +1,212 @@
 #pragma once
 /**
  * ============================================================
- * ⚡ InstantIoT.h — l'objet unique du croquis
+ * ⚡ InstantIoT.h — the sketch's one object
  * ============================================================
  *
- * ## Ce qu'il remplace
+ * ## What it replaces
  *
- * Chaque croquis déclarait sa façade en global :
+ * Every sketch used to declare its own facade as a global:
  *
- *     InstantIoTWiFiAP instant("MaCarte", "12345678");   // effacee au lot B
+ *     InstantIoTWiFiAP instant("MyBoard", "12345678");
  *     void setup() { instant.begin(); }
  *     void loop()  { instant.loop();  }
  *
- * Et `instant` n'était atteignable que parce que le croquis avait pensé à
- * la déclarer **hors** de `setup()`. Déclarée dedans, aucune fonction, aucun
- * bloc `ISignal` ne pouvait plus écrire — et rien dans la lib ne le disait.
- * Le nom changeait aussi avec le mode de liaison, si bien qu'un exemple ne
- * se copiait pas d'un mode à l'autre.
+ * And `instant` was only reachable because the sketch had thought to
+ * declare it OUTSIDE `setup()`. Declared inside, no function and no
+ * `ISignal` block could write any more — and nothing in the library said
+ * so. The name also changed with the link, so an example could not be
+ * copied from one mode to another.
  *
- *     void setup() { InstantIoT.begin(lien); }
+ *     void setup() { InstantIoT.begin(link); }
  *     void loop()  { InstantIoT.loop();      }
  *
- * ## Appelable où ?
+ * ## Callable from where?
  *
- * Partout, et c'est le sujet. Depuis `loop()`, depuis une fonction à vous,
- * depuis un bloc `ISignal` ou `ISimpleButton` — répondre à un geste par une
- * écriture est le cas normal, et la lecture et l'écriture ne se disputent
- * pas de tampon (`_rxBuffer` d'un côté, `_txBuffer` de l'autre).
+ * Everywhere, and that is the point. From `loop()`, from a function of
+ * your own, from an `ISignal` or `ISimpleButton` block — answering a
+ * gesture with a write is the normal case, and the read and write paths
+ * do not share a buffer (`_rxBuffer` on one side, `_txBuffer` on the
+ * other).
  *
- * Deux réserves, et elles sont réelles :
+ * Two caveats, and both are real:
  *
- * **Avant `begin()`**, il n'y a pas de liaison. L'appel ne fait rien et le
- * dit une fois au journal. Il ne déréférence rien : les champs de cet objet
- * sont initialisés à la compilation, donc valides même pendant la
- * construction des globales des autres unités. C'est ce qu'un global
- * ordinaire ne garantit pas, et pourquoi ils n'ont pas de constructeur.
+ * **Before `begin()`** there is no link. The call does nothing and says
+ * so once. It dereferences nothing: this object's fields are
+ * constant-initialised, so they are valid even while another translation
+ * unit's globals are still being constructed. A plain global would not
+ * guarantee that, which is why this one has no constructor.
  *
- * **Depuis une interruption**, non — écrire sur une socket depuis un ISR
- * n'est sûr avec aucune bibliothèque. La règle Arduino ne change pas :
- * l'interruption pose un drapeau, `loop()` écrit.
+ * **From an interrupt**, no — writing to a socket from an ISR is unsafe
+ * with any library. The Arduino rule does not change: the interrupt sets
+ * a flag, `loop()` writes.
  * ============================================================
  */
 
 #include "core/InstantIoTCore.hpp"
 
 /**
- * Le DSL vient avec.
+ * The DSL comes along.
  *
- * Aucun en-tête ne tirait `InstantIoTWhen.hpp` : un croquis n'avait
- * `ISignal` que s'il pensait à l'inclure lui-même, et aucun des vingt-cinq
- * exemples ne le faisait — ils ne compilent plus depuis que le DSL s'est
- * rebâti sur les signaux. Un seul `#include <InstantIoT.h>` doit suffire
- * pour tout ce qu'un croquis écrit.
+ * No header used to pull `InstantIoTWhen.hpp` in: a sketch only had
+ * `ISignal` if it thought to include it itself, and none of the examples
+ * did — they stopped compiling the day the DSL was rebuilt on signals.
+ * One `#include <InstantIoT.h>` must be enough for everything a sketch
+ * writes.
  */
 #include "utils/InstantIoTWhen.hpp"
 
-/** Les liaisons et les destinations que `begin()` accepte. */
+/** The links and destinations `begin()` accepts. */
 #include "Links.hpp"
 
-/** Les minuteries — `timers.every(1000, publier)` plutôt qu'un `millis()`. */
+/** Timers — `timers.every(1000, publish)` rather than a hand-rolled `millis()`. */
 #include "utils/InstantIoTTimer.hpp"
 
 namespace iiot {
 
 /**
- * La façade. Un seul exemplaire, nommé `InstantIoT`, déclaré plus bas.
+ * The facade. One instance, named `InstantIoT`, declared below.
  *
- * Elle ne fait pas le travail : elle tient le cœur et lui passe la main.
- * Le cœur n'existe qu'à partir de `begin()`, parce que c'est là seulement
- * qu'on sait par quelle liaison la carte parle.
+ * It does not do the work: it holds the core and hands over. The core
+ * only exists from `begin()` onwards, because that is the only moment we
+ * know which link the board speaks through.
  */
 class Facade {
 public:
 
     /**
-     * Ouvre une liaison directe — l'app est au bout du fil.
+     * Open a direct link — the app is at the other end of the wire.
      *
-     *     InstantIoT.begin(AccessPoint("MaCarte", "12345678"));
-     *     InstantIoT.begin(BluetoothLink("MaCarte"));
+     *     InstantIoT.begin(AccessPoint("MyBoard", "12345678"));
+     *     InstantIoT.begin(BluetoothLink("MyBoard"));
      *
-     * La liaison passée est une description : elle ne survit pas à la
-     * ligne, et c'est la façade qui garde le transport qu'elle en tire.
+     * The link passed in is a description: it does not outlive the
+     * statement, and the facade keeps the transport it yields.
      *
-     * Le `decltype` n'est pas de la coquetterie : sans lui, cette surcharge
-     * prendrait aussi les transports bruts, qui n'ont pas de `transport()`,
-     * et le message parlerait de gabarits au lieu de dire quoi corriger.
+     * The `decltype` is not decoration: without it this overload would
+     * also take raw transports, which have no `transport()`, and the
+     * error would talk about templates instead of saying what to fix.
      */
     template <class Link>
-    auto begin(const Link& lien) -> decltype(lien.transport(), bool()) {
-        return begin(lien.transport());
+    auto begin(const Link& link) -> decltype(link.transport(), bool()) {
+        return begin(link.transport());
     }
 
     /**
-     * Ouvre une liaison vers une destination.
+     * Open a link towards a destination.
      *
-     *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), Cloud(TOKEN));
-     *     InstantIoT.begin(WiFiLink("MonWiFi", "secret"), MyMyServer("192.168.1.42", TOKEN));
+     *     InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
+     *     InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
      *
-     * La liaison ne sait pas ce qu'est le bout, et la destination ne sait
-     * pas par où on l'atteint. C'est ce qui permettra à une liaison de plus
-     * — Ethernet, demain — de n'obliger aucune destination à changer.
+     * The link does not know what the far end is, and the destination
+     * does not know how it is reached. That is what will let one more
+     * link — Ethernet, one day — force no destination to change.
      */
     template <class Link, class Dest>
-    bool begin(const Link& lien, const Dest& dest) {
-        const bool premier = (_coeur == nullptr);
-        const bool ouverte = begin(lien.transportVers(dest));
-        // Le battement est plombé sur les deux couches : le transport
-        // l'annonce au serveur à la poignee de main, le cœur l'émet. Pas
-        // sur un second `begin()`, qui ne rebâtit rien.
-        if (premier) setHeartbeat(dest.heartbeatMs);
-        return ouverte;
+    bool begin(const Link& link, const Dest& dest) {
+        const bool first = (_core == nullptr);
+        const bool opened = begin(link.transportTo(dest));
+        // The heartbeat is plumbed on both layers: the transport
+        // announces it to the server at the handshake, the core emits it.
+        // Not on a second `begin()`, which rebuilds nothing.
+        if (first) setHeartbeat(dest.heartbeatMs);
+        return opened;
     }
 
     /**
-     * Ouvre une liaison déjà construite.
+     * Open a link that is already built.
      *
-     * L'échappatoire : un transport à vous, ou un des transports de la lib
-     * instancié à la main. Il doit vivre aussi longtemps que le programme —
-     * une globale ou un `static`, jamais un temporaire.
+     * The escape hatch: a transport of your own, or one of the library's
+     * instantiated by hand. It must live as long as the program does —
+     * a global or a `static`, never a temporary.
      *
-     * @return vrai si la liaison s'est ouverte.
+     * @return true if the link opened.
      */
-    bool begin(ITransport& lien) {
-        // Le `static` est construit au premier passage, avec CETTE liaison,
-        // et jamais reconstruit. Un second `begin()` ne rebâtirait donc pas
-        // le cœur : il se contenterait de laisser croire qu'il l'a fait.
-        // Autant le dire.
-        if (_coeur) {
-            IIOT_LOG("[InstantIoT] begin() a deja ete appele — le second est ignore");
-            return _coeur->connected();
+    bool begin(ITransport& link) {
+        // The `static` is built on the first pass, with THIS link, and
+        // never rebuilt. A second `begin()` would therefore not rebuild
+        // the core: it would merely let you believe it had. Say so.
+        if (_core) {
+            IIOT_LOG("[InstantIoT] begin() was already called — the second is ignored");
+            return _core->connected();
         }
-        static InstantIoTCoreBase coeur(lien);
-        _coeur = &coeur;
-        return coeur.begin();
+        static InstantIoTCoreBase core(link);
+        _core = &core;
+        return core.begin();
     }
 
-    /** À appeler dans `loop()`, sans condition. */
-    void loop() { if (_coeur) _coeur->loop(); }
+    /** Call from `loop()`, unconditionally. */
+    void loop() { if (_core) _core->loop(); }
 
-    bool connected() { return _coeur && _coeur->connected(); }
+    bool connected() { return _core && _core->connected(); }
 
     void setHeartbeat(uint32_t intervalMs) {
-        if (_coeur) _coeur->setHeartbeat(intervalMs);
-        else tropTot();
+        if (_core) _core->setHeartbeat(intervalMs);
+        else tooEarly();
     }
 
     void setSignalRateLimit(uint16_t framesPerSecond) {
-        if (_coeur) _coeur->setSignalRateLimit(framesPerSecond);
-        else tropTot();
+        if (_core) _core->setSignalRateLimit(framesPerSecond);
+        else tooEarly();
     }
 
     /**
-     * Écrit une valeur sur un signal.
+     * Write a value to a signal.
      *
-     * Le gabarit ne fait que relayer : c'est le cœur qui porte les
-     * surcharges, `double` et `unsigned long` compris, pour que
-     * `write(I0, analogRead(A0) * 3.3 / 4095.0)` compile.
+     * The template only forwards: the core carries the overloads,
+     * `double` and `unsigned long` included, so that
+     * `write(I0, analogRead(A0) * 3.3 / 4095.0)` compiles.
      *
-     * @return faux si rien n'est parti — pas de liaison, ou le plafond de
-     *         trames par seconde a mangé l'appel. Aucun des deux n'est une
-     *         erreur du croquis, et aucun ne mérite un redémarrage.
+     * @return false when nothing left — no link, or the frames-per-second
+     *         ceiling swallowed the call. Neither is a mistake by the
+     *         sketch, and neither deserves a reboot.
      */
     template <class V>
-    bool write(SignalRef sig, V valeur) {
-        if (!_coeur) return tropTot();
-        return _coeur->write(sig, valeur);
+    bool write(SignalRef sig, V value) {
+        if (!_core) return tooEarly();
+        return _core->write(sig, value);
     }
 
     /**
-     * La configuration de la carte.
+     * How many frames arrived that the board could not read.
      *
-     * Elle appartient au cœur, qui n'existe qu'après `begin()`. Avant,
-     * il n'y a rien à rendre et pas de référence à inventer : ce dépôt
-     * vide encaisse les écritures pour que l'appel ait un sens même trop
-     * tôt, et le journal dit qu'elles ne s'appliqueront pas.
+     * Zero is the normal answer. A counter that climbs means the server
+     * or the app is sending something this version does not understand —
+     * the kind of fault that, without this number, looks exactly like
+     * "my button does nothing".
      */
-    /**
-     * Combien de trames sont arrivees sans que la carte sache les lire.
-     *
-     * Zero est la reponse normale. Un compteur qui monte veut dire que le
-     * serveur ou l'app envoie quelque chose que cette version ne comprend
-     * pas — et c'est le genre de panne qui, sans ce nombre, ressemble a
-     * « mon bouton ne fait rien ».
-     */
-    uint32_t ignoredFrames() const { return _coeur ? _coeur->ignoredFrames() : 0; }
+    uint32_t ignoredFrames() const { return _core ? _core->ignoredFrames() : 0; }
 
+    /**
+     * The board's configuration.
+     *
+     * It belongs to the core, which only exists after `begin()`. Before
+     * that there is nothing to return and no reference to invent: this
+     * empty store absorbs the writes so the call still means something
+     * too early, and the log says they will not apply.
+     */
     DeviceConfig& config() {
-        if (_coeur) return _coeur->config();
-        tropTot();
-        static DeviceConfig sansEffet;
-        return sansEffet;
+        if (_core) return _core->config();
+        tooEarly();
+        static DeviceConfig noEffect;
+        return noEffect;
     }
 
 private:
-    InstantIoTCoreBase* _coeur = nullptr;
+    InstantIoTCoreBase* _core = nullptr;
 
     /**
-     * Le seul point où l'on répond « pas encore ».
+     * The one place that answers "not yet".
      *
-     * Une fois, et pas à chaque tour : appelé depuis `loop()`, un journal
-     * bavard noie la ligne utile et ralentit assez pour changer le
-     * symptôme observé.
+     * Once, and not on every pass: called from `loop()`, a chatty log
+     * drowns the useful line and slows things enough to change the
+     * symptom being observed.
      */
-    bool _plainteFaite = false;
-    bool tropTot() {
-        if (!_plainteFaite) {
-            _plainteFaite = true;
-            IIOT_LOG("[InstantIoT] appel avant begin() — sans liaison, rien ne part");
+    bool _alreadyWarned = false;
+    bool tooEarly() {
+        if (!_alreadyWarned) {
+            _alreadyWarned = true;
+            IIOT_LOG("[InstantIoT] call before begin() — with no link, nothing leaves");
         }
         return false;
     }
@@ -215,28 +215,28 @@ private:
 }  // namespace iiot
 
 /**
- * L'objet unique.
+ * The one object.
  *
- * Il porte le nom que portait le namespace, devenu `iiot` pour le lui
- * laisser : en C++ un objet et un espace de noms ne cohabitent pas sous le
- * même nom, et c'est le croquis qui a besoin du beau nom.
+ * It carries the name the namespace used to carry, now `iiot` to make
+ * room: in C++ an object and a namespace cannot share a name, and it is
+ * the sketch that needs the readable one.
  */
 extern iiot::Facade InstantIoT;
 
 /**
- * Les noms que le croquis écrit, à portée sans rien déclarer.
+ * The names a sketch writes, in scope without declaring anything.
  *
- * Sans ces lignes, chaque croquis devait commencer par
- * `using namespace iiot;` — une formule à recopier sans la comprendre,
- * dans une bibliothèque dont le but est qu'il n'y en ait pas.
+ * Without these lines every sketch had to start with
+ * `using namespace iiot;` — a formula to copy without understanding, in
+ * a library whose whole point is that there should be none.
  *
- * Ce sont des `using` nommés et non un `using namespace` : seuls ces
- * noms-là sortent, et les internes — `Facade`, `InstantIoTCoreBase`,
- * `SignalRegistrar`, les transports — restent rangés. Un croquis qui en
- * veut un écrit `iiot::` et sait alors qu'il descend d'un étage.
+ * Named `using` declarations, not a `using namespace`: only these names
+ * come out, and the internals — `Facade`, `InstantIoTCoreBase`,
+ * `SignalRegistrar`, the transports — stay tidied away. Whoever wants one
+ * writes `iiot::` and knows they are going down a floor.
  *
- * Ils sont inconditionnels : une liaison qu'une carte n'a pas existe
- * quand même, en coquille, pour que le message d'erreur soit le vrai.
+ * They are unconditional: a link a board does not have still exists, as a
+ * shell, so that the error message is the real one.
  */
 using iiot::AccessPoint;
 using iiot::WiFiLink;
@@ -249,5 +249,5 @@ using iiot::MyServer;
 using iiot::SecureDestination;
 using iiot::PlainDestination;
 
-/** Les touches d'une croix — `WHEN_PAD_PRESSED(t) { if (t == DPadButton::A) … }` */
+/** Direction-pad keys — `WHEN_PAD_PRESSED(k) { if (k == DPadButton::A) … }` */
 using iiot::DPadButton;

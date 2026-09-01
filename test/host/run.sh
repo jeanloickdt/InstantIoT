@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Le banc. Pas de carte, pas d'IDE, environ une seconde.
+# The bench. No board, no IDE, about a second.
 #
-# Il compile avec un `g++` ordinaire, en bouchant `Arduino.h` par les
-# quelques lignes d'a cote. Il ne remplace pas un essai sur le materiel : il
-# attrape ce qui n'a pas besoin de materiel pour etre faux.
+# It compiles with a plain `g++`, stubbing `Arduino.h` with the few lines
+# next door. It does not replace a run on real hardware: it catches what
+# does not need hardware to be wrong.
 set -e
 cd "$(dirname "$0")"
 
 CXX_FLAGS="-std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function"
 LIB="../../src/InstantIoT.cpp"
 
-# ── Ce qui parle a la lib comme un croquis : depuis test/host, avec Arduino.h
+# ── What talks to the library like a sketch: from test/host, with Arduino.h
 for t in test_signals test_singleton test_destinations; do
     echo "▸ $t"
     g++ $CXX_FLAGS -I. -o "/tmp/instantiot-$t" "$t.cpp" "$LIB"
     "/tmp/instantiot-$t"
 done
 
-# ── Ce qui n'a besoin que des en-tetes : depuis test/, sans Arduino.h
+# ── What only needs the headers: from test/, without Arduino.h
 cd ..
-for t in decodeurs dsl_sur_signaux; do
+for t in decoders dsl_on_signals; do
     echo "▸ $t"
     g++ $CXX_FLAGS -I../src -Ihost -o "/tmp/instantiot-$t" "$t.cpp"
     "/tmp/instantiot-$t"

@@ -27,12 +27,12 @@ public:
     {}
 
     /**
-     * Plus rien a liberer.
+     * Nothing left to free.
      *
-     * Il rendait huit tableaux de widgets alloues au tas — un par famille
-     * d'afficheur, remplis par les fabriques `gauge("nom")`. Les afficheurs
-     * lisent maintenant des signaux : la carte ecrit une adresse, et rien
-     * cote croquis ne represente le dessin.
+     * It used to release eight heap-allocated widget arrays — one per
+     * display family, filled by the `gauge("name")` factories. Displays now
+     * read signals: the board writes an address, and nothing on the sketch
+     * side represents the drawing.
      */
     virtual ~InstantIoTCoreBase() = default;
 
@@ -41,26 +41,24 @@ public:
     // ════════════════════════════════════════════════════════
 
     /**
-     * `_begun` dit que `begin()` a ete TENTE, et non que la liaison est
-     * ouverte.
+     * `_begun` says `begin()` was ATTEMPTED, not that the link is open.
      *
-     * La distinction a coute une carte muette sur le terrain. Il valait
-     * « le transport a repondu oui » : un WiFi pas encore leve, un serveur
-     * qui ne repond pas, et il restait faux — donc `loop()` sortait
-     * aussitot, donc `poll()` n'etait jamais appele. Or c'est `poll()` qui
-     * porte la reconnexion avec backoff. La carte n'essayait plus jamais,
-     * jusqu'au bouton reset, et le croquis affichait paisiblement
-     * « pas connecte » a l'infini.
+     * The distinction cost a mute board in the field. It used to mean "the
+     * transport answered yes": a WiFi not yet up, a server not answering,
+     * and it stayed false — so `loop()` returned at once, so `poll()` was
+     * never called. And `poll()` is what carries the reconnection with
+     * backoff. The board never tried again, until the reset button, while
+     * the sketch calmly printed "not connected" forever.
      *
-     * Echouer a la premiere tentative est NORMAL : au demarrage la box
-     * n'est pas toujours prete, et le serveur pas toujours joignable. Ce
-     * qui ne doit pas l'etre, c'est renoncer.
+     * Failing on the first attempt is NORMAL: at boot the router is not
+     * always ready, and the server not always reachable. Giving up is what
+     * must not be.
      */
     virtual bool begin() {
         IIOT_LOG("[InstantIoT] Starting...");
         _begun = true;
         if (!_transport.begin()) {
-            IIOT_LOG("[InstantIoT] Transport FAILED — loop() continuera d'essayer");
+            IIOT_LOG("[InstantIoT] Transport FAILED — loop() will keep trying");
             return false;
         }
         IIOT_LOG("[InstantIoT] Ready");
@@ -99,8 +97,8 @@ public:
         return _transport.connected();
     }
 
-    /** Combien de trames sont arrivees sans que la carte sache les lire. */
-    uint32_t ignoredFrames() const { return _framesIgnorees; }
+    /** How many frames arrived that the board could not read. */
+    uint32_t ignoredFrames() const { return _ignoredFrames; }
 
     /**
      * One place decides whether a signal frame leaves.
@@ -184,17 +182,17 @@ public:
     }
 
     /**
-     * Les surcharges de confort — et elles ne sont pas du confort.
+     * The convenience overloads — and they are not a convenience.
      *
-     * Sans elles, `write(I0, analogRead(A0) * 3.3 / 4095.0)` ne compile PAS :
-     * l'expression vaut un `double`, et `float`, `bool`, `int` deviennent trois
-     * candidats à égalité. Le message du compilateur parle de surcharge
-     * ambiguë, ce qui n'aide personne à comprendre qu'il suffisait d'écrire
-     * `3.3f`.
+     * Without them, `write(I0, analogRead(A0) * 3.3 / 4095.0)` does NOT
+     * compile: the expression is a `double`, and `float`, `bool` and `int`
+     * become three candidates tied. The compiler talks about an ambiguous
+     * overload, which helps nobody understand that writing `3.3f` would
+     * have been enough.
      *
-     * Or écrire `3.3` plutôt que `3.3f` est ce que fait tout le monde, et
-     * `millis()` rend un `unsigned long`. Ces lignes existent pour que la
-     * chose la plus naturelle à écrire soit celle qui compile.
+     * But writing `3.3` rather than `3.3f` is what everybody does, and
+     * `millis()` returns an `unsigned long`. These lines exist so that the
+     * most natural thing to write is the thing that compiles.
      */
     bool write(SignalRef sig, double value)        { return write(sig, (float)value); }
     bool write(SignalRef sig, long value)          { return write(sig, (int)value); }
@@ -244,11 +242,11 @@ protected:
     uint16_t _signalRatePerSecond = INSTANTIOT_DEFAULT_SIGNAL_RATE;
     uint32_t _lastSignalAt = 0;
 
-    /** Vrai des que `begin()` a ete appele — pas des que la liaison tient. */
+    /** True as soon as `begin()` has been called — not as soon as the link holds. */
     bool _begun;
 
-    /** Voir `processFrame`. */
-    uint32_t _framesIgnorees = 0;
+    /** See `processFrame`. */
+    uint32_t _ignoredFrames = 0;
 
     // ─── Heartbeat state (server mode) ────────────────────
     uint32_t _heartbeatMs       = 0;   // 0 = disabled
@@ -315,35 +313,26 @@ protected:
     }
 
     /**
-     * Il n'arrive plus qu'une chose : un SIGNAL.
+     * A frame we cannot handle is INFORMATION.
      *
-     * Deux autres chemins vivaient ici. Le dispatch par NOM de widget, dont
-     * l'app ne produit plus rien depuis le portage. Et les trames EVENT
-     * adressées par octet, qui n'avaient plus de destinataire non plus : les
-     * blocs de la DSL écoutent les signaux, et plus aucun bloc ne s'inscrivait
-     * dans la table des adresses.
-     */
-    /**
-     * Une trame qu'on ne sait pas traiter est une INFORMATION.
+     * It used to vanish without a word. Two things can explain it, and
+     * both deserve to be known: the other end speaks a language we have
+     * stopped understanding — that happened with EVENT frames, which the
+     * app still sent once the board had stopped reading them — or it is
+     * noise on the wire.
      *
-     * Elle disparaissait sans un mot. Deux choses peuvent l'expliquer, et
-     * les deux meritent d'etre sues : l'autre bout parle une langue qu'on a
-     * cesse de comprendre — c'est arrive avec les trames EVENT, que l'app
-     * envoyait encore quand la carte avait cesse de les lire — ou bien c'est
-     * du bruit sur le fil.
-     *
-     * Le compteur est la parce qu'un journal ne se lit pas apres coup : un
-     * croquis peut publier `InstantIoT.ignoredFrames()` sur un signal et
-     * voir le probleme depuis l'app.
+     * The counter is there because a log is not read after the fact: a
+     * sketch can publish `InstantIoT.ignoredFrames()` on a signal and see
+     * the problem from the app.
      */
     void processFrame(const uint8_t* data, size_t len) {
         if (dispatchSignalFrame(data, len)) return;
 
-        if (_framesIgnorees == 0) {
-            IIOT_LOG("[InstantIoT] trame non reconnue — l'autre bout parle "
-                     "une langue que cette version ne lit pas");
+        if (_ignoredFrames == 0) {
+            IIOT_LOG("[InstantIoT] unrecognised frame — the other end speaks "
+                     "a language this version does not read");
         }
-        _framesIgnorees++;
+        _ignoredFrames++;
     }
 
 
@@ -372,16 +361,17 @@ protected:
 
         // Un RAPPEL ne réveille pas un geste.
         //
-        // Au redémarrage, le serveur renvoie la dernière valeur de chaque
-        // signal qui le demande. C'est ce qu'il faut pour un état — une
-        // consigne, un seuil : `ISignal(I5, float t)` doit la retrouver.
+        // On reconnect the server sends back the last value of every
+        // signal that asks for it. That is what a state needs — a
+        // setpoint, a threshold: `ISignal(I5, float t)` must find it.
         //
-        // Mais un `ISimpleButton(I5)` déclare autre chose : « je veux savoir
-        // qu'on a appuyé ». Personne n'a appuyé. Le lui livrer inventerait un
-        // geste, et le croquis allumerait une lampe que personne n'a demandée.
+        // But `ISimpleButton(I5)` declares something else: "I want to know
+        // somebody pressed". Nobody pressed. Delivering it would invent a
+        // gesture, and the sketch would light a lamp nobody asked for.
         //
-        // La règle appartient donc au BLOC, pas au réglage du signal : peu
-        // importe que le rejeu soit coché, un geste ne se rejoue pas.
+        // The rule therefore belongs to the BLOCK, not to the signal's
+        // settings: whether replay is ticked or not, a gesture is not
+        // replayed.
         dispatchSignal(e, rappel);
         return true;
     }

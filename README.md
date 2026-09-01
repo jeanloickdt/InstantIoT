@@ -79,9 +79,9 @@ A combination your board cannot do **fails to compile**, and the message says
 what to write instead:
 
 ```
-error: static assertion failed: AccessPoint est deja le bout du fil : la carte
-EST le reseau, et l'app s'y connecte directement. Pour atteindre un serveur,
-la liaison est WiFiLink(ssid, mot_de_passe).
+error: static assertion failed: AccessPoint is already the far end: the board
+IS the network, and the app connects straight to it. To reach a server, the
+link is WiFiLink(ssid, password).
 ```
 
 ### TLS, and how to step out of it
@@ -225,10 +225,10 @@ void loop()  { InstantIoT.loop(); timers.run(); }
 
 | Folder | What it shows |
 |---|---|
-| `connexion/` | `SonServeur`, `LeCloud` — the shortest sketch that connects |
-| `commandes/` | the nine control blocks: buttons, switch, sliders, joystick, D-pad, segmented |
-| `mesures/` | `NiveauUltrason` (HC-SR04), `TemperatureAnalogique` (LM35, no library to install), `TexteEtEtat` |
-| `complets/` | `Thermostat` (both directions, with replay), `TableauDeBord`, `Diagnostic` |
+| `connection/` | `OwnServer`, `TheCloud` — the shortest sketch that connects |
+| `controls/` | the nine control blocks: buttons, switch, sliders, joystick, D-pad, segmented |
+| `measurements/` | `UltrasonicLevel` (HC-SR04), `AnalogTemperature` (LM35, no library to install), `TextAndState` |
+| `complete/` | `Thermostat` (both directions, with replay), `Dashboard`, `Diagnostic` |
 
 The measurement examples are named after the **sensor**, not the widget —
 because the widget is not the sketch's business any more. Each one says which
@@ -242,7 +242,7 @@ well.
 The board says why, on the serial monitor, without recompiling:
 
 ```
-[InstantIoT] WiFi refuse — raison 15 : cle refusee par le point d'acces (mot de passe)
+[InstantIoT] WiFi refused — reason 15 : key refused by the access point (wrong password)
 ```
 
 ESP32 only for now — WiFiS3 on the Uno R4 has no event API. It speaks once per

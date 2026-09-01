@@ -3,27 +3,27 @@
 #include "InstantIoTMessage.hpp"
 
 /**
- * Ce qu'un signal veut dire pour un widget.
+ * What a signal means to a block.
  *
- * L'app n'envoie plus d'événements de widget : elle écrit un SIGNAL, à une
- * adresse, et le contenu est un nombre ou du texte. C'est ici qu'on retrouve
- * le sens — pour que le croquis lise `WHEN_PRESSED` et `x, y`, et non des
- * chiffres et des chaînes à découper.
+ * The app no longer sends widget events: it writes a SIGNAL, at an
+ * address, and the content is a number or text. This is where the meaning
+ * comes back — so the sketch reads `WHEN_PRESSED` and `x, y`, not digits
+ * and strings to slice up.
  *
- * Écrit une fois, ici, plutôt que dans chaque croquis. Une bibliothèque
- * existe pour ça.
+ * Written once, here, rather than in every sketch. That is what a library
+ * is for.
  */
 namespace iiot {
 
 /**
- * La convention des gestes : **1 appui, 0 relâchement, 2 appui long**.
+ * The gesture convention: **1 press, 0 release, 2 long press**.
  *
- * Elle est déclarée côté app (`CommandAsValue.kt`) et lue ici. Les deux
- * moitiés se lisent ensemble : changer un chiffre là-bas change ce que les
- * blocs reçoivent ici.
+ * It is declared on the app side (`CommandAsValue.kt`) and read here. The
+ * two halves are read together: changing a digit there changes what the
+ * blocks receive here.
  *
- * Ce sont aussi les valeurs par défaut des trois réglages d'un bouton —
- * l'utilisateur peut les changer, il part de ce que la carte sait lire.
+ * They are also the defaults of a button's three settings — the user can
+ * change them, starting from what the board knows how to read.
  */
 inline ButtonEventKind gestureFromValue(float v) {
     if (v >= 1.5f) return ButtonEventKind::LongPress;   // 2
@@ -32,14 +32,14 @@ inline ButtonEventKind gestureFromValue(float v) {
 }
 
 /**
- * Une position de manette, écrite `"0.42,-0.15"`.
+ * A joystick position, written `"0.42,-0.15"`.
  *
- * Deux nombres au centième dans un seul texte, parce qu'une position n'est
- * pas deux valeurs indépendantes : les écrire séparément ferait deux trames
- * pour un seul geste, sans ordre garanti entre elles.
+ * Two numbers to the hundredth in a single text, because a position is not
+ * two independent values: writing them separately would make two frames
+ * for one gesture, with no guaranteed order between them.
  *
- * @return faux si le texte n'a pas cette forme — le bloc n'est alors pas
- *         appelé, plutôt que d'être appelé avec des zéros inventés.
+ * @return false if the text does not have that shape — the block is then
+ *         not called, rather than called with invented zeros.
  */
 inline bool decodePosition(const char* texte, float& x, float& y) {
     if (!texte) return false;
@@ -50,10 +50,10 @@ inline bool decodePosition(const char* texte, float& x, float& y) {
     return true;
 }
 
-/** Le mot d'une touche, sans son suffixe de geste. */
-inline DPadButton padFromName(const char* mot, size_t len) {
-    struct Paire { const char* mot; DPadButton touche; };
-    static const Paire TABLE[] = {
+/** A key's word, without its gesture suffix. */
+inline DPadButton padFromName(const char* word, size_t len) {
+    struct Pair { const char* word; DPadButton key; };
+    static const Pair TABLE[] = {
         {"UP", DPadButton::Up}, {"DOWN", DPadButton::Down},
         {"LEFT", DPadButton::Left}, {"RIGHT", DPadButton::Right},
         {"CENTER", DPadButton::Center},
@@ -62,41 +62,41 @@ inline DPadButton padFromName(const char* mot, size_t len) {
         {"TRIANGLE", DPadButton::Triangle}, {"CIRCLE", DPadButton::Circle},
         {"SQUARE", DPadButton::Square}, {"CROSS", DPadButton::Cross},
     };
-    for (const Paire& p : TABLE) {
-        if (strlen(p.mot) == len && strncmp(p.mot, mot, len) == 0) return p.touche;
+    for (const Pair& p : TABLE) {
+        if (strlen(p.word) == len && strncmp(p.word, word, len) == 0) return p.key;
     }
     return DPadButton::Unknown;
 }
 
 /**
- * Une touche de croix, écrite `"UP"`, `"UP_LONG"` ou `"UP_RELEASE"`.
+ * Une key de croix, écrite `"UP"`, `"UP_LONG"` ou `"UP_RELEASE"`.
  *
- * Le geste est DANS le mot, et c'est délibéré : sans le suffixe, un appui
- * long écrivait `UP` comme un appui court — le même mot deux fois à 400 ms
- * d'écart, et la carte incapable de distinguer un tap d'un maintien.
+ * The gesture is IN the word, and that is deliberate: without the suffix,
+ * a long press wrote `UP` exactly like a short one — the same word twice,
+ * 400 ms apart, and the board unable to tell a tap from a hold.
  *
- * @return faux si le mot ne nomme aucune touche connue.
+ * @return false if the word names no known key.
  */
-inline bool decodePad(const char* mot, DPadButton& touche, DPadEventKind& geste) {
-    if (!mot) return false;
-    size_t n = strlen(mot);
+inline bool decodePad(const char* word, DPadButton& key, DPadEventKind& gesture) {
+    if (!word) return false;
+    size_t n = strlen(word);
 
-    geste = DPadEventKind::Press;
+    gesture = DPadEventKind::Press;
     const char* SUFFIXE_LONG = "_LONG";
     const char* SUFFIXE_REL  = "_RELEASE";
     size_t nLong = strlen(SUFFIXE_LONG), nRel = strlen(SUFFIXE_REL);
 
-    if (n > nLong && strcmp(mot + n - nLong, SUFFIXE_LONG) == 0) {
-        geste = DPadEventKind::LongPress; n -= nLong;
-    } else if (n > nRel && strcmp(mot + n - nRel, SUFFIXE_REL) == 0) {
-        geste = DPadEventKind::Release;  n -= nRel;
+    if (n > nLong && strcmp(word + n - nLong, SUFFIXE_LONG) == 0) {
+        gesture = DPadEventKind::LongPress; n -= nLong;
+    } else if (n > nRel && strcmp(word + n - nRel, SUFFIXE_REL) == 0) {
+        gesture = DPadEventKind::Release;  n -= nRel;
     }
 
-    touche = padFromName(mot, n);
-    return touche != DPadButton::Unknown;
+    key = padFromName(word, n);
+    return key != DPadButton::Unknown;
 }
 
-/** Le nom d'une touche, pour un croquis qui veut l'imprimer. */
+/** A key's name, for a sketch that wants to print it. */
 inline const char* padName(DPadButton t) {
     switch (t) {
         case DPadButton::Up:       return "up";

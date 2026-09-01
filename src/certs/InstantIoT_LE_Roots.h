@@ -3,12 +3,12 @@
  * ============================================================
  * 🔐 InstantIoT_LE_Roots.h — Let's Encrypt trust anchors (M2)
  * ============================================================
- * Racines ISRG (Let's Encrypt). Utilisées pour VALIDER l'identité
+ * ISRG roots (Let's Encrypt). Used to VERIFY the identity
  * du serveur cloud côté device.
  *
  *   INSTANTIOT_LE_ROOT_CAS : X1 + X2 concaténés (ESP32 / mbedTLS gère
  *                            plusieurs PEM d'un coup).
- *   INSTANTIOT_LE_ROOT_X1  : X1 SEUL — pour les piles TLS qui n'acceptent
+ *   INSTANTIOT_LE_ROOT_X1  : X1 ALONE — for TLS stacks that accept
  *                            qu'un certificat (ex. modem R4/WiFiS3).
  *                            La chaîne de instantiot.cloud remonte à X2
  *                            cross-signée par X1 → X1 seul suffit.
@@ -19,7 +19,7 @@
  * ============================================================
  */
 
-// ── X1 seul (une pile qui n'accepte qu'un cert) ──
+// ── X1 alone (a stack that accepts a single cert) ──
 static const char INSTANTIOT_LE_ROOT_X1[] = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw

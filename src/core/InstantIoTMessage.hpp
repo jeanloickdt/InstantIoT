@@ -62,25 +62,24 @@ struct EmergencyButtonEvent {
 };
 
 /**
- * Ce que la 2.0 n'a plus a representer.
+ * What 2.0 no longer has to represent.
  *
- * Les structures des curseurs, de l'interrupteur, de la manette et du choix
- * segmente vivaient ici. Plus rien ne les construisait : leurs blocs portent
- * la valeur dans leur TETE — `ISwitch(I3, bool on)` — et il n'y a plus
- * d'evenement a emballer.
+ * The slider, switch, joystick and segmented-switch structs used to live
+ * here. Nothing built them any more: their blocks carry the value in their
+ * HEAD — `ISwitch(I3, bool on)` — and there is no event left to wrap.
  *
- * Ce qui reste ci-dessous a un producteur : `SignalToWidget` fabrique un
- * geste de bouton depuis une valeur (1, 0, 2) et une touche de croix depuis
- * un mot ("UP", "UP_LONG").
+ * What remains below has a producer: `SignalToWidget` makes a button
+ * gesture out of a value (1, 0, 2) and a pad key out of a word ("UP",
+ * "UP_LONG").
  */
 
 /**
- * Les touches d'une croix, telles que l'app les nomme.
+ * The keys of a direction pad, as the app names them.
  *
- * Elle en propose treize — la croix, les quatre lettres d'une manette, les
- * quatre formes d'une autre. La lib n'en connaissait que cinq : une croix
- * reglee en A/B/X/Y envoyait des mots qu'elle rangeait tous dans `Unknown`,
- * et le croquis ne pouvait pas les distinguer.
+ * It offers thirteen — the cross, the four letters of one gamepad, the
+ * four shapes of another. The library only knew five: a pad set to
+ * A/B/X/Y sent words it filed all under `Unknown`, and the sketch could
+ * not tell them apart.
  */
 enum class DPadButton : uint8_t {
     Up = 0,
