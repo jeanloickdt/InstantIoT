@@ -8,7 +8,7 @@
  *
  * Chaque croquis déclarait sa façade en global :
  *
- *     InstantIoTWiFiAP instant("MaCarte", "12345678");
+ *     InstantIoTWiFiAP instant("MaCarte", "12345678");   // effacee au lot B
  *     void setup() { instant.begin(); }
  *     void loop()  { instant.loop();  }
  *

@@ -1,7 +1,7 @@
 #pragma once
 /**
  * ============================================================
- * 📡 InstantSoftwareSerial.hpp - Transport SoftwareSerial
+ * 📡 SoftSerial.hpp - Transport SoftwareSerial
  * ============================================================
  *
  * Compatible with any serial module:
@@ -36,10 +36,10 @@
 
 namespace iiot {
 
-class InstantSoftwareSerial : public ITransport {
+class SoftSerial : public ITransport {
 public:
 
-    InstantSoftwareSerial(uint8_t rxPin, uint8_t txPin, long baudrate = INSTANT_SERIAL_BAUDRATE)
+    SoftSerial(uint8_t rxPin, uint8_t txPin, long baudrate = INSTANT_SERIAL_BAUDRATE)
         : _serial(rxPin, txPin)
         , _baudrate(baudrate)
         , _connected(false)

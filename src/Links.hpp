@@ -52,12 +52,12 @@
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     #include "transport/wifi/SoftAP_ESP32.hpp"
-    #include "transport/wifi/WiFiServerClient_ESP32.hpp"
-    #include "transport/wifi/WiFiServerClientSecure_ESP32.hpp"
+    #include "transport/wifi/TcpClient_ESP32.hpp"
+    #include "transport/wifi/TlsClient_ESP32.hpp"
     namespace iiot {
         using TransportAP         = SoftAP_ESP32;
-        using TransportWiFiPlain  = WiFiServerClient_ESP32;
-        using TransportWiFiSecure = WiFiServerClientSecure_ESP32;
+        using TransportWiFiPlain  = TcpClient_ESP32;
+        using TransportWiFiSecure = TlsClient_ESP32;
     }
     #define INSTANTIOT_HAS_ACCESS_POINT 1
     #define INSTANTIOT_HAS_WIFI_LINK    1
@@ -65,12 +65,12 @@
 
 #elif defined(ARDUINO_UNOWIFIR4)
     #include "transport/wifi/SoftAP_R4.hpp"
-    #include "transport/wifi/WiFiServerClient_R4.hpp"
-    #include "transport/wifi/WiFiServerClientSecure_R4.hpp"
+    #include "transport/wifi/TcpClient_R4.hpp"
+    #include "transport/wifi/TlsClient_R4.hpp"
     namespace iiot {
         using TransportAP         = SoftAP_R4;
-        using TransportWiFiPlain  = WiFiServerClient_R4;
-        using TransportWiFiSecure = WiFiServerClientSecure_R4;
+        using TransportWiFiPlain  = TcpClient_R4;
+        using TransportWiFiSecure = TlsClient_R4;
     }
     #define INSTANTIOT_HAS_ACCESS_POINT 1
     #define INSTANTIOT_HAS_WIFI_LINK    1
@@ -87,8 +87,8 @@
 // cas — c'est donc la condition qu'il pose que l'on pose ici.
 #if (defined(ARDUINO_ARCH_ESP32) || defined(ESP32)) \
     && defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
-    #include "transport/bluetooth/BT_ESP32.hpp"
-    namespace iiot { using TransportBluetooth = BT_ESP32; }
+    #include "transport/bluetooth/Bluetooth_ESP32.hpp"
+    namespace iiot { using TransportBluetooth = Bluetooth_ESP32; }
     #define INSTANTIOT_HAS_BLUETOOTH 1
 #endif
 
@@ -96,8 +96,8 @@
 // partie du cœur. On ne la reclame que si elle est la.
 #if (defined(ARDUINO_ARCH_ESP32) || defined(ESP32)) && defined(__has_include)
     #if __has_include(<NimBLEDevice.h>)
-        #include "transport/bluetooth/BT_ESP32_BLE.hpp"
-        namespace iiot { using TransportBLE = BT_ESP32_BLE; }
+        #include "transport/bluetooth/BLE_ESP32.hpp"
+        namespace iiot { using TransportBLE = BLE_ESP32; }
         #define INSTANTIOT_HAS_BLE 1
     #endif
 #endif
@@ -106,8 +106,8 @@
 // l'ESP32 ne l'a pas du tout.
 #if defined(__has_include)
     #if __has_include(<SoftwareSerial.h>) && !defined(ESP32)
-        #include "transport/serial/InstantSoftwareSerial.hpp"
-        namespace iiot { using TransportSerial = InstantSoftwareSerial; }
+        #include "transport/serial/SoftSerial.hpp"
+        namespace iiot { using TransportSerial = SoftSerial; }
         #define INSTANTIOT_HAS_SERIAL_LINK 1
     #endif
 #endif
