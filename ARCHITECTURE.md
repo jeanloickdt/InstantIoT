@@ -607,13 +607,10 @@ bytes as arduino-cli).
 
 Written down rather than left to be rediscovered.
 
-- **The app still builds EVENT frames.** `BinaryFrameBuilder.buildEvent` in
-  the app repo emits `TYPE_EVENT` (0x21) for any widget bound to a signal
-  address, and the relay forwards them. The board no longer reads them — a
-  gesture travels as a *value*, by the 1 / 0 / 2 convention. Nothing is
-  published, so there is no installed base to keep working, but the app must
-  drop that path or those presses will be counted by
-  `InstantIoT.ignoredFrames()` and go nowhere.
+- **`SignalToWidget.hpp` is misnamed.** There are no widgets on the board any
+  more — that was the point of 2.0. What it does is turn a raw value into
+  what a *block* expects. The name will send someone looking in the wrong
+  place; it was left alone deliberately, since no sketch names it.
 - **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
   a `src/widgets/` directory that no longer exists.
 - **No Ethernet transport.** The model expects it — `begin(EthernetLink(),
