@@ -19,7 +19,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #define BROCHE_TRIG 14
 #define BROCHE_ECHO 12
@@ -27,7 +26,7 @@ using namespace iiot;
 #define HAUTEUR_CITERNE_CM 100.0f   // fond plein
 #define ZONE_MORTE_CM        5.0f   // le capteur ne voit rien de plus pres
 
-uint32_t derniereMesure = 0;
+InstantTimer timers;
 
 /** @return le niveau en pourcentage, ou -1 si l'echo n'est pas revenu. */
 float niveauCiterne() {
@@ -44,23 +43,28 @@ float niveauCiterne() {
     return constrain(niveau, 0.0f, 100.0f);
 }
 
+void publier() {
+    float niveau = niveauCiterne();
+    // Une mesure ratee ne s'envoie pas : mieux vaut la derniere valeur
+    // connue qu'un zero invente.
+    if (niveau >= 0.0f) InstantIoT.write(I0, niveau);
+}
+
 void setup() {
     Serial.begin(115200);
     pinMode(BROCHE_TRIG, OUTPUT);
     pinMode(BROCHE_ECHO, INPUT);
     InstantIoT.begin(AccessPoint("InstantIoT_Citerne", "12345678"));
+
+    // Une mesure par seconde : un ultrason n'a rien de plus a dire plus
+    // souvent, et la citerne ne se vide pas si vite. `every` remplace le
+    // `millis() - dernier >= …` qu'on finit toujours par recopier de
+    // travers, et `delay()` ne conviendrait pas : il arreterait aussi la
+    // lecture des trames qui arrivent.
+    timers.every(1000, publier);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    // Une mesure par seconde : un ultrason n'a rien de plus a dire
-    // plus souvent, et la citerne ne se vide pas si vite.
-    if (millis() - derniereMesure >= 1000) {
-        derniereMesure = millis();
-        float niveau = niveauCiterne();
-        // Une mesure ratee ne s'envoie pas : mieux vaut la derniere
-        // valeur connue qu'un zero invente.
-        if (niveau >= 0.0f) InstantIoT.write(I0, niveau);
-    }
+    timers.run();
 }

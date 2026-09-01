@@ -14,7 +14,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #define BROCHE_RELAIS 4
 

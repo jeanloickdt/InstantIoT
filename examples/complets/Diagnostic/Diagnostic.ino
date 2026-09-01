@@ -15,7 +15,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 const char* WIFI_SSID    = "MonWiFi";
 const char* WIFI_PASS    = "MonMotDePasse";
@@ -26,33 +25,15 @@ const char* DEVICE_TOKEN = "COLLEZ_LE_JETON_ICI";
   #define LED_BUILTIN 2
 #endif
 
-uint32_t dernierPoint = 0;
+InstantTimer timers;
 bool     allumee = false;
 
-void setup() {
-    delay(2000);
-    Serial.begin(115200);
-    pinMode(LED_BUILTIN, OUTPUT);
-
-    Serial.println();
-    Serial.println("=== InstantIoT — diagnostic ===");
-    Serial.print("serveur : "); Serial.println(SERVER_HOST);
-
-    InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS),
-                     MyServer(SERVER_HOST, DEVICE_TOKEN));
-}
-
-void loop() {
-    InstantIoT.loop();
-
-    if (millis() - dernierPoint < 1000) return;
-    dernierPoint = millis();
-
-    // `WiFi` est l'objet du cœur Arduino : la question « suis-je sur
-    // le reseau ? » ne regarde pas InstantIoT, et la facade ne la
-    // reexpose pas. `InstantIoT.connected()`, elle, ne repond que de
-    // la liaison jusqu'au serveur.
-    bool surLeReseau = (WiFi.status() == WL_CONNECTED);
+void faireLePoint() {
+    // `WiFi` est l'objet du cœur Arduino : la question « suis-je sur le
+    // reseau ? » ne regarde pas InstantIoT, et la facade ne la reexpose
+    // pas. `InstantIoT.connected()`, elle, ne repond que de la liaison
+    // jusqu'au serveur.
+    bool surLeReseau  = (WiFi.status() == WL_CONNECTED);
     bool surLeServeur = InstantIoT.connected();
 
     if (surLeServeur) {
@@ -67,4 +48,24 @@ void loop() {
         digitalWrite(LED_BUILTIN, LOW);
         Serial.println("WiFi non joint — verifiez le nom du reseau et le mot de passe");
     }
+}
+
+void setup() {
+    delay(2000);
+    Serial.begin(115200);
+    pinMode(LED_BUILTIN, OUTPUT);
+
+    Serial.println();
+    Serial.println("=== InstantIoT — diagnostic ===");
+    Serial.print("serveur : "); Serial.println(SERVER_HOST);
+
+    InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS),
+                     MyServer(SERVER_HOST, DEVICE_TOKEN));
+
+    timers.every(1000, faireLePoint);
+}
+
+void loop() {
+    InstantIoT.loop();
+    timers.run();
 }

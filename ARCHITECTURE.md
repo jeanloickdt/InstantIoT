@@ -27,7 +27,6 @@ reflashing.
 
 ```cpp
 #include <InstantIoT.h>
-using namespace iiot;
 
 ISimpleButton(I0) {
     WHEN_PRESSED  { digitalWrite(LED_BUILTIN, HIGH); }
@@ -44,7 +43,22 @@ void loop() {
 }
 ```
 
-That is the whole public surface: one header, one object, one `begin`.
+That is the whole public surface: one header, one object, one `begin`. No
+`using namespace` — `InstantIoT.h` ends with named `using` declarations that
+put the sketch-facing names (`AccessPoint`, `WiFiLink`, `Cloud`, `MyServer`,
+`DPadButton`, …) at global scope, and leave the internals inside `iiot`.
+
+Timing belongs to `InstantTimer`, which comes with the same header:
+
+```cpp
+InstantTimer timers;
+void publish() { InstantIoT.write(I0, readSensor()); }
+
+void setup() { …; timers.every(1000, publish); }
+void loop()  { InstantIoT.loop(); timers.run(); }
+```
+
+`delay()` would be wrong here — it stops reading incoming frames too.
 
 ---
 
@@ -181,6 +195,13 @@ function-local `static`.
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |
+
+**SAMD (Nano 33 IoT, MKR)**: the core and the DSL compile — 5 % of Flash on a
+Nano 33 IoT — but no transport exists, so no link does. Adding the family is
+one `ITransport` over WiFiNINA plus one branch in `Links.hpp`; nothing in the
+protocol or the DSL stands in the way. (It used to: a single `dtostrf` call
+in `BinaryCodec` made the whole library uncompilable on SAMD, because that
+function comes from avr-libc and the SAMD core does not have it.)
 
 AVR is not in `library.properties`'s `architectures` and the app does not
 expose the serial mode, but `SerialLink` does build on an Uno — 20 % of Flash
@@ -532,6 +553,11 @@ The three supported targets are `esp32:esp32:esp32`,
 sketch needs the `huge_app` partition scheme — Bluetooth Classic plus WiFi
 does not fit in the default 1.3 MB, and never did.
 
+PlatformIO works with no configuration of its own: drop the library in
+`lib/`, and its dependency finder resolves the rest. Verified on `esp32dev`
+(the DSL example and the TLS one) and on `uno` (`SerialLink`, same 6 554
+bytes as arduino-cli).
+
 ---
 
 ## 14. Onboarding — where to start
@@ -553,7 +579,9 @@ does not fit in the default 1.3 MB, and never did.
    platforms that lack it.
 4. If it needs a library outside the core, read §5's `__has_include` trap
    before guarding it.
-5. Compile one example per supported board before claiming it works.
+5. Add the name to the `using` block at the bottom of `InstantIoT.h`, so the
+   sketch does not need `iiot::`.
+6. Compile one example per supported board before claiming it works.
 
 ---
 

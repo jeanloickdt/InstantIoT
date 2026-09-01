@@ -222,8 +222,25 @@ class BinaryCodec {
         msg.paramCount++;
     }
 
+    /**
+     * `dtostrf` n'existe pas partout.
+     *
+     * Elle vient d'avr-libc, et les cœurs ESP la reprennent — mais pas le
+     * cœur SAMD, ni celui du Nano 33 IoT. Le seul appel de toute la lib
+     * suffisait a la rendre incompilable sur cette famille, alors que rien
+     * d'autre ne s'y opposait.
+     *
+     * `snprintf` est standard et fait la meme chose ici. Sur les cœurs AVR,
+     * la variante flottante de `printf` n'est pas liee par defaut — d'ou
+     * `dtostrf` la-bas, et lui seul.
+     */
     void addParamFloat(DecodedMessage& msg, const char* key, float val) {
-        char buf[16]; dtostrf(val, 1, 6, buf);
+        char buf[16];
+#if defined(ARDUINO_ARCH_AVR)
+        dtostrf(val, 1, 6, buf);
+#else
+        snprintf(buf, sizeof(buf), "%.6f", (double)val);
+#endif
         addParam(msg, key, buf);
     }
 

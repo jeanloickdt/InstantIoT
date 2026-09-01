@@ -11,7 +11,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #ifndef LED_BUILTIN
   #define LED_BUILTIN 2

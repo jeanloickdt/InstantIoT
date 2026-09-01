@@ -17,7 +17,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 #ifndef LED_BUILTIN
   #define LED_BUILTIN 2
@@ -28,7 +27,7 @@ using namespace iiot;
 int      intensite = 0;
 bool     relaisFerme = false;
 uint32_t allumeDepuis = 0;
-uint32_t dernierePublication = 0;
+InstantTimer timers;
 
 IHorizontalSlider(I0, float valeur) {
     intensite = (int)(valeur * 255.0f / 100.0f);
@@ -45,21 +44,22 @@ ISwitch(I2, bool ferme) {
     digitalWrite(BROCHE_RELAIS, ferme ? HIGH : LOW);
 };
 
+void publier() {
+    InstantIoT.write(I5, intensite * 100 / 255);
+    InstantIoT.write(I6, allumeDepuis ? (millis() - allumeDepuis) / 1000 : 0);
+    InstantIoT.write(I7, relaisFerme ? "relais ferme" : "relais ouvert");
+}
+
 void setup() {
     Serial.begin(115200);
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(BROCHE_PWM, OUTPUT);
     pinMode(BROCHE_RELAIS, OUTPUT);
     InstantIoT.begin(AccessPoint("InstantIoT_TableauDeBord", "12345678"));
+    timers.every(1000, publier);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    if (millis() - dernierePublication >= 1000) {
-        dernierePublication = millis();
-        InstantIoT.write(I5, intensite * 100 / 255);
-        InstantIoT.write(I6, allumeDepuis ? (millis() - allumeDepuis) / 1000 : 0);
-        InstantIoT.write(I7, relaisFerme ? "relais ferme" : "relais ouvert");
-    }
+    timers.run();
 }

@@ -26,7 +26,6 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 const char* WIFI_SSID    = "MonWiFi";
 const char* WIFI_PASS    = "MonMotDePasse";
@@ -39,8 +38,8 @@ const char* DEVICE_TOKEN = "COLLEZ_LE_JETON_ICI";
 #endif
 #define BROCHE_POMPE 4
 
-float    consigne = 19.0f;
-uint32_t derniereMesure = 0;
+float       consigne = 19.0f;
+InstantTimer timers;
 
 ISignal(I5, float cible) {
     consigne = cible;
@@ -62,18 +61,19 @@ void onSignalWritten(const SignalEvent& e) {
     Serial.print("signal I"); Serial.print(e.address); Serial.println(" ecrit");
 }
 
+void publierLaMesure() {
+    float volts = analogRead(BROCHE_CAPTEUR) * 3.3f / 4095.0f;
+    InstantIoT.write(I0, volts * 100.0f);
+}
+
 void setup() {
     Serial.begin(115200);
     pinMode(BROCHE_POMPE, OUTPUT);
     InstantIoT.begin(WiFiLink(WIFI_SSID, WIFI_PASS), Cloud(DEVICE_TOKEN));
+    timers.every(2000, publierLaMesure);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    if (millis() - derniereMesure >= 2000) {
-        derniereMesure = millis();
-        float volts = analogRead(BROCHE_CAPTEUR) * 3.3f / 4095.0f;
-        InstantIoT.write(I0, volts * 100.0f);
-    }
+    timers.run();
 }

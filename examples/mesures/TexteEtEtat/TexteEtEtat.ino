@@ -15,12 +15,11 @@
  *************************************************************/
 
 #include <InstantIoT.h>
-using namespace iiot;
 
 const char* MODES[] = { "Eco", "Confort", "Boost" };
 int   modeCourant = 0;
 long  cyclesFaits = 0;
-uint32_t dernierePublication = 0;
+InstantTimer timers;
 
 // L'app choisit le mode ; la carte le renvoie en toutes lettres,
 // pour que l'afficheur montre ce que la carte a COMPRIS et non ce
@@ -31,19 +30,20 @@ ISegmentedSwitch(I3, int choix) {
     InstantIoT.write(I0, MODES[modeCourant]);
 };
 
+void publier() {
+    cyclesFaits++;
+    InstantIoT.write(I0, MODES[modeCourant]);
+    InstantIoT.write(I1, modeCourant == 2);     // « Boost » allume la LED
+    InstantIoT.write(I2, cyclesFaits);
+}
+
 void setup() {
     Serial.begin(115200);
     InstantIoT.begin(AccessPoint("InstantIoT_Texte", "12345678"));
+    timers.every(3000, publier);
 }
 
 void loop() {
     InstantIoT.loop();
-
-    if (millis() - dernierePublication >= 3000) {
-        dernierePublication = millis();
-        cyclesFaits++;
-        InstantIoT.write(I0, MODES[modeCourant]);
-        InstantIoT.write(I1, modeCourant == 2);     // « Boost » allume la LED
-        InstantIoT.write(I2, cyclesFaits);
-    }
+    timers.run();
 }
