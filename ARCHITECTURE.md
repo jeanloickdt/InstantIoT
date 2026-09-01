@@ -607,17 +607,13 @@ bytes as arduino-cli).
 
 Written down rather than left to be rediscovered.
 
-- **`test/host/test_events.cpp` is out of the bench.** It asserts
-  `typeAtAddress(5) == TYPE_SIMPLEBUTTON` and `ISimpleButton("btn1")`, both
-  removed on purpose. Making it green again means deciding what an EVENT
-  becomes on the board — work, not a touch-up.
-- **Five orphaned event structs.** Removing the dead `WHEN_` macros left
-  `SwitchEvent`, `JoystickEvent`, `HorizontalSliderEvent`,
-  `VerticalSliderEvent` and `SegmentedSwitchEvent` in
-  `InstantIoTMessage.hpp` with nothing building them — their blocks carry
-  the value in the head now. Their `*EventKind` enums go with them.
-  `ButtonEventKind`, `DPadButton` and `DPadEventKind` stay: `SignalToWidget`
-  decodes into them.
+- **The app still builds EVENT frames.** `BinaryFrameBuilder.buildEvent` in
+  the app repo emits `TYPE_EVENT` (0x21) for any widget bound to a signal
+  address, and the relay forwards them. The board no longer reads them — a
+  gesture travels as a *value*, by the 1 / 0 / 2 convention. Nothing is
+  published, so there is no installed base to keep working, but the app must
+  drop that path or those presses will be counted by
+  `InstantIoT.ignoredFrames()` and go nowhere.
 - **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
   a `src/widgets/` directory that no longer exists.
 - **No Ethernet transport.** The model expects it — `begin(EthernetLink(),

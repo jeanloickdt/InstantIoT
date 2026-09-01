@@ -175,6 +175,16 @@ public:
      * vide encaisse les écritures pour que l'appel ait un sens même trop
      * tôt, et le journal dit qu'elles ne s'appliqueront pas.
      */
+    /**
+     * Combien de trames sont arrivees sans que la carte sache les lire.
+     *
+     * Zero est la reponse normale. Un compteur qui monte veut dire que le
+     * serveur ou l'app envoie quelque chose que cette version ne comprend
+     * pas — et c'est le genre de panne qui, sans ce nombre, ressemble a
+     * « mon bouton ne fait rien ».
+     */
+    uint32_t ignoredFrames() const { return _coeur ? _coeur->ignoredFrames() : 0; }
+
     DeviceConfig& config() {
         if (_coeur) return _coeur->config();
         tropTot();

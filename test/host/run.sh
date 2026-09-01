@@ -25,13 +25,3 @@ for t in decodeurs dsl_sur_signaux; do
     "/tmp/instantiot-$t"
 done
 
-# ── Ce qui reste dehors
-#
-# `test_events.cpp` ne compile plus, et le reparer n'est pas une reparation :
-# il affirme `typeAtAddress(5) == TYPE_SIMPLEBUTTON` et `ISimpleButton("btn1")`,
-# deux choses que la bascule du DSL sur les signaux a retirees exprès. Une
-# adresse ne porte plus de type, et un bloc ne s'adresse plus par un nom.
-# Le remettre au vert voudrait dire redecider ce qu'un EVENT devient sur la
-# carte — un travail, pas une retouche.
-echo
-echo "hors banc : test_events.cpp (ecrit contre le modele d'avant les signaux)"
