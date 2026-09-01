@@ -11,7 +11,7 @@ CXX_FLAGS="-std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -
 LIB="../../src/InstantIoT.cpp"
 
 # ── Ce qui parle a la lib comme un croquis : depuis test/host, avec Arduino.h
-for t in test_signals test_singleton; do
+for t in test_signals test_singleton test_destinations; do
     echo "▸ $t"
     g++ $CXX_FLAGS -I. -o "/tmp/instantiot-$t" "$t.cpp" "$LIB"
     "/tmp/instantiot-$t"
