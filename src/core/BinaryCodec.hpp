@@ -305,9 +305,11 @@ class BinaryCodec {
                 else if (eventCode == EV_SETSECONDARY && p<len) {
                     char val[32], lbl[32];
                     size_t n = safeReadString(payload, p, len, val, sizeof(val));
-                    if (!n) break; p += n;
+                    if (!n) break;
+                    p += n;
                     n = safeReadString(payload, p, len, lbl, sizeof(lbl));
-                    if (!n) break; p += n;
+                    if (!n) break;
+                    p += n;
                     addParam(msg,"value",val);
                     addParam(msg,"label",lbl);
                 }
@@ -320,7 +322,8 @@ class BinaryCodec {
                     addParamInt(msg,"index",payload[p++]);
                     char ids[64];
                     size_t n = safeReadString(payload, p, len, ids, sizeof(ids));
-                    if (!n) break; p += n;
+                    if (!n) break;
+                    p += n;
                     addParam(msg,"ids",ids);
                 } else if ((eventCode==CMD_SEGSELECTED||eventCode==CMD_SEGDESELECTED) && p<len)
                     addParamInt(msg,"index",payload[p++]);
@@ -331,15 +334,21 @@ class BinaryCodec {
             case TYPE_ADVANCEDCHART:
                 if (eventCode == EV_ADDPOINT && p<len) {
                     char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
+                    if (!n) break;
+                    p += n;
+                    addParam(msg,"seriesId",sid);
                     if (p+4<=len) { addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
                 } else if (eventCode == EV_ADDTIMEDPOINT && p<len) {
                     char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
+                    if (!n) break;
+                    p += n;
+                    addParam(msg,"seriesId",sid);
                     if (p+8<=len) { addParamFloat(msg,"x",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
                 } else if (eventCode == EV_CLEARSERIES && p<len) {
                     char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break; p += n; addParam(msg,"seriesId",sid);
+                    if (!n) break;
+                    p += n;
+                    addParam(msg,"seriesId",sid);
                 }
                 break;
 #endif
@@ -380,7 +389,8 @@ class BinaryCodec {
             case TYPE_TEXT:
                 if (eventCode == EV_SETTEXT && p<len) {
                     char txt[64]; size_t n = safeReadString(payload,p,len,txt,sizeof(txt));
-                    if (!n) break; p += n;
+                    if (!n) break;
+                    p += n;
                     addParam(msg,"text",txt);
                 }
                 break;
