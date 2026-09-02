@@ -7,7 +7,15 @@
 set -e
 cd "$(dirname "$0")"
 
-CXX_FLAGS="-std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function"
+# `-Werror` : un avertissement qui ne fait pas echouer le banc est un
+# avertissement que personne ne lit.
+#
+# `-Wno-error=#warnings` avec, et ce n'est pas un contournement : le banc
+# compile pour l'HOTE, qui n'est aucune plateforme officielle, donc le
+# `#warning` de InstantIoTConfig.h se declenche a chaque test. Cet
+# avertissement est VOULU — il doit rester visible pour qui compile sur une
+# carte exotique — mais il ne dit rien sur le code qu'on teste ici.
+CXX_FLAGS="-std=c++17 -DINSTANTIOT_DEBUG=1 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Werror -Wno-error=#warnings"
 LIB="../../src/InstantIoT.cpp"
 
 # ── What talks to the library like a sketch: from test/host, with Arduino.h
