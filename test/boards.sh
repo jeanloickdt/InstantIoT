@@ -22,12 +22,13 @@ RACINE="$(pwd)"
 #
 # Format: "FQBN|sketch|reason".
 #
-# esp8266 / TheCloud — there is no TcpClient_ESP8266 yet. The
+# esp8266 / TheCloud and OwnServer — there is no TcpClient_ESP8266 yet. The
 # `#elif defined(ARDUINO_ARCH_ESP8266)` block of Links.hpp only defines
 # INSTANTIOT_HAS_SERIAL_LINK, so WiFiLink falls through to its absence shell
 # and the static_assert fires. Stage 3 removes this line.
 ATTENDUS_EN_ECHEC=(
   "esp8266:esp8266:nodemcuv2|TheCloud|no TcpClient_ESP8266 yet (stage 3)"
+  "esp8266:esp8266:nodemcuv2|OwnServer|no TcpClient_ESP8266 yet (stage 3)"
 )
 
 # ── The matrix ────────────────────────────────────────────────────────
@@ -45,9 +46,14 @@ declare -a CARTES=(
   "arduino:renesas_uno:unor4wifi"
 )
 
+# OwnServer is not decoration: it is the ONLY sketch that takes the
+# PLAINTEXT path — `MyServer(...)` without `.secure()` — and therefore the
+# only one that compiles TcpClient_ESP32 / TcpClient_R4. TheCloud goes
+# through TLS and would have let a broken plain client through unnoticed.
 declare -a CROQUIS=(
   "examples/controls/SimpleButton"
   "examples/connection/TheCloud"
+  "examples/connection/OwnServer"
 )
 
 # ── The cores must be there. We say so; we do not install them. ───────
