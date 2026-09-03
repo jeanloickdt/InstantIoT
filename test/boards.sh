@@ -14,6 +14,12 @@
 #
 # Usage:  bash test/boards.sh
 # Exit :  0 = every result matches expectations · 1 = something surprised us
+#
+# Duree : 231 couples — les 21 croquis sur les 11 cartes — soit environ une
+# heure a froid, moins ensuite grace au cache d'arduino-cli. C'est long parce
+# que c'est exhaustif : chaque croquis d'exemple est compile sur chaque carte,
+# et un croquis d'exemple qui ne compile pas est la premiere chose que
+# rencontre quelqu'un qui decouvre la bibliotheque.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 RACINE="$(pwd)"
@@ -72,6 +78,25 @@ ATTENDUS_EN_ECHEC=(
   "arduino:samd:mkrwifi1010|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
   "arduino:samd:nano_33_iot|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
   "arduino:megaavr:uno2018|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+
+  # Les quatorze autres croquis, sur le Mega : douze ouvrent un point
+  # d'acces, deux rejoignent un WiFi. Aucune des deux choses n'existe sur
+  # une carte sans radio.
+
+  "arduino:avr:mega|Dashboard|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|AdvancedButton|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|DirectionPad|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|EmergencyButton|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|HorizontalSlider|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|Joystick|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|SegmentedSwitch|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|Switch|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|VerticalSlider|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|AnalogTemperature|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|TextAndState|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|UltrasonicLevel|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|Diagnostic|no radio: WiFiLink does not exist on AVR"
+  "arduino:avr:mega|Thermostat|no radio: WiFiLink does not exist on AVR"
 )
 
 # ── The matrix ────────────────────────────────────────────────────────
@@ -110,6 +135,25 @@ declare -a CROQUIS=(
   "examples/connection/BluetoothClassic"
   "examples/connection/BluetoothLE"
   "examples/connection/SerialModule"
+
+  # Les quatorze autres. Ils n'apprennent rien sur les transports — treize
+  # d'entre eux passent par AccessPoint — mais ils sont ce qu'un debutant
+  # ouvre en premier, et un croquis d'exemple qui ne compile pas est pire
+  # qu'un croquis absent.
+  "examples/complete/Dashboard"
+  "examples/complete/Diagnostic"
+  "examples/complete/Thermostat"
+  "examples/controls/AdvancedButton"
+  "examples/controls/DirectionPad"
+  "examples/controls/EmergencyButton"
+  "examples/controls/HorizontalSlider"
+  "examples/controls/Joystick"
+  "examples/controls/SegmentedSwitch"
+  "examples/controls/Switch"
+  "examples/controls/VerticalSlider"
+  "examples/measurements/AnalogTemperature"
+  "examples/measurements/TextAndState"
+  "examples/measurements/UltrasonicLevel"
 )
 
 # ── Les options de carte qu'un croquis exige ──────────────────────────
