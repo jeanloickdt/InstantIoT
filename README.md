@@ -72,8 +72,8 @@ the wire.
 | `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (clair) | — |
 | `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | TLS | ✅ | ✅ | ✅ ² | ✅ ³ | **jamais** |
-| `BluetoothLink` (Classic) | ✅ | — | — | — | — |
-| `BLELink` (NimBLE) | ✅ | — | — | — | — |
+| `BluetoothLink` (Classic) | ✅ ⁴ | — | — | — | — |
+| `BLELink` (NimBLE) | ✅ ⁵ | — | — | — | — |
 | `SerialLink` (SoftwareSerial) | — | — | — | ✅ | ✅ |
 
 ¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — trois cartes dont
@@ -85,6 +85,14 @@ ajouter : `withCertificate()` y est ignoré, en le disant. Soit la racine de
 votre serveur y est — celle de Let's Encrypt l'est, sur un firmware
 récent — soit il faut passer par le *WiFiNINA Firmware Updater* de l'IDE,
 soit `.plaintext()`.
+
+⁴ **Bluetooth Classic : l'ESP32 d'origine, et lui seul.** Le S3, le C3 et
+le C6 n'ont que le BLE ; le S2 n'a aucune radio Bluetooth. Sur ces
+quatre-la, `BluetoothLink` ne compile pas, et le message le dit.
+
+⁵ **BLE : toute la famille sauf le S2**, qui n'a pas la radio. Le croquis
+doit ecrire `#include <NimBLEDevice.h>` AVANT `<InstantIoT.h>` — voir le
+tableau ci-dessous.
 
 ³ **Le TLS de l'ESP8266 est logiciel, et il se paie.** BearSSL prend
 104 Ko de flash et environ 20 Ko de tas pendant qu'une session est

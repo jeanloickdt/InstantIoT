@@ -37,6 +37,41 @@ ATTENDUS_EN_ECHEC=(
   "arduino:avr:mega|SimpleButton|no radio: AccessPoint does not exist on AVR"
   "arduino:avr:mega|TheCloud|no radio: WiFiLink does not exist on AVR"
   "arduino:avr:mega|OwnServer|no radio: WiFiLink does not exist on AVR"
+
+  # BluetoothClassic — l'ESP32 d'origine, et lui seul. Les S3, C3 et C6
+  # ont le BLE sans le Classic ; le S2 n'a aucune radio Bluetooth.
+  "esp32:esp32:esp32s3|BluetoothClassic|no Bluetooth Classic radio on this chip"
+  "esp32:esp32:esp32c3|BluetoothClassic|no Bluetooth Classic radio on this chip"
+  "esp32:esp32:esp32c6|BluetoothClassic|no Bluetooth Classic radio on this chip"
+  "esp32:esp32:esp32s2|BluetoothClassic|no Bluetooth Classic radio on this chip"
+  "esp8266:esp8266:nodemcuv2|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+  "arduino:renesas_uno:unor4wifi|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+  "arduino:avr:mega|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+  "arduino:samd:mkrwifi1010|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+  "arduino:samd:nano_33_iot|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+  "arduino:megaavr:uno2018|BluetoothClassic|Bluetooth Classic is an ESP32 feature"
+
+  # BluetoothLE — toute la famille ESP32 sauf le S2, qui n'a pas la radio.
+  # Ailleurs, NimBLE lui-meme ne se compile pas.
+  "esp32:esp32:esp32s2|BluetoothLE|no Bluetooth radio at all on the S2"
+  "esp8266:esp8266:nodemcuv2|BluetoothLE|NimBLE is an ESP32 library"
+  "arduino:renesas_uno:unor4wifi|BluetoothLE|NimBLE is an ESP32 library"
+  "arduino:avr:mega|BluetoothLE|NimBLE is an ESP32 library"
+  "arduino:samd:mkrwifi1010|BluetoothLE|NimBLE is an ESP32 library"
+  "arduino:samd:nano_33_iot|BluetoothLE|NimBLE is an ESP32 library"
+  "arduino:megaavr:uno2018|BluetoothLE|NimBLE is an ESP32 library"
+
+  # SerialModule — AVR et ESP8266. Le Mega et la NodeMCU passent ; les
+  # autres coeurs n'embarquent pas SoftwareSerial.
+  "esp32:esp32:esp32|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "esp32:esp32:esp32s3|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "esp32:esp32:esp32c3|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "esp32:esp32:esp32c6|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "esp32:esp32:esp32s2|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "arduino:renesas_uno:unor4wifi|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "arduino:samd:mkrwifi1010|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "arduino:samd:nano_33_iot|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  "arduino:megaavr:uno2018|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
 )
 
 # ── The matrix ────────────────────────────────────────────────────────
@@ -62,12 +97,38 @@ declare -a CARTES=(
 # PLAINTEXT path — `MyServer(...)` without `.secure()` — and therefore the
 # only one that compiles TcpClient_ESP32 / TcpClient_R4. TheCloud goes
 # through TLS and would have let a broken plain client through unnoticed.
+#
+# Les trois derniers sont arrives ensemble, et pour la meme raison : leurs
+# transports — Bluetooth Classic, BLE, SoftwareSerial — n'etaient compiles
+# par RIEN depuis la rupture 2.0. Ils figuraient dans les tableaux avec le
+# meme ✅ que le reste, sans qu'aucun compilateur ne les ait vus.
 declare -a CROQUIS=(
   "examples/controls/SimpleButton"
   "examples/connection/TheCloud"
   "examples/connection/OwnServer"
   "examples/connection/EthernetCloud"
+  "examples/connection/BluetoothClassic"
+  "examples/connection/BluetoothLE"
+  "examples/connection/SerialModule"
 )
+
+# ── Les options de carte qu'un croquis exige ──────────────────────────
+#
+# La pile Bluetooth ne tient pas dans la partition applicative par defaut
+# d'un ESP32 : 1,31 Mo, et Bluedroid seul en demande 1,60. Le message du
+# constructeur est *text section exceeds available space in board*, ce qui
+# ressemble a un bug de la bibliotheque et n'en est pas un.
+#
+# Le choix se fait dans Outils → Partition Scheme, donc dans la FQBN ici.
+# Les deux croquis Bluetooth le disent aussi dans leur en-tete : le banc et
+# la personne qui televerse doivent faire le meme geste.
+options_de() {
+    case "$1:$2" in
+        esp32:esp32:*:BluetoothClassic|esp32:esp32:*:BluetoothLE)
+            echo ":PartitionScheme=huge_app" ;;
+        *) echo "" ;;
+    esac
+}
 
 # ── The cores must be there. We say so; we do not install them. ───────
 #
@@ -107,7 +168,9 @@ for fqbn in "${CARTES[@]}"; do
         nom="$(basename "$chemin")"
         raison="$(est_attendu_en_echec "$fqbn" "$nom")" && attendu_echec=1 || attendu_echec=0
 
-        if arduino-cli compile --fqbn "$fqbn" --libraries "$BIBLIOTHEQUES" \
+        fqbn_reel="$fqbn$(options_de "$fqbn" "$nom")"
+
+        if arduino-cli compile --fqbn "$fqbn_reel" --libraries "$BIBLIOTHEQUES" \
              "$chemin" > /tmp/iiot-board.log 2>&1; then
             if [ "$attendu_echec" = 1 ]; then
                 printf '✗ %-30s %-14s SURPRISE: passes, but was expected to fail (%s)\n' \
