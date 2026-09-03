@@ -4,10 +4,12 @@
  * ⚙️ InstantIoTConfig.h - Global configuration
  * ============================================================
  *
- * Supported platforms:
- *   - ESP32
+ * Supported platforms — the ones `test/boards.sh` actually compiles:
+ *   - ESP32 (esp32, S2, S3, C3, C6)
  *   - ESP8266
  *   - Arduino Uno R4 WiFi
+ *   - MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2  (u-blox NINA-W10)
+ *   - AVR — Mega and up, over Ethernet or Serial
  *
  * ============================================================
  */
@@ -15,6 +17,19 @@
 // ============================================================
 // 🔍 AUTOMATIC PLATFORM DETECTION
 // ============================================================
+//
+// ## The list is the bench, not the ambition
+//
+// A platform is named here when `test/boards.sh` compiles it. Anything else
+// still builds — nothing below is load-bearing — but it gets the warning,
+// and the warning has to stay true: it told the owner of a MKR 1010 that
+// their board was unofficial for a whole stage after it had been ported.
+//
+// ## Exact board macros for the NINA three, architecture for the rest
+//
+// The three NINA boards are named one by one because that is what the port
+// covers: another SAMD with no radio has never been compiled here, and it
+// should still hear the warning.
 
 #if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     #define INSTANTIOT_PLATFORM_ESP32
@@ -22,8 +37,19 @@
     #define INSTANTIOT_PLATFORM_ESP8266
 #elif defined(ARDUINO_UNOWIFIR4)
     #define INSTANTIOT_PLATFORM_R4
+#elif defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT)
+    // SAMD21: 32 KB of SRAM, the same room as the R4.
+    #define INSTANTIOT_PLATFORM_SAMD
+#elif defined(ARDUINO_AVR_UNO_WIFI_REV2)
+    // Same radio as the two above, a very different chip underneath:
+    // ATmega4809, 6 KB of SRAM. It belongs with the AVRs for everything
+    // that costs memory, and that is the only reason it is a separate name.
+    #define INSTANTIOT_PLATFORM_MEGAAVR
+#elif defined(ARDUINO_ARCH_AVR)
+    // No radio at all — Ethernet or Serial. 8 KB on a Mega, 2 on an Uno.
+    #define INSTANTIOT_PLATFORM_AVR
 #else
-    #warning "InstantIoT: Unofficial platform (ESP32, ESP8266 or Arduino Uno R4 WiFi recommended)"
+    #warning "InstantIoT: untested platform. Compiled and measured on ESP32, ESP8266, Uno R4 WiFi, MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 and AVR."
 #endif
 
 // ============================================================
@@ -66,6 +92,12 @@
 //   others   kept generous            — the RAM is there, and the legacy
 //                                       widget decoder is still compiled in
 //
+// The dividing line is SRAM, not the radio. The Uno WiFi Rev.2 has the same
+// WiFi module as a MKR 1010 and 6 KB against its 32: it sits with the AVRs
+// here, and with the NINA boards in `Links.hpp`. Two different questions,
+// two different groupings — sorting it by radio in both places would have
+// handed an ATmega4809 the ration of a chip five times its size.
+//
 // The values below are the DEFAULTS — override before including the lib
 // (e.g. `-DINSTANT_RX_BUFFER_SIZE=1024`) for a specific case.
 
@@ -77,7 +109,9 @@
 #ifndef INSTANT_RX_BUFFER_SIZE
     #if defined(INSTANTIOT_PLATFORM_ESP32)
         #define INSTANT_RX_BUFFER_SIZE 2048
-    #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
+    #elif defined(INSTANTIOT_PLATFORM_R4) \
+       || defined(INSTANTIOT_PLATFORM_ESP8266) \
+       || defined(INSTANTIOT_PLATFORM_SAMD)
         #define INSTANT_RX_BUFFER_SIZE 1024
     #else
         // Four whole frames. A frame split across two TCP reads fits, with
@@ -89,7 +123,9 @@
 #ifndef INSTANT_TX_BUFFER_SIZE
     #if defined(INSTANTIOT_PLATFORM_ESP32)
         #define INSTANT_TX_BUFFER_SIZE 1024
-    #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
+    #elif defined(INSTANTIOT_PLATFORM_R4) \
+       || defined(INSTANTIOT_PLATFORM_ESP8266) \
+       || defined(INSTANTIOT_PLATFORM_SAMD)
         #define INSTANT_TX_BUFFER_SIZE 512
     #else
         // Two. A sketch writes one value at a time; the second is the one it
