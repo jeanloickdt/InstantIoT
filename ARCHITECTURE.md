@@ -182,13 +182,18 @@ Both are **descriptions**, not live objects: they do not survive the
 statement. The facade builds the transport from them and keeps it in a
 function-local `static`.
 
-| | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
-|---|---|---|---|---|
-| `AccessPoint` | ✓ | ✓ | ✓ | — |
-| `WiFiLink` | ✓ | ✓ | ✓ | — |
-| `EthernetLink` | ✓ | ✓ | ✓ | ✓ |
-| `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | via Ethernet |
-| `Cloud` / `MyServer` TLS | ✓ | ✓ | not yet | **never** |
+| | ESP32 | Uno R4 WiFi | NINA¹ | ESP8266 | AVR (Mega) |
+|---|---|---|---|---|---|
+| `AccessPoint` | ✓ | ✓ | ✓ | ✓ | — |
+| `WiFiLink` | ✓ | ✓ | ✓ | ✓ | — |
+| `EthernetLink` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | ✓ | via Ethernet |
+| `Cloud` / `MyServer` TLS | ✓ | ✓ | ✓, fixed roots² | not yet | **never** |
+
+¹ MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — one u-blox NINA-W10 module,
+one branch in `Links.hpp`.
+² The trust store is in the module firmware and a sketch cannot add to it.
+See the header of `TlsClient_NINA.hpp`.
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |

@@ -55,6 +55,9 @@ declare -a CARTES=(
   "esp8266:esp8266:nodemcuv2"
   "arduino:renesas_uno:unor4wifi"
   "arduino:avr:mega"
+  "arduino:samd:mkrwifi1010"
+  "arduino:samd:nano_33_iot"
+  "arduino:megaavr:uno2018"
 )
 
 # OwnServer is not decoration: it is the ONLY sketch that takes the

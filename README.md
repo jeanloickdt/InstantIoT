@@ -66,15 +66,25 @@ InstantIoT.begin(SerialLink(10, 11));
 Three of them have no destination to name — the phone is at the other end of
 the wire.
 
-| | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
-|---|:---:|:---:|:---:|:---:|
-| `AccessPoint` | ✅ | ✅ | ✅ | — |
-| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ (clair) | — |
-| `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ |
-| TLS | ✅ | ✅ | pas encore | **jamais** |
-| `BluetoothLink` (Classic) | ✅ | — | — | — |
-| `BLELink` (NimBLE) | ✅ | — | — | — |
-| `SerialLink` (SoftwareSerial) | — | — | ✅ | ✅ |
+| | ESP32 | Uno R4 WiFi | NINA¹ | ESP8266 | AVR (Mega) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `AccessPoint` | ✅ | ✅ | ✅ | ✅ | — |
+| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (clair) | — |
+| `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| TLS | ✅ | ✅ | ✅ ² | pas encore | **jamais** |
+| `BluetoothLink` (Classic) | ✅ | — | — | — | — |
+| `BLELink` (NimBLE) | ✅ | — | — | — | — |
+| `SerialLink` (SoftwareSerial) | — | — | — | ✅ | ✅ |
+
+¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — trois cartes dont
+le WiFi est le même co-processeur u-blox NINA-W10.
+
+² **Le TLS des NINA valide, mais avec des racines qu'on ne choisit pas.**
+Elles vivent dans le firmware du module et un croquis ne peut pas en
+ajouter : `withCertificate()` y est ignoré, en le disant. Soit la racine de
+votre serveur y est — celle de Let's Encrypt l'est, sur un firmware
+récent — soit il faut passer par le *WiFiNINA Firmware Updater* de l'IDE,
+soit `.plaintext()`.
 
 `EthernetLink` demande un shield W5100 / W5500 et **une ligne avant
 l'include** : `#define INSTANTIOT_ETHERNET 1`. Elle n'est pas détectée
