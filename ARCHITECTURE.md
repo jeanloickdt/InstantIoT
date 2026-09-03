@@ -182,12 +182,13 @@ Both are **descriptions**, not live objects: they do not survive the
 statement. The facade builds the transport from them and keeps it in a
 function-local `static`.
 
-| | ESP32 | Uno R4 WiFi | ESP8266 | AVR |
+| | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
 |---|---|---|---|---|
 | `AccessPoint` | ✓ | ✓ | ✓ | — |
 | `WiFiLink` | ✓ | ✓ | — | — |
-| `Cloud` / `MyServer` plain | ✓ | ✓ | — | — |
-| `Cloud` / `MyServer` TLS | ✓ | ✓ | — | — |
+| `EthernetLink` | ✓ | ✓ | ✓ | ✓ |
+| `Cloud` / `MyServer` plain | ✓ | ✓ | via Ethernet | via Ethernet |
+| `Cloud` / `MyServer` TLS | ✓ | ✓ | — | **never** |
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |

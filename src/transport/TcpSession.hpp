@@ -191,7 +191,18 @@ protected:
     /** Is the link carrying traffic? `WiFi.status()==WL_CONNECTED`, `ETH.linkUp()`. */
     virtual bool linkUp() const = 0;
 
-    /** Start bringing the link up. `WiFi.begin(ssid,pass)`, `Ethernet.begin(mac)`. */
+    /**
+     * Start bringing the link up. `WiFi.begin(ssid,pass)`, `Ethernet.begin(mac)`.
+     *
+     * @return **true if an attempt is now IN FLIGHT** — asynchronous, to be
+     *         watched. **false if it is already over**, successful or not.
+     *
+     * The two are not the same thing, and getting them backwards costs
+     * either a busy loop or a fifteen-second stall. A WiFi association
+     * returns true: it negotiates in the background. A DHCP exchange returns
+     * false: it blocked, and by the time it returns there is a lease or
+     * there is nothing.
+     */
     virtual bool beginLink() = 0;
 
     // ── Two hooks most links leave empty ────────────────────────
@@ -233,13 +244,27 @@ protected:
 
     /** The ONLY place that starts an attempt, and it records when. */
     void startLinkAttempt() {
-        if (beginLink()) linkAttemptStartedAt_ = millis();
+        if (beginLink()) {
+            linkAttemptStartedAt_ = millis();
+        } else {
+            // The attempt is already over. Nothing to watch — so the backoff
+            // has to be armed HERE, or a link that fails synchronously (a
+            // DHCP with no cable) would retry on every single pass, each one
+            // blocking for its own timeout.
+            scheduleRetry();
+        }
     }
 
-    /** For a subclass that wants the blocking form in its own `begin()`. */
+    /** The blocking form, for `begin()`. */
     bool waitForLink() {
         IIOT_LOG("[TcpSession] Link connecting");
         startLinkAttempt();
+
+        // A synchronous link has already finished. If it is not up now, it
+        // will not become up by being waited on — and fifteen seconds of
+        // `delay(100)` in `setup()` for a cable nobody plugged in is fifteen
+        // seconds the sketch never gets back.
+        if (linkAttemptStartedAt_ == 0) return linkUp();
 
         uint32_t start = millis();
         while (!linkUp()) {

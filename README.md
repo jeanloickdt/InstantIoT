@@ -66,14 +66,27 @@ InstantIoT.begin(SerialLink(10, 11));
 Three of them have no destination to name — the phone is at the other end of
 the wire.
 
-| | ESP32 | Uno R4 WiFi | ESP8266 | AVR |
+| | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
 |---|:---:|:---:|:---:|:---:|
 | `AccessPoint` | ✅ | ✅ | ✅ | — |
 | `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | — | — |
-| TLS | ✅ | ✅ | — | — |
+| `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ |
+| TLS | ✅ | ✅ | — | **jamais** |
 | `BluetoothLink` (Classic) | ✅ | — | — | — |
 | `BLELink` (NimBLE) | ✅ | — | — | — |
 | `SerialLink` (SoftwareSerial) | — | — | ✅ | ✅ |
+
+`EthernetLink` demande un shield W5100 / W5500 et **une ligne avant
+l'include** : `#define INSTANTIOT_ETHERNET 1`. Elle n'est pas détectée
+toute seule — le build Arduino trouve les bibliothèques en lisant les
+`#include`, donc un include conditionnel n'est jamais vu.
+
+**Sur AVR, la colonne TLS ne se remplira pas.** Le W5x00 ne porte pas de
+crypto et un AVR n'a ni la RAM ni le flash pour une poignée de main. Un
+Mega atteint le cloud en clair, et le compilateur le dit plutôt que de
+laisser le croquis le découvrir sur l'établi. **Un Uno, lui, n'a pas
+assez de RAM pour l'Ethernet du tout** — mesuré : la bibliothèque seule
+occupe 61 % de ses 2 Ko.
 
 A combination your board cannot do **fails to compile**, and the message says
 what to write instead:
