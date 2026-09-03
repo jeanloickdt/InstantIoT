@@ -64,12 +64,16 @@
 // 📏 SIZES
 // ============================================================
 
+/**
+ * La taille des quatre chaines nommees que la carte transporte.
+ *
+ * Le nom vient de l'avant-2.0 et ne decrit plus ce qu'il dimensionne : le nom
+ * de la carte, son identifiant, son tableau de bord, et le creneau WID du
+ * codec historique. Il est garde tel quel parce qu'un croquis a pu le
+ * redefinir — le renommer casserait ce croquis pour ranger un mot.
+ */
 #ifndef INSTANTIOT_MAX_WIDGET_ID_LENGTH
     #define INSTANTIOT_MAX_WIDGET_ID_LENGTH 32
-#endif
-
-#ifndef INSTANTIOT_MAX_WIDGETS
-    #define INSTANTIOT_MAX_WIDGETS 16
 #endif
 
 // ─── Buffer sizes ──────────────────────────────────────
@@ -135,8 +139,20 @@
 #endif
 
 // ============================================================
-// 🎛️ ENABLED WIDGETS
+// 🎛️ ENABLED WIDGETS — le decodeur historique, et lui seul
 // ============================================================
+//
+// Ces seize drapeaux ne sont PAS morts : chacun garde un `case` de
+// `BinaryCodec::decodePayload`, le decodeur de l'avant-2.0. Les eteindre
+// retire vraiment du code du binaire.
+//
+// Ce qui est mort, c'est le chemin qui y mene. `BinaryCodec::decode()` n'a
+// aucun appelant dans `src/` — son unique appelant du depot est une ligne de
+// `test/host/test_signals.cpp`. Une carte 2.0 recoit des trames SIGNAL, que
+// `decodeSignal` lit, et ne passe jamais ici.
+//
+// Ils restent donc, et la dette est nommee dans ARCHITECTURE.md §15 : c'est
+// le decodeur qu'il faudra decider de retirer, pas ses interrupteurs.
 
 // ── Display (Device → App) ────────────────────────────────
 #ifndef INSTANTIOT_WIDGETS_LED
