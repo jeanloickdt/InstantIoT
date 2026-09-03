@@ -242,6 +242,21 @@ protected:
      */
     virtual bool linkCredentialsReady() const { return true; }
 
+    /**
+     * May the session be opened NOW, the link being up?
+     *
+     * Default: yes — for every link so far, an address was the only
+     * prerequisite. The ESP8266's TLS is the first one with another: BearSSL
+     * refuses a certificate it cannot date, and a board that just booted
+     * thinks it is 1970.
+     *
+     * Returning false is not an error: it costs one backoff interval and
+     * the attempt comes back. The override is the one that says why — the
+     * trunk cannot know, and a "TCP connect FAILED" for a clock that has
+     * not arrived yet would send the reader to the router.
+     */
+    virtual bool readyToConnect() const { return true; }
+
     /** The ONLY place that starts an attempt, and it records when. */
     void startLinkAttempt() {
         if (beginLink()) {
@@ -289,6 +304,10 @@ private:
 
     // ----- TCP + handshake -----
     bool connectServer() {
+        // Before the log line, so it does not announce a connection that is
+        // not being attempted.
+        if (!readyToConnect()) return false;
+
         IIOT_LOG_2("[TcpSession] TCP connecting: ", serverIp_, ":", serverPort_);
 
         prepareClient();

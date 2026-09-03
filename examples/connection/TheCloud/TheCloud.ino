@@ -9,8 +9,9 @@
  *   WIFI_SSID, WIFI_PASS   → your router
  *   DEVICE_TOKEN           → the token from the cloud panel
  *
- * Boards: ESP32, Arduino Uno R4 WiFi (TLS is done there by the on-board
- * modem).
+ * Boards: ESP32, Uno R4 WiFi, MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2,
+ * ESP8266. Only the ESP32 and the ESP8266 do the encryption themselves; the
+ * others hand it to their WiFi module.
  *************************************************************/
 
 // Not connecting? Uncomment this line BEFORE the include and reopen the

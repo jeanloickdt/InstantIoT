@@ -188,12 +188,16 @@ function-local `static`.
 | `WiFiLink` | ✓ | ✓ | ✓ | ✓ | — |
 | `EthernetLink` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | ✓ | via Ethernet |
-| `Cloud` / `MyServer` TLS | ✓ | ✓ | ✓, fixed roots² | not yet | **never** |
+| `Cloud` / `MyServer` TLS | ✓ | ✓ | ✓, fixed roots² | ✓, ~20 KB heap³ | **never** |
 
 ¹ MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — one u-blox NINA-W10 module,
 one branch in `Links.hpp`.
 ² The trust store is in the module firmware and a sketch cannot add to it.
 See the header of `TlsClient_NINA.hpp`.
+³ BearSSL in software: 104 KB of flash, ~20 KB of heap per session, and an
+NTP round trip before the first handshake. Measured, not estimated — the
+numbers and the probe that produced them are in the header of
+`TlsClient_ESP8266.hpp`.
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |

@@ -71,7 +71,7 @@ the wire.
 | `AccessPoint` | ✅ | ✅ | ✅ | ✅ | — |
 | `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (clair) | — |
 | `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TLS | ✅ | ✅ | ✅ ² | pas encore | **jamais** |
+| TLS | ✅ | ✅ | ✅ ² | ✅ ³ | **jamais** |
 | `BluetoothLink` (Classic) | ✅ | — | — | — | — |
 | `BLELink` (NimBLE) | ✅ | — | — | — | — |
 | `SerialLink` (SoftwareSerial) | — | — | — | ✅ | ✅ |
@@ -85,6 +85,15 @@ ajouter : `withCertificate()` y est ignoré, en le disant. Soit la racine de
 votre serveur y est — celle de Let's Encrypt l'est, sur un firmware
 récent — soit il faut passer par le *WiFiNINA Firmware Updater* de l'IDE,
 soit `.plaintext()`.
+
+³ **Le TLS de l'ESP8266 est logiciel, et il se paie.** BearSSL prend
+104 Ko de flash et environ 20 Ko de tas pendant qu'une session est
+ouverte, sur une carte qui en a a peu pres 40 Ko de libres. Ca tient — un
+croquis qui garde lui-meme 10 Ko en memoire, non. Il lui faut aussi une
+horloge : la bibliotheque interroge un serveur NTP toute seule au moment
+ou le WiFi monte, parce qu'un certificat a des dates et qu'une carte qui
+demarre croit etre en 1970. Les mesures sont en tete de
+`src/transport/wifi/TlsClient_ESP8266.hpp`.
 
 `EthernetLink` demande un shield W5100 / W5500 et **une ligne avant
 l'include** : `#define INSTANTIOT_ETHERNET 1`. Elle n'est pas détectée
