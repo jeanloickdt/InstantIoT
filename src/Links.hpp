@@ -84,6 +84,29 @@
     #define INSTANTIOT_HAS_ACCESS_POINT 1
 #endif
 
+// ── Ethernet — and here the shape of this file changes ──────
+//
+// Everything above is a chain of `#if/#elif`: one platform, one branch,
+// because a board is an ESP32 **or** an R4, never both.
+//
+// Ethernet is not a platform. It is a LINK, and it coexists with the radio
+// on the very board that has one: a Mega with a shield, an ESP32 with a
+// W5500 on its SPI bus. Putting it in the chain would have made it exclude
+// the WiFi it sits next to.
+//
+// So it opens its own branch, and that asymmetry is the point.
+//
+// `INSTANTIOT_ETHERNET` is opt-in rather than detected. `__has_include`
+// cannot be used — the Arduino build discovers libraries by READING the
+// `#include` directives, and a conditional include is never read, so the
+// library never lands on the path. Asking the sketch to say so is the
+// honest form: one `#define` before the include.
+#if defined(INSTANTIOT_ETHERNET)
+    #include "transport/ethernet/EthClient_W5x00.hpp"
+    namespace iiot { using TransportEthernet = EthClient_W5x00; }
+    #define INSTANTIOT_HAS_ETHERNET_LINK 1
+#endif
+
 // Bluetooth Classic: present in the ESP32 core, absent from the chips
 // with no BR/EDR radio. The core's own header refuses to be included in
 // that case — so we pose the condition it poses.
@@ -276,6 +299,59 @@ struct WiFiLink {
 };
 #endif
 
+#if defined(INSTANTIOT_HAS_ETHERNET_LINK)
+/**
+ * A cable, then the destination.
+ *
+ * The same shape as [WiFiLink] and that is the whole demonstration: a link
+ * knows nothing about the far end, so `Cloud(TOKEN)` and `MyServer(host,
+ * TOKEN)` work here without one line changing on the destination side.
+ *
+ *     InstantIoT.begin(EthernetLink(), Cloud(TOKEN).plaintext());
+ *
+ * The MAC is optional — see [EthClient_W5x00::setMac] for when to set it.
+ */
+struct EthernetLink {
+    const uint8_t* mac;
+
+    EthernetLink() : mac(nullptr) {}
+    explicit EthernetLink(const uint8_t macAddress[6]) : mac(macAddress) {}
+
+    ITransport& transportTo(const PlainDestination& d) const {
+        static TransportEthernet t(d.host, d.port, d.token);
+        if (mac) t.setMac(mac);
+        t.setHeartbeat(d.heartbeatMs);
+        return t;
+    }
+
+    /**
+     * TLS over a cable: not on this board.
+     *
+     * A template rather than an overload on `SecureDestination`, for the same
+     * reason as [WiFiLink]: an assertion that does not depend on a parameter
+     * fires the moment the class is read, so on every Ethernet sketch —
+     * including the ones that only ever aimed for plaintext.
+     *
+     * The W5x00 has no crypto, and an AVR has neither the RAM nor the flash
+     * for a handshake. Measured: the library alone takes 61 % of an Uno's
+     * SRAM. This is not a gap waiting to be filled — it is the shape of the
+     * hardware.
+     */
+    template <class D>
+    ITransport& transportTo(const D& d) const {
+        static_assert(AlwaysFalse<D>::value,
+            "Ethernet on this board has no TLS: the W5x00 carries no crypto, "
+            "and an AVR has neither the RAM nor the flash for a handshake. "
+            "The cloud is still reachable in plaintext — "
+            "Cloud(TOKEN).plaintext() — and the token then travels readable "
+            "on the network. On a home LAN behind a router that is a "
+            "decision; across the internet it is a risk.");
+        return transportTo(d.plaintext());
+    }
+
+};
+#endif
+
 // ════════════════════════════════════════════════════════════
 //  The links this board does not have
 // ════════════════════════════════════════════════════════════
@@ -294,6 +370,15 @@ struct WiFiLink {
         explicit NAME(A&&...) { static_assert(sizeof...(A) < 0, WHY); }    \
         ITransport& transport() const;                                     \
     };
+
+#if !defined(INSTANTIOT_HAS_ETHERNET_LINK)
+_IIO_LINK_ABSENT(EthernetLink,
+    "EthernetLink needs the Ethernet library, and the sketch has to ask for "
+    "it by name: put `#define INSTANTIOT_ETHERNET 1` BEFORE "
+    "`#include <InstantIoT.h>`. It is not detected on its own — the Arduino "
+    "build finds libraries by reading #include directives, so a conditional "
+    "include is never seen and the library never reaches the path.")
+#endif
 
 #if !defined(INSTANTIOT_HAS_ACCESS_POINT)
 _IIO_LINK_ABSENT(AccessPoint,

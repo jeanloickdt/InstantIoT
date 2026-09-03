@@ -243,6 +243,7 @@ using iiot::WiFiLink;
 using iiot::BluetoothLink;
 using iiot::BLELink;
 using iiot::SerialLink;
+using iiot::EthernetLink;
 
 using iiot::Cloud;
 using iiot::MyServer;
