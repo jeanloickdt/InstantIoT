@@ -185,10 +185,10 @@ function-local `static`.
 | | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
 |---|---|---|---|---|
 | `AccessPoint` | ✓ | ✓ | ✓ | — |
-| `WiFiLink` | ✓ | ✓ | — | — |
+| `WiFiLink` | ✓ | ✓ | ✓ | — |
 | `EthernetLink` | ✓ | ✓ | ✓ | ✓ |
-| `Cloud` / `MyServer` plain | ✓ | ✓ | via Ethernet | via Ethernet |
-| `Cloud` / `MyServer` TLS | ✓ | ✓ | — | **never** |
+| `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | via Ethernet |
+| `Cloud` / `MyServer` TLS | ✓ | ✓ | not yet | **never** |
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |
