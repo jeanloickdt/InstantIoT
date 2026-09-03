@@ -78,6 +78,31 @@
     #define INSTANTIOT_HAS_WIFI_LINK    1
     #define INSTANTIOT_HAS_TLS          1
 
+#elif defined(ARDUINO_SAMD_MKRWIFI1010) \
+   || defined(ARDUINO_SAMD_NANO_33_IOT) \
+   || defined(ARDUINO_AVR_UNO_WIFI_REV2)
+    // Three boards, one branch: their WiFi is the same u-blox NINA-W10
+    // co-processor, driven by the same `WiFiNINA` library. What differs —
+    // SAMD against megaAVR — is the core, not the radio.
+    //
+    // Named macros, not `__has_include`: the Arduino build finds libraries by
+    // READING the include directives, so a conditional include is never seen
+    // and the library never reaches the path. The file says so at length
+    // further down, for NimBLE.
+    #include "transport/wifi/SoftAP_NINA.hpp"
+    #include "transport/wifi/TcpClient_NINA.hpp"
+    #include "transport/wifi/TlsClient_NINA.hpp"
+    namespace iiot {
+        using TransportAP         = SoftAP_NINA;
+        using TransportWiFiPlain  = TcpClient_NINA;
+        using TransportWiFiSecure = TlsClient_NINA;
+    }
+    #define INSTANTIOT_HAS_ACCESS_POINT 1
+    #define INSTANTIOT_HAS_WIFI_LINK    1
+    #define INSTANTIOT_HAS_TLS          1
+    // TLS yes, but a root you cannot choose: the trust store is in the module
+    // firmware. `TlsClient_NINA` says so when a sketch tries.
+
 #elif defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
     #include "transport/wifi/SoftAP_ESP8266.hpp"
     #include "transport/wifi/TcpClient_ESP8266.hpp"
