@@ -60,10 +60,15 @@ public:
       , token_(token)
       , ssid_(nullptr)
       , pass_(nullptr)
-      , caCert_(INSTANTIOT_LE_ROOT_X1)   // R4 default: X1 ALONE — the WiFiS3 modem
-                                         // takes one cert only; X1 is enough since the
-                                         // chaîne de instantiot.cloud remonte à X1.
-                                         // (X1+X2 concatenated fail on the modem.)
+      , caCert_(INSTANTIOT_LE_ROOT_X1)   // X1 SEULE : le modem WiFiS3 n'accepte
+                                         // qu'un certificat, et X1+X2 concaténées
+                                         // échouent chez lui.
+                                         //
+                                         // X1 n'est atteinte qu'au 4e certificat de
+                                         // la chaîne — la X2 croisée par X1, que le
+                                         // serveur envoie et qui expire en 2032. Le
+                                         // R4 est la seule carte à en dépendre :
+                                         // voir `certs/InstantIoT_LE_Roots.h`.
       , nextRetryAt_(0)
       , backoffMs_(INSTANTIOT_RECONNECT_BACKOFF_MIN_MS)
       , heartbeatMs_(0)
