@@ -636,6 +636,12 @@ produces the same binary size as arduino-cli.
 
 Written down rather than left to be rediscovered.
 
+- **Nothing here has run on a board.** The Ethernet transport, the ESP8266's
+  BearSSL and its NTP round trip, the three NINA boards, Bluetooth and BLE:
+  all compiled, all measured, none plugged in. `test/boards.sh` says the code
+  builds and the footprints fit; it says nothing about a handshake. This is
+  the largest gap in this document and it is deliberately at the top of the
+  list.
 - **`SignalToWidget.hpp` is misnamed.** There are no widgets on the board any
   more — that was the point of 2.0. What it does is turn a raw value into
   what a *block* expects. The name will send someone looking in the wrong
@@ -643,15 +649,27 @@ Written down rather than left to be rediscovered.
 - **`decodeEvent` is gone, and so is the app's `buildEvent`.** A gesture now
   travels as a value, by the 1 / 0 / 2 convention, and there is only one way
   to send a press. The relay no longer knows about EVENT either.
-- **Dead `INSTANTIOT_WIDGETS_*` flags** in `InstantIoTConfig.h`. They gated
-  a `src/widgets/` directory that no longer exists.
-- **No Ethernet transport.** The model expects it — `begin(EthernetLink(),
-  Cloud(TOKEN))` would need no change anywhere else — but nothing is written
-  until it has run on a board.
-- **`README.md` still describes the erased model.**
-- **No disconnect reason on Uno R4.** WiFiS3 has no event API, so the
-  `WiFiReason_ESP32` treatment stops at the ESP32. An R4 that cannot join a
-  network still says only "WiFi timeout".
+- **`INSTANTIOT_MAX_WIDGET_ID_LENGTH` carries a name from before 2.0.** It
+  sizes the device name, the device id, the dashboard id and the legacy
+  codec's WID slot — none of which is a widget. Renaming it would break a
+  sketch that redefined it, so the name stayed and the header says why.
+- **No disconnect reason outside the ESP32.** Only its core reports WHY an
+  association failed. WiFiS3 (Uno R4), WiFiNINA and the ESP8266 core have no
+  equivalent event API, so `WiFiReason_ESP32` stops where it is named. On
+  those four families a board that cannot join says only "link timeout".
+- **The legacy codec is half-unreachable, and that half is the larger one.**
+  `BinaryCodec::encode` still has one caller — the heartbeat; every value goes
+  through `encodeSignal`. But `BinaryCodec::decode` has *none* in `src/`: its
+  only caller in the repository is one line of `test/host/test_signals.cpp`.
+  Behind it sit `decodePayload` and the sixteen `INSTANTIOT_WIDGETS_*` cases,
+  which a 2.0 board can no longer reach — a SIGNAL frame is read by
+  `decodeSignal`.
+
+  The flags themselves are NOT dead, and were nearly removed on that
+  assumption: each one still gates a `case`, and turning one off still removes
+  code from the binary. What is dead is the road to them. Removing the
+  decoder is a decision about the public surface of a header a sketch can
+  include, not a cleanup — which is why it is written here instead of done.
 
 ---
 
