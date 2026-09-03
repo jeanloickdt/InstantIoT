@@ -69,9 +69,9 @@ the wire.
 | | ESP32 | Uno R4 WiFi | ESP8266 | AVR (Mega) |
 |---|:---:|:---:|:---:|:---:|
 | `AccessPoint` | ✅ | ✅ | ✅ | — |
-| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | — | — |
+| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ (clair) | — |
 | `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ |
-| TLS | ✅ | ✅ | — | **jamais** |
+| TLS | ✅ | ✅ | pas encore | **jamais** |
 | `BluetoothLink` (Classic) | ✅ | — | — | — |
 | `BLELink` (NimBLE) | ✅ | — | — | — |
 | `SerialLink` (SoftwareSerial) | — | — | ✅ | ✅ |

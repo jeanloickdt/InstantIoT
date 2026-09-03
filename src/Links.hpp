@@ -80,8 +80,17 @@
 
 #elif defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
     #include "transport/wifi/SoftAP_ESP8266.hpp"
-    namespace iiot { using TransportAP = SoftAP_ESP8266; }
+    #include "transport/wifi/TcpClient_ESP8266.hpp"
+    namespace iiot {
+        using TransportAP        = SoftAP_ESP8266;
+        using TransportWiFiPlain = TcpClient_ESP8266;
+    }
     #define INSTANTIOT_HAS_ACCESS_POINT 1
+    #define INSTANTIOT_HAS_WIFI_LINK    1
+    // No INSTANTIOT_HAS_TLS: BearSSL on this chip is a RAM problem, and it
+    // gets measured before it gets promised. `Cloud(TOKEN)` therefore fails
+    // to compile here with the message that says so, and
+    // `Cloud(TOKEN).plaintext()` works.
 #endif
 
 // ── Ethernet — and here the shape of this file changes ──────
