@@ -37,7 +37,7 @@
  *
  * ESP32        AccessPoint, WiFiLink (plain and TLS), BluetoothLink, BLELink
  * Uno R4 WiFi  AccessPoint, WiFiLink (plain and TLS)
- * ESP8266      AccessPoint, SerialLink
+ * ESP8266      AccessPoint, WiFiLink (plain and TLS), SerialLink
  * AVR          SerialLink
  *
  * A pairing the board cannot do fails to compile, and says so in one
@@ -106,16 +106,21 @@
 #elif defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
     #include "transport/wifi/SoftAP_ESP8266.hpp"
     #include "transport/wifi/TcpClient_ESP8266.hpp"
+    #include "transport/wifi/TlsClient_ESP8266.hpp"
     namespace iiot {
-        using TransportAP        = SoftAP_ESP8266;
-        using TransportWiFiPlain = TcpClient_ESP8266;
+        using TransportAP         = SoftAP_ESP8266;
+        using TransportWiFiPlain  = TcpClient_ESP8266;
+        using TransportWiFiSecure = TlsClient_ESP8266;
     }
     #define INSTANTIOT_HAS_ACCESS_POINT 1
     #define INSTANTIOT_HAS_WIFI_LINK    1
-    // No INSTANTIOT_HAS_TLS: BearSSL on this chip is a RAM problem, and it
-    // gets measured before it gets promised. `Cloud(TOKEN)` therefore fails
-    // to compile here with the message that says so, and
-    // `Cloud(TOKEN).plaintext()` works.
+    #define INSTANTIOT_HAS_TLS          1
+    // TLS in software, out of the sketch's own heap — about 20 KB while a
+    // session is open, on a chip that has around 40 KB free. It was measured
+    // before it was promised; the numbers are in `TlsClient_ESP8266.hpp`,
+    // along with the two things that come with them: a receive buffer sized
+    // against a server that does not negotiate a smaller one, and a clock,
+    // because BearSSL refuses a certificate it cannot date.
 #endif
 
 // ── Ethernet — and here the shape of this file changes ──────

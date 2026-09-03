@@ -17,13 +17,13 @@
  * ## PLAINTEXT, and that is the whole file
  *
  * The token travels readable. On a LAN, in front of a server you host, that
- * is a decision. Across the internet it is a risk, and the answer is TLS —
- * `TlsClient_ESP8266`, which does not exist yet: BearSSL on this chip is a
- * RAM problem, not a porting problem, and it deserves its own measurement
- * rather than a hopeful `#include`.
+ * is a decision. Across the internet it is a risk, and the answer is
+ * `TlsClient_ESP8266` — which now exists, and cost 104 KB of flash and about
+ * 20 KB of heap per session to get there.
  *
- * Until then, `Cloud(TOKEN)` on an ESP8266 fails to compile with the message
- * that says exactly this, and `Cloud(TOKEN).plaintext()` works.
+ * This file remains the right one for a server on your own network: those
+ * 20 KB are heap the sketch does not get back while a session is open, and
+ * encryption on a LAN protects a journey that never leaves the house.
  *
  * ## Why it looks like the ESP32 one and is not shared with it
  *

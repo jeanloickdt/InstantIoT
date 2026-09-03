@@ -22,11 +22,10 @@ RACINE="$(pwd)"
 #
 # Format: "FQBN|sketch|reason".
 #
-# esp8266 / TheCloud — the WiFi link now exists (stage 3), but TheCloud aims
-# at `Cloud(TOKEN)` WITHOUT `.plaintext()`, which needs a TLS stack. The
-# ESP8266 has none yet: BearSSL is a RAM problem, measured in stage 5. The
-# reason changed, the line did not — and that is worth noticing rather than
-# quietly deleting.
+# esp8266 / TheCloud WAS here, through stages 3 and 4, waiting on a TLS
+# stack. Stage 5 measured BearSSL instead of guessing at it, and the line is
+# gone: the ESP8266 reaches the cloud encrypted. That is what this list is
+# for — a line leaves it when the code earns it, and never before.
 #
 # The Mega has no radio at all: AccessPoint and WiFiLink are absent by
 # construction, and their shells say so. That is not a gap — it is the board.
@@ -35,7 +34,6 @@ RACINE="$(pwd)"
 # every board here, because Arduino's Ethernet library does. The bench caught
 # that: an unexpected GREEN is a surprise, and this one was mine.
 ATTENDUS_EN_ECHEC=(
-  "esp8266:esp8266:nodemcuv2|TheCloud|no TLS on ESP8266 yet (stage 5)"
   "arduino:avr:mega|SimpleButton|no radio: AccessPoint does not exist on AVR"
   "arduino:avr:mega|TheCloud|no radio: WiFiLink does not exist on AVR"
   "arduino:avr:mega|OwnServer|no radio: WiFiLink does not exist on AVR"
