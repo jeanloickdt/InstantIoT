@@ -46,26 +46,43 @@
     #define INSTANTIOT_MAX_WIDGETS 16
 #endif
 
-// ─── Buffer sizes per platform ─────────────────────────
-// Adjusted based on available SRAM — the more RAM the target has,
-// the more headroom we provide for widgets with long payloads (Text
-// with long strings, Chart with multi-series, etc.).
+// ─── Buffer sizes ──────────────────────────────────────
 //
-// The values below are the DEFAULTS — the user can override
-// before including the lib (e.g. -DINSTANT_RX_BUFFER_SIZE=4096) if
-// they have a specific case.
+// ## The size follows the PROTOCOL, not the chip
 //
-//   ESP32   : 320 KB SRAM → 2048/1024 (large headroom)
-//   R4 WiFi : 32 KB SRAM → 1024/512   (comfortable)
-//   ESP8266 : ~80 KB user → 1024/512  (comfortable)
-//   Others  : 2-8 KB typically → 512/256 (Uno classic, defensive)
+// The largest frame the 2.0 model can produce is a text signal: 48
+// characters — `a signal carries a value, not a document` — plus the header,
+// the address, the type, the tag and the CRC. Fifty-eight bytes. A float is
+// fourteen.
+//
+// The old defaults were sized for something else entirely: widgets with long
+// strings and multi-series charts, a class of message that no longer travels.
+// On AVR that cost 624 bytes of RAM — measured, on an Uno, 80 % → 61 % — for
+// a capacity nothing can ever use.
+//
+// So the sizes are now multiples of the frame, and the comment says which:
+//
+//   AVR      RX = 4 frames, TX = 2   — 2 KB of SRAM decides everything
+//   others   kept generous            — the RAM is there, and the legacy
+//                                       widget decoder is still compiled in
+//
+// The values below are the DEFAULTS — override before including the lib
+// (e.g. `-DINSTANT_RX_BUFFER_SIZE=1024`) for a specific case.
+
+/** The largest frame the signal model can carry, rounded up. */
+#ifndef INSTANT_MAX_FRAME_SIZE
+    #define INSTANT_MAX_FRAME_SIZE 64
+#endif
+
 #ifndef INSTANT_RX_BUFFER_SIZE
     #if defined(INSTANTIOT_PLATFORM_ESP32)
         #define INSTANT_RX_BUFFER_SIZE 2048
     #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
         #define INSTANT_RX_BUFFER_SIZE 1024
     #else
-        #define INSTANT_RX_BUFFER_SIZE 512
+        // Four whole frames. A frame split across two TCP reads fits, with
+        // three more behind it.
+        #define INSTANT_RX_BUFFER_SIZE (INSTANT_MAX_FRAME_SIZE * 4)
     #endif
 #endif
 
@@ -75,7 +92,9 @@
     #elif defined(INSTANTIOT_PLATFORM_R4) || defined(INSTANTIOT_PLATFORM_ESP8266)
         #define INSTANT_TX_BUFFER_SIZE 512
     #else
-        #define INSTANT_TX_BUFFER_SIZE 256
+        // Two. A sketch writes one value at a time; the second is the one it
+        // writes in the same `loop()` pass.
+        #define INSTANT_TX_BUFFER_SIZE (INSTANT_MAX_FRAME_SIZE * 2)
     #endif
 #endif
 
