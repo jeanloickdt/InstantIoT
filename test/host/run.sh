@@ -27,7 +27,7 @@ done
 
 # ── What only needs the headers: from test/, without Arduino.h
 cd ..
-for t in decoders dsl_on_signals; do
+for t in decoders dsl_on_signals heartbeat_frame; do
     echo "▸ $t"
     g++ $CXX_FLAGS -I../src -Ihost -o "/tmp/instantiot-$t" "$t.cpp"
     "/tmp/instantiot-$t"
