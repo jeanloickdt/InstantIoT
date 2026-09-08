@@ -71,7 +71,8 @@ the wire.
 | `AccessPoint` | ✅ | ✅ | ✅ | ✅ | — |
 | `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (clair) | — |
 | `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TLS | ✅ | ✅ | ✅ ² | ✅ ³ | **jamais** |
+| TLS sur WiFi | ✅ | ✅ | ✅ ² | ✅ ³ | — pas de radio |
+| **TLS sur Ethernet** | ✅ ⁶ | — | — ⁷ | — | **jamais** |
 | `BluetoothLink` (Classic) | ✅ ⁴ | — | — | — | — |
 | `BLELink` (NimBLE) | ✅ ⁵ | — | — | — | — |
 | `SerialLink` (SoftwareSerial) | — | — | — | ✅ | ✅ |
@@ -93,6 +94,30 @@ quatre-la, `BluetoothLink` ne compile pas, et le message le dit.
 ⁵ **BLE : toute la famille sauf le S2**, qui n'a pas la radio. Le croquis
 doit ecrire `#include <NimBLEDevice.h>` AVANT `<InstantIoT.h>` — voir le
 tableau ci-dessous.
+
+⁶ **Le TLS sur cable n'existe que sur ESP32, et pas pour la raison qu'on
+croit.** Ce n'est pas que le W5500 manque de crypto : le chiffrement
+tournerait sur le processeur. C'est que la bibliotheque `Ethernet`
+d'Arduino se sert de la pile TCP **cablee dans le composant**, et qu'un
+client TLS des ESP n'enveloppe pas un `Client`, il en EST un
+(`class NetworkClientSecure : public NetworkClient`). Il n'y a rien a
+envelopper.
+
+Le coeur ESP32 sait piloter le meme W5500 comme une carte reseau,
+derriere lwIP — `ETH.begin(ETH_PHY_W5500, ...)` — et alors le TLS marche
+sans savoir qu'il y a un cable. C'est ce que fait `EthLink_ESP32`, et
+c'est pourquoi cette forme demande les trois broches : un module n'a
+aucun brochage impose.
+
+⁷ **Sur les NINA, c'est possible mais pas fait, et les chiffres sont
+mesures.** Il faudrait `ArduinoBearSSL`, qui se compose sur un `Client`
+quelconque — la recette de Blynk. Un croquis realiste tient sur les deux
+SAMD (MKR 1010 : 48 % de flash, **74 % de SRAM**, 8,4 Ko restants ; Nano
+33 IoT : 76 %, 7,8 Ko) et **ne tient pas** sur l'Uno WiFi Rev.2, qui
+deborde la flash. Deux couts s'ajoutent : `BearSSLClient` prend des
+`br_x509_trust_anchor`, pas du PEM — donc nos racines en DEUX
+representations a garder d'accord — et il faut une horloge NTP comme sur
+l'ESP8266. Ca se decidera avec une carte sur le bureau, pas avant.
 
 ³ **Le TLS de l'ESP8266 est logiciel, et il se paie.** BearSSL prend
 104 Ko de flash et environ 20 Ko de tas pendant qu'une session est
