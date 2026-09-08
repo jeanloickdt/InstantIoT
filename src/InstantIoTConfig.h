@@ -139,86 +139,19 @@
 #endif
 
 // ============================================================
-// 🎛️ ENABLED WIDGETS — le decodeur historique, et lui seul
+// 🎛️ LES SEIZE INTERRUPTEURS DE WIDGETS ONT DISPARU
 // ============================================================
 //
-// Ces seize drapeaux ne sont PAS morts : chacun garde un `case` de
-// `BinaryCodec::decodePayload`, le decodeur de l'avant-2.0. Les eteindre
-// retire vraiment du code du binaire.
+// Ils commandaient chacun un `case` de `BinaryCodec::decodePayload`, le
+// decodeur de l'avant-2.0. Ce decodeur est parti, et eux avec : un
+// interrupteur qui ne coupe plus rien coute plus cher qu'il ne rapporte —
+// il se lit comme un reglage, et il ne l'est plus.
 //
-// Ce qui est mort, c'est le chemin qui y mene. `BinaryCodec::decode()` n'a
-// aucun appelant dans `src/` — son unique appelant du depot est une ligne de
-// `test/host/test_signals.cpp`. Une carte 2.0 recoit des trames SIGNAL, que
-// `decodeSignal` lit, et ne passe jamais ici.
+// Une carte 2.0 recoit des trames SIGNAL, que `decodeSignal` lit. Elle ne
+// connait plus de widgets : elle connait des adresses.
 //
-// Ils restent donc, et la dette est nommee dans ARCHITECTURE.md §15 : c'est
-// le decodeur qu'il faudra decider de retirer, pas ses interrupteurs.
-
-// ── Display (Device → App) ────────────────────────────────
-#ifndef INSTANTIOT_WIDGETS_LED
-    #define INSTANTIOT_WIDGETS_LED 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_GAUGE
-    #define INSTANTIOT_WIDGETS_GAUGE 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_METRIC
-    #define INSTANTIOT_WIDGETS_METRIC 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_HORIZONTALLEVEL
-    #define INSTANTIOT_WIDGETS_HORIZONTALLEVEL 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_VERTICALLEVEL
-    #define INSTANTIOT_WIDGETS_VERTICALLEVEL 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_ADVANCEDCHART
-    #define INSTANTIOT_WIDGETS_ADVANCEDCHART 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_BARCHART
-    #define INSTANTIOT_WIDGETS_BARCHART 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_TEXT
-    #define INSTANTIOT_WIDGETS_TEXT 1
-#endif
-
-// ── Controls (App → Device) ───────────────────────────────
-#ifndef INSTANTIOT_WIDGETS_SIMPLEBUTTON
-    #define INSTANTIOT_WIDGETS_SIMPLEBUTTON 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_ADVANCEDBUTTON
-    #define INSTANTIOT_WIDGETS_ADVANCEDBUTTON 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_SWITCH
-    #define INSTANTIOT_WIDGETS_SWITCH 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_JOYSTICK
-    #define INSTANTIOT_WIDGETS_JOYSTICK 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_DIRECTIONPAD
-    #define INSTANTIOT_WIDGETS_DIRECTIONPAD 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_HSLIDER
-    #define INSTANTIOT_WIDGETS_HSLIDER 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_VSLIDER
-    #define INSTANTIOT_WIDGETS_VSLIDER 1
-#endif
-
-#ifndef INSTANTIOT_WIDGETS_SEGSWITCH
-    #define INSTANTIOT_WIDGETS_SEGSWITCH 1
-#endif
+// Un croquis qui redefinissait l'un d'eux compile toujours — un `#define`
+// que personne ne lit ne fait rien.
 
 // ============================================================
 // 🖨️ DEBUG MACROS
