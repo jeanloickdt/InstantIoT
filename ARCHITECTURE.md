@@ -188,7 +188,8 @@ function-local `static`.
 | `WiFiLink` | ✓ | ✓ | ✓ | ✓ | — |
 | `EthernetLink` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | ✓ | via Ethernet |
-| `Cloud` / `MyServer` TLS | ✓ | ✓ | ✓, fixed roots² | ✓, ~20 KB heap³ | **never** |
+| `Cloud` / `MyServer` TLS, WiFi | ✓ | ✓ | ✓, fixed roots² | ✓, ~20 KB heap³ | no radio |
+| `Cloud` / `MyServer` TLS, Ethernet | ✓, via lwIP⁴ | — | not done⁵ | — | **never** |
 
 ¹ MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — one u-blox NINA-W10 module,
 one branch in `Links.hpp`.
@@ -198,6 +199,13 @@ See the header of `TlsClient_NINA.hpp`.
 NTP round trip before the first handshake. Measured, not estimated — the
 numbers and the probe that produced them are in the header of
 `TlsClient_ESP8266.hpp`.
+⁴ Not through Arduino's `Ethernet` library, which uses the TCP stack wired
+inside the W5500 — a socket a TLS client cannot wrap. The ESP32 core drives
+the same chip behind lwIP instead. See `EthLink_ESP32.hpp`.
+⁵ Possible with `ArduinoBearSSL` over an `EthernetClient` (Blynk's recipe),
+measured and not written: it fits on the two SAMD boards at 74–76 % of SRAM
+and overflows the flash of the Uno WiFi Rev.2. It would also mean shipping
+the roots a second time as `br_x509_trust_anchor` structs. See README note 7.
 | `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
 | `BLELink` | ✓ (see below) | — | — | — |
 | `SerialLink` | — | — | ✓ | ✓ |
@@ -636,12 +644,15 @@ produces the same binary size as arduino-cli.
 
 Written down rather than left to be rediscovered.
 
-- **Nothing here has run on a board.** The Ethernet transport, the ESP8266's
-  BearSSL and its NTP round trip, the three NINA boards, Bluetooth and BLE:
-  all compiled, all measured, none plugged in. `test/boards.sh` says the code
-  builds and the footprints fit; it says nothing about a handshake. This is
-  the largest gap in this document and it is deliberately at the top of the
-  list.
+- **Almost nothing here has run on a board.** One thing has: an ESP32 in
+  access-point mode, receiving signal frames from the app, dispatching them to
+  a `IJoystick` block. That validated the frame, the DSL and the transport —
+  and it found a bug on the app side, not here.
+  Everything else is compiled and measured, never plugged in: both Ethernet
+  transports, the ESP8266's BearSSL and its NTP round trip, the three NINA
+  boards, Bluetooth, BLE, the serial link. `test/boards.sh` says the code
+  builds and the footprints fit; it says nothing about a handshake. This stays
+  at the top of the list until the hardware is on the desk.
 - **`SignalToWidget.hpp` is misnamed.** There are no widgets on the board any
   more — that was the point of 2.0. What it does is turn a raw value into
   what a *block* expects. The name will send someone looking in the wrong

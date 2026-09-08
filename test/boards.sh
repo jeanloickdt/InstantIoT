@@ -97,6 +97,18 @@ ATTENDUS_EN_ECHEC=(
   "arduino:avr:mega|UltrasonicLevel|no radio: AccessPoint does not exist on AVR"
   "arduino:avr:mega|Diagnostic|no radio: WiFiLink does not exist on AVR"
   "arduino:avr:mega|Thermostat|no radio: WiFiLink does not exist on AVR"
+
+  # EthernetCloudTLS — le W5500 derriere lwIP, donc le TLS de la
+  # plateforme. Ce chemin n'existe que sur ESP32 : ailleurs le cable passe
+  # par la pile TCP cablee dans le composant, et un client TLS ne peut pas
+  # envelopper une socket qui vit dans une autre puce.
+
+  "esp8266:esp8266:nodemcuv2|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
+  "arduino:renesas_uno:unor4wifi|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
+  "arduino:avr:mega|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
+  "arduino:samd:mkrwifi1010|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
+  "arduino:samd:nano_33_iot|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
+  "arduino:megaavr:uno2018|EthernetCloudTLS|no lwIP path to the W5500 outside the ESP32"
 )
 
 # ── The matrix ────────────────────────────────────────────────────────
@@ -132,6 +144,7 @@ declare -a CROQUIS=(
   "examples/connection/TheCloud"
   "examples/connection/OwnServer"
   "examples/connection/EthernetCloud"
+  "examples/connection/EthernetCloudTLS"
   "examples/connection/BluetoothClassic"
   "examples/connection/BluetoothLE"
   "examples/connection/SerialModule"

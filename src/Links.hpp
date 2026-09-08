@@ -28,17 +28,20 @@
  *
  * ## Ethernet
  *
- * The model expects it: `InstantIoT.begin(EthernetLink(), Cloud(TOKEN))`
- * would change nothing elsewhere, since a destination does not know how
- * it is reached. The transport itself does not exist yet — it is not
- * written here until it has run on a board.
+ * `InstantIoT.begin(EthernetLink(), Cloud(TOKEN))` changes nothing
+ * elsewhere: a destination does not know how it is reached. What the cable
+ * CAN carry, though, depends on the board — see the note on
+ * `EthernetLink::transportTo` below, and the header of `EthLink_ESP32.hpp`.
  *
  * ## What each board can do
  *
- * ESP32        AccessPoint, WiFiLink (plain and TLS), BluetoothLink, BLELink
- * Uno R4 WiFi  AccessPoint, WiFiLink (plain and TLS)
- * ESP8266      AccessPoint, WiFiLink (plain and TLS), SerialLink
- * AVR          SerialLink
+ * ESP32        AccessPoint, WiFiLink, EthernetLink (both plain and TLS),
+ *              BluetoothLink, BLELink
+ * Uno R4 WiFi  AccessPoint, WiFiLink (plain and TLS), EthernetLink (plain)
+ * NINA three   AccessPoint, WiFiLink (plain and TLS), EthernetLink (plain)
+ * ESP8266      AccessPoint, WiFiLink (plain and TLS), EthernetLink (plain),
+ *              SerialLink
+ * AVR          EthernetLink (plain), SerialLink
  *
  * A pairing the board cannot do fails to compile, and says so in one
  * sentence rather than a page of templates.
@@ -141,9 +144,25 @@
 // library never lands on the path. Asking the sketch to say so is the
 // honest form: one `#define` before the include.
 #if defined(INSTANTIOT_ETHERNET)
+  #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+    // Sur ESP32, le W5500 se pilote comme une CARTE RESEAU, derriere lwIP —
+    // et le TLS de la plateforme fonctionne alors sans savoir qu'il y a un
+    // cable. La bibliotheque `Ethernet` d'Arduino, elle, se sert de la pile
+    // TCP cablee dans le composant : rien a envelopper, donc pas de
+    // chiffrement possible. Deux facons d'utiliser la meme puce, et une
+    // seule ouvre le cloud. Voir l'en-tete d'`EthLink_ESP32.hpp`.
+    #include "transport/ethernet/EthLink_ESP32.hpp"
+    namespace iiot {
+        using TransportEthernet       = EthPlain_ESP32;
+        using TransportEthernetSecure = EthTls_ESP32;
+    }
+    #define INSTANTIOT_HAS_ETHERNET_LINK 1
+    #define INSTANTIOT_HAS_ETHERNET_TLS  1
+  #else
     #include "transport/ethernet/EthClient_W5x00.hpp"
     namespace iiot { using TransportEthernet = EthClient_W5x00; }
     #define INSTANTIOT_HAS_ETHERNET_LINK 1
+  #endif
 #endif
 
 // Bluetooth Classic: present in the ESP32 core, absent from the chips
@@ -346,15 +365,80 @@ struct WiFiLink {
  * knows nothing about the far end, so `Cloud(TOKEN)` and `MyServer(host,
  * TOKEN)` work here without one line changing on the destination side.
  *
- *     InstantIoT.begin(EthernetLink(), Cloud(TOKEN).plaintext());
+ *     InstantIoT.begin(EthernetLink(), Cloud(TOKEN));              // ESP32
+ *     InstantIoT.begin(EthernetLink(), Cloud(TOKEN).plaintext());  // partout
  *
- * The MAC is optional — see [EthClient_W5x00::setMac] for when to set it.
+ * ## Le meme nom, deux montages, et ce n'est pas un caprice
+ *
+ * Sur ESP32 ce lien pilote le W5500 derriere lwIP, ce qui rend le TLS
+ * possible — et demande alors les trois broches, parce qu'un module n'a
+ * aucun format impose. Partout ailleurs il passe par la pile TCP cablee
+ * dans le composant, ce qui marche sur un Mega et interdit le
+ * chiffrement ; l'adresse MAC y est optionnelle, voir
+ * [EthClient_W5x00::setMac].
+ *
+ * La difference n'est pas cosmetique : elle decide de ce que le cable peut
+ * porter. L'assertion plus bas la nomme au moment ou elle se voit.
  */
 struct EthernetLink {
+
+#if defined(INSTANTIOT_HAS_ETHERNET_TLS)
+    // ── ESP32 : le W5500 derriere lwIP, donc le TLS de la plateforme ──
+    //
+    // Les trois broches n'ont pas de valeur juste : un module W5500 n'a aucun
+    // format impose, on le cable. Les defauts ci-dessous sont le cablage le
+    // plus repandu, pas une norme — ils existent pour qu'un croquis d'exemple
+    // compile. Une mauvaise broche CS echoue bruyamment au demarrage.
+    int cs, irq, rst;
+
+    EthernetLink(int csPin = 5, int irqPin = 4, int rstPin = 14)
+        : cs(csPin), irq(irqPin), rst(rstPin) {}
+
+    ITransport& transportTo(const PlainDestination& d) const {
+        static TransportEthernet t(d.host, d.port, d.token, cs, irq, rst);
+        t.setHeartbeat(d.heartbeatMs);
+        return t;
+    }
+
+    ITransport& transportTo(const SecureDestination& d) const {
+        static TransportEthernetSecure t(d.host, d.port, d.token, cs, irq, rst);
+        t.setHeartbeat(d.heartbeatMs);
+        // Meme ordre que sur le WiFi : une racine fournie remplace les
+        // racines embarquees, et « je ne verifie rien » a le dernier mot
+        // parce que c'est le plus explicite des deux choix.
+        if (d.caPem) t.setCACert(d.caPem);
+        if (!d.checksIdentity) t.setInsecure();
+        return t;
+    }
+
+#else
+    // ── Partout ailleurs : la pile TCP cablee dans le W5500 ──
     const uint8_t* mac;
 
     EthernetLink() : mac(nullptr) {}
     explicit EthernetLink(const uint8_t macAddress[6]) : mac(macAddress) {}
+
+    /**
+     * Trois broches : c'est la forme ESP32, et elle n'a pas de sens ici.
+     *
+     * Sans cette surcharge, un croquis ecrit pour un ESP32 et televerse sur
+     * une autre carte reproche une ARITE — « no matching function for call
+     * to EthernetLink(int, int, int) » — ce qui envoie corriger un appel
+     * alors que c'est la carte qui ne peut pas.
+     *
+     * Un modele, pour que l'assertion depende d'un parametre et ne se
+     * declenche qu'a l'appel reel.
+     */
+    template <class T>
+    EthernetLink(T, T, T) {
+        static_assert(AlwaysFalse<T>::value,
+            "EthernetLink(cs, irq, rst) is the ESP32 form: there, the W5500 is "
+            "driven behind lwIP, the three pins are needed because a module has "
+            "no fixed pinout, and TLS works. On this board the cable goes "
+            "through the TCP stack wired inside the W5500 — no pins to give, "
+            "and no TLS possible. Write EthernetLink() and reach the cloud with "
+            "Cloud(TOKEN).plaintext().");
+    }
 
     ITransport& transportTo(const PlainDestination& d) const {
         static TransportEthernet t(d.host, d.port, d.token);
@@ -364,29 +448,48 @@ struct EthernetLink {
     }
 
     /**
-     * TLS over a cable: not on this board.
+     * TLS sur un cable : pas sur CETTE carte, et la raison n'est pas celle
+     * qu'on croit.
      *
-     * A template rather than an overload on `SecureDestination`, for the same
-     * reason as [WiFiLink]: an assertion that does not depend on a parameter
-     * fires the moment the class is read, so on every Ethernet sketch —
-     * including the ones that only ever aimed for plaintext.
+     * Ce n'est pas que le W5500 « n'a pas de crypto » — le chiffrement
+     * tournerait sur le processeur de toute facon. C'est que la
+     * bibliotheque `Ethernet` d'Arduino se sert de la pile TCP **cablee dans
+     * le composant** : `EthernetClient` est une poignee sur une socket du
+     * W5500. Or le TLS des ESP n'enveloppe pas un `Client`, il EN EST un
+     * (`class NetworkClientSecure : public NetworkClient`). Il n'y a rien a
+     * envelopper.
      *
-     * The W5x00 has no crypto, and an AVR has neither the RAM nor the flash
-     * for a handshake. Measured: the library alone takes 61 % of an Uno's
-     * SRAM. This is not a gap waiting to be filled — it is the shape of the
-     * hardware.
+     * Deux sorties existent, et aucune n'est disponible ici :
+     *
+     *   · sur ESP32, piloter le W5500 derriere lwIP — c'est la branche
+     *     du dessus, et elle marche ;
+     *   · sur une carte a puce crypto (MKR, Nano 33 IoT, Uno WiFi Rev.2),
+     *     une pile TLS qui se compose sur un `Client` quelconque —
+     *     `ArduinoBearSSL` sur un ECCX08. C'est ce que fait Blynk.
+     *
+     * Sur un AVR sans puce crypto, en revanche, c'est ferme pour de bon : ni
+     * la RAM ni la flash pour une poignee de main, et rien pour la faire a
+     * sa place. Mesure : la bibliotheque seule prend deja 61 % de la SRAM
+     * d'un Uno.
+     *
+     * Un modele plutot qu'une surcharge sur `SecureDestination`, pour la
+     * meme raison que [WiFiLink] : une assertion qui ne depend d'aucun
+     * parametre se declenche des que la classe est lue, donc sur tous les
+     * croquis Ethernet — y compris ceux qui ne visaient que le clair.
      */
     template <class D>
     ITransport& transportTo(const D& d) const {
         static_assert(AlwaysFalse<D>::value,
-            "Ethernet on this board has no TLS: the W5x00 carries no crypto, "
-            "and an AVR has neither the RAM nor the flash for a handshake. "
-            "The cloud is still reachable in plaintext — "
-            "Cloud(TOKEN).plaintext() — and the token then travels readable "
-            "on the network. On a home LAN behind a router that is a "
-            "decision; across the internet it is a risk.");
+            "No TLS over Ethernet on this board. Arduino's Ethernet library "
+            "uses the TCP stack wired INSIDE the W5500, and a TLS client "
+            "cannot wrap one of its sockets. On an ESP32 the same chip can be "
+            "driven behind lwIP instead, and then TLS works. On an AVR it "
+            "cannot: no crypto co-processor, and no RAM for a handshake. "
+            "The cloud stays reachable in plaintext — Cloud(TOKEN).plaintext() "
+            "— and the token then travels readable on the network.");
         return transportTo(d.plaintext());
     }
+#endif
 
 };
 #endif
