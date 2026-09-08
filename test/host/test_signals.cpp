@@ -204,9 +204,10 @@ int main() {
         ok(!BinaryCodec::decodeSignal(frame, n, a, t, pl, pn, rp),
            "…and the signal decoder leaves it alone, or every button press would vanish");
 
-        DecodedMessage msg; uint8_t tc = 0, ec = 0;
-        ok(codec.decode(frame, n, msg, tc, ec) && tc == TYPE_SIMPLEBUTTON,
-           "…and it still decodes as the button it is");
+        // The old decoder is gone, and with it this half of the check. What
+        // this test is really about survives untouched: `decodeSignal` must
+        // REFUSE a widget frame. Reading it back as a button was only ever
+        // the control group, and there is no longer a reader for it.
     }
     {
         // The dangerous one: a widget frame shaped EXACTLY like a signal —

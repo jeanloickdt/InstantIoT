@@ -668,19 +668,19 @@ Written down rather than left to be rediscovered.
   association failed. WiFiS3 (Uno R4), WiFiNINA and the ESP8266 core have no
   equivalent event API, so `WiFiReason_ESP32` stops where it is named. On
   those four families a board that cannot join says only "link timeout".
-- **The legacy codec is half-unreachable, and that half is the larger one.**
-  `BinaryCodec::encode` still has one caller — the heartbeat; every value goes
-  through `encodeSignal`. But `BinaryCodec::decode` has *none* in `src/`: its
-  only caller in the repository is one line of `test/host/test_signals.cpp`.
-  Behind it sit `decodePayload` and the sixteen `INSTANTIOT_WIDGETS_*` cases,
-  which a 2.0 board can no longer reach — a SIGNAL frame is read by
-  `decodeSignal`.
+- ~~**The legacy codec is half-unreachable.**~~ **Done.** `BinaryCodec::decode`
+  and `decodePayload` are gone, and the sixteen `INSTANTIOT_WIDGETS_*` flags
+  with them: each one gated a `case` of that decoder and nothing else, so an
+  unreachable road made unreachable switches. `Codec.h` and `DecodedMessage`
+  went too, having no other reader.
 
-  The flags themselves are NOT dead, and were nearly removed on that
-  assumption: each one still gates a `case`, and turning one off still removes
-  code from the binary. What is dead is the road to them. Removing the
-  decoder is a decision about the public surface of a header a sketch can
-  include, not a cleanup — which is why it is written here instead of done.
+  `encode` stays — the heartbeat still uses it — and so do `encodeSignal` and
+  `decodeSignal`, which are the 2.0 path. A sketch that redefined one of the
+  flags still compiles: a `#define` nobody reads does nothing.
+
+  It was a decision about the public surface of a header, not a cleanup, and
+  the decision was taken: **2.0 carries no backward compatibility.** Whoever
+  needs the old protocol keeps the old library and a matching APK.
 
 ---
 

@@ -28,7 +28,6 @@
 
 #include <Arduino.h>
 #include <string.h>
-#include "Codec.h"
 #include "../InstantIoTConfig.h"
 
 namespace iiot {
@@ -206,50 +205,6 @@ static size_t readString(const uint8_t* buf, char* out, size_t outSize) {
 class BinaryCodec {
 
     char _deviceId[32];
-    char _widgetId[INSTANTIOT_MAX_WIDGET_ID_LENGTH];
-    char _paramKeys[8][16];
-    char _paramValues[8][32];
-
-    void addParam(DecodedMessage& msg, const char* key, const char* value) {
-        if (msg.paramCount >= 8) return;
-        uint8_t i = msg.paramCount;
-        strncpy(_paramKeys[i],   key,   15); _paramKeys[i][15]   = '\0';
-        strncpy(_paramValues[i], value, 31); _paramValues[i][31] = '\0';
-        msg.params[i].key   = _paramKeys[i];
-        msg.params[i].value = _paramValues[i];
-        msg.paramCount++;
-    }
-
-    /**
-     * `dtostrf` does not exist everywhere.
-     *
-     * It comes from avr-libc, and the ESP cores carry it over — but not
-     * the SAMD core, nor the Nano 33 IoT's. That single call in the whole
-     * library was enough to make it uncompilable on that family, when
-     * nothing else stood in the way.
-     *
-     * `snprintf` is standard and does the same job here. On AVR cores the
-     * floating-point variant of `printf` is not linked by default — hence
-     * `dtostrf` there, and only there.
-     */
-    void addParamFloat(DecodedMessage& msg, const char* key, float val) {
-        char buf[16];
-#if defined(ARDUINO_ARCH_AVR)
-        dtostrf(val, 1, 6, buf);
-#else
-        snprintf(buf, sizeof(buf), "%.6f", (double)val);
-#endif
-        addParam(msg, key, buf);
-    }
-
-    void addParamInt(DecodedMessage& msg, const char* key, int val) {
-        char buf[12]; itoa(val, buf, 10);
-        addParam(msg, key, buf);
-    }
-
-    void addParamBool(DecodedMessage& msg, const char* key, bool val) {
-        addParam(msg, key, val ? "true" : "false");
-    }
 
     // Safe readString with bounds-check — returns 0 on error
     static size_t safeReadString(const uint8_t* payload, size_t p, size_t len, char* out, size_t outSize) {
@@ -259,165 +214,10 @@ class BinaryCodec {
         return readString(payload + p, out, outSize);
     }
 
-    void decodePayload(
-        uint8_t typeCode, uint8_t eventCode,
-        const uint8_t* payload, size_t len,
-        DecodedMessage& msg
-    ) {
-        size_t p = 0;
-
-        switch (typeCode) {
-
-#if INSTANTIOT_WIDGETS_SIMPLEBUTTON || INSTANTIOT_WIDGETS_ADVANCEDBUTTON
-            case TYPE_SIMPLEBUTTON:
-            case TYPE_ADVANCEDBUTTON:
-                if (eventCode == CMD_TOGGLE && p < len)
-                    addParamBool(msg, "state", payload[p++] != 0);
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_GAUGE || INSTANTIOT_WIDGETS_HORIZONTALLEVEL || INSTANTIOT_WIDGETS_VERTICALLEVEL
-            case TYPE_GAUGE:
-            case TYPE_HLEVEL:
-            case TYPE_VLEVEL:
-                if (eventCode == EV_SETVALUE && p+4<=len)
-                    { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; }
-                else if (eventCode == EV_SETRANGE && p+8<=len)
-                    { addParamFloat(msg,"min",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"max",readFloatLE(payload+p)); p+=4; }
-                else if (eventCode == EV_UPDATE && p+12<=len)
-                    { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"min",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"max",readFloatLE(payload+p)); p+=4; }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_JOYSTICK
-            case TYPE_JOYSTICK:
-                if (eventCode == CMD_POSCHANGED && p+8<=len)
-                    { addParamFloat(msg,"x",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_METRIC
-            case TYPE_METRIC:
-                if (eventCode == EV_SETVALUE && p+4<=len){ 
-                    addParamFloat(msg,"value",readFloatLE(payload+p)); 
-                    p+=4; 
-                }
-                else if (eventCode == EV_SETSECONDARY && p<len) {
-                    char val[32], lbl[32];
-                    size_t n = safeReadString(payload, p, len, val, sizeof(val));
-                    if (!n) break;
-                    p += n;
-                    n = safeReadString(payload, p, len, lbl, sizeof(lbl));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"value",val);
-                    addParam(msg,"label",lbl);
-                }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_SEGSWITCH
-            case TYPE_SEGSWITCH:
-                if (eventCode == CMD_SELCHANGED && p<len) {
-                    addParamInt(msg,"index",payload[p++]);
-                    char ids[64];
-                    size_t n = safeReadString(payload, p, len, ids, sizeof(ids));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"ids",ids);
-                } else if ((eventCode==CMD_SEGSELECTED||eventCode==CMD_SEGDESELECTED) && p<len)
-                    addParamInt(msg,"index",payload[p++]);
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_ADVANCEDCHART
-            case TYPE_ADVANCEDCHART:
-                if (eventCode == EV_ADDPOINT && p<len) {
-                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"seriesId",sid);
-                    if (p+4<=len) { addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
-                } else if (eventCode == EV_ADDTIMEDPOINT && p<len) {
-                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"seriesId",sid);
-                    if (p+8<=len) { addParamFloat(msg,"x",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"y",readFloatLE(payload+p)); p+=4; }
-                } else if (eventCode == EV_CLEARSERIES && p<len) {
-                    char sid[32]; size_t n = safeReadString(payload,p,len,sid,sizeof(sid));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"seriesId",sid);
-                }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_HSLIDER || INSTANTIOT_WIDGETS_VSLIDER
-            case TYPE_HSLIDER:
-            case TYPE_VSLIDER:
-                if (eventCode == EV_SETRANGE && p+8<=len)
-                    { addParamFloat(msg,"min",readFloatLE(payload+p)); p+=4; addParamFloat(msg,"max",readFloatLE(payload+p)); p+=4; }
-                else if (p+4<=len)
-                    { addParamFloat(msg,"value",readFloatLE(payload+p)); p+=4; }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_LED
-            case TYPE_LED:
-                if (eventCode == EV_SETBRIGHTNESS && p<len)
-                    addParamInt(msg,"brightness",payload[p++]);
-                else if (eventCode == EV_SETCOLOR && p+3<=len)
-                    { addParamInt(msg,"r",payload[p++]); addParamInt(msg,"g",payload[p++]); addParamInt(msg,"b",payload[p++]); }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_SWITCH
-            case TYPE_SWITCH:
-                if (eventCode == CMD_SWITCHVALUE && p<len)
-                    addParamBool(msg,"value",payload[p++]!=0);
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_DIRECTIONPAD
-            case TYPE_DIRECTIONPAD:
-                if (p<len) addParamInt(msg,"button",payload[p++]);
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_TEXT
-            case TYPE_TEXT:
-                if (eventCode == EV_SETTEXT && p<len) {
-                    char txt[64]; size_t n = safeReadString(payload,p,len,txt,sizeof(txt));
-                    if (!n) break;
-                    p += n;
-                    addParam(msg,"text",txt);
-                }
-                break;
-#endif
-
-#if INSTANTIOT_WIDGETS_BARCHART
-            // BarChart: pure display, the app never sends anything to
-            // the device → no decoding on the device side. The case exists
-            // to avoid falling into the default if a BarChart payload
-            // arrives by mistake (misrouted frame).
-            case TYPE_BARCHART:
-                break;
-#endif
-
-            // EmergencyButton: CMD_EMERGENCY_TRIGGER / CMD_EMERGENCY_RESET
-            // have no payload — nothing to decode, the dispatch only reads
-            // the eventCode in Registry.
-            case TYPE_EMERGENCYBUTTON:
-                break;
-        }
-    }
-
 public:
 
     BinaryCodec() {
         _deviceId[0] = '\0';
-        _widgetId[0] = '\0';
     }
 
     // ============================================================
@@ -591,62 +391,6 @@ public:
         outTag        = body[4] & ~SIGNAL_TAG_RESTORE;
         outPayload    = body + 5;
         outPayloadLen = (size_t)len - 5;
-        return true;
-    }
-
-    bool decode(
-        const uint8_t* buffer,
-        size_t length,
-        DecodedMessage& outMessage,
-        uint8_t& outTypeCode,
-        uint8_t& outEventCode
-    ) {
-        // AA(1) + VER(1) + LEN(2) + body(min1) + CRC(1) = min 6
-        if (!buffer || length < 6) return false;
-        size_t pos = 0;
-
-        if (buffer[pos++] != 0xAA) return false;
-        if (buffer[pos++] != 0x01) return false;
-
-        uint16_t len = readU16LE(buffer + pos); pos += 2;
-
-        if (length < (size_t)(4 + len + 1)) return false;
-
-        // CRC — covers the body (after the fixed 4-byte header)
-        if (crc8(buffer + 4, len) != buffer[4 + len]) {
-            IIOT_LOG("[BinaryCodec] CRC mismatch");
-            return false;
-        }
-
-        size_t bodyStart = pos;
-
-        // DEV_COUNT + devices
-        uint8_t devCount = buffer[pos++];
-        _deviceId[0] = '\0';
-        for (uint8_t d = 0; d < devCount; d++) {
-            if (d == 0) pos += readString(buffer + pos, _deviceId, sizeof(_deviceId));
-            else { uint8_t dlen = buffer[pos++]; pos += dlen; }
-        }
-
-        // WID
-        pos += readString(buffer + pos, _widgetId, sizeof(_widgetId));
-
-        // TYPE + EVENT
-        outTypeCode  = buffer[pos++];
-        outEventCode = buffer[pos++];
-
-        // PAYLOAD
-        size_t payloadLen = (bodyStart + len) - pos;
-        outMessage.paramCount = 0;
-        if (payloadLen > 0)
-            decodePayload(outTypeCode, outEventCode, buffer + pos, payloadLen, outMessage);
-
-        outMessage.deviceId    = _deviceId;
-        outMessage.widgetId    = _widgetId;
-        outMessage.widgetType  = "";
-        outMessage.event       = "";
-        outMessage.dashboardId = "";
-
         return true;
     }
 };
