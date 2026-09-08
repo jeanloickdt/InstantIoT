@@ -103,7 +103,6 @@ src/
 ├─ core/
 │   ├─ Transport.h              ITransport interface
 │   ├─ MessageSender.h          IMessageSender interface
-│   ├─ Codec.h                  shared types (DecodedMessage, Param)
 │   ├─ BinaryCodec.hpp          encode/decode — frames and signals
 │   ├─ InstantIoTCore.hpp       main loop: RX assembly, TX, heartbeat
 │   ├─ InstantIoTSignals.hpp    SignalRef, the I0..I255 constants
@@ -113,10 +112,13 @@ src/
 │   └─ InstantIoTDeviceConfig.hpp
 │
 ├─ transport/
-│   ├─ wifi/SoftAP_{ESP32,ESP8266,R4}.hpp     board hosts its own WiFi
-│   ├─ wifi/TcpClient_{ESP32,R4}.hpp          plain TCP to a server
-│   ├─ wifi/TlsClient_{ESP32,R4}.hpp          TLS to a server
+│   ├─ TcpSession.hpp                    ★ everything a TCP link is NOT
+│   ├─ wifi/SoftAP_{ESP32,ESP8266,NINA,R4}.hpp    board hosts its own WiFi
+│   ├─ wifi/TcpClient_{ESP32,ESP8266,NINA,R4}.hpp plain TCP to a server
+│   ├─ wifi/TlsClient_{ESP32,ESP8266,NINA,R4}.hpp TLS to a server
 │   ├─ wifi/WiFiReason_ESP32.hpp              why the association failed
+│   ├─ ethernet/EthClient_W5x00.hpp       the W5500's own TCP stack, plain
+│   ├─ ethernet/EthLink_ESP32.hpp         the same chip behind lwIP, TLS too
 │   ├─ bluetooth/{Bluetooth_ESP32,BLE_ESP32}.hpp
 │   └─ serial/SoftSerial.hpp
 │
@@ -135,8 +137,17 @@ would suggest reading one teaches you the other.
 
 `TcpClient` / `TlsClient` used to be called `WiFiServerClient` and
 `WiFiServerClientSecure` — names that said *server* about a client. What
-separates the two is the encryption, not the wire, which is where an Ethernet
-implementation will slot in.
+separates the two is the encryption, not the wire. That is exactly where the
+Ethernet implementations slotted in, later, without the naming having to move.
+
+**`TcpSession.hpp` is the one file to read first in this directory.** Every
+TCP transport above is a subclass of it that answers two questions — *is the
+link up?* and *bring it up* — and inherits the rest: session, handshake,
+retry, backoff with jitter, the in-flight rule, the four `ITransport`
+methods. `TcpClient_ESP32` went from 363 lines to 132 the day it appeared.
+
+The two Ethernet files are not a duplicate. They drive the same W5500 two
+different ways, and only one of them can carry TLS — see §5, note 4.
 
 ---
 
@@ -169,8 +180,8 @@ needs the readable name.
 ## 5. Links and destinations
 
 A **link** is the path, a **destination** is the far end. They do not know
-about each other, which is what will let an `EthernetLink()` appear without
-any destination changing.
+about each other, and that is what let `EthernetLink()` arrive later without
+one line changing on the destination side. It did.
 
 ```cpp
 InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
@@ -190,6 +201,9 @@ function-local `static`.
 | `Cloud` / `MyServer` plain | ✓ | ✓ | ✓ | ✓ | via Ethernet |
 | `Cloud` / `MyServer` TLS, WiFi | ✓ | ✓ | ✓, fixed roots² | ✓, ~20 KB heap³ | no radio |
 | `Cloud` / `MyServer` TLS, Ethernet | ✓, via lwIP⁴ | — | not done⁵ | — | **never** |
+| `BluetoothLink` (Classic) | ✓ ⁶ | — | — | — | — |
+| `BLELink` (NimBLE) | ✓ ⁷ | — | — | — | — |
+| `SerialLink` | — | — | — | ✓ | ✓ |
 
 ¹ MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — one u-blox NINA-W10 module,
 one branch in `Links.hpp`.
@@ -206,20 +220,21 @@ the same chip behind lwIP instead. See `EthLink_ESP32.hpp`.
 measured and not written: it fits on the two SAMD boards at 74–76 % of SRAM
 and overflows the flash of the Uno WiFi Rev.2. It would also mean shipping
 the roots a second time as `br_x509_trust_anchor` structs. See README note 7.
-| `BluetoothLink` | ✓ (BR/EDR only) | — | — | — |
-| `BLELink` | ✓ (see below) | — | — | — |
-| `SerialLink` | — | — | ✓ | ✓ |
+⁶ The original ESP32 only. The S3, C3 and C6 have BLE and no Bluetooth
+Classic radio; the S2 has neither.
+⁷ The whole family except the S2. The sketch must `#include <NimBLEDevice.h>`
+BEFORE `<InstantIoT.h>`, and both need the `huge_app` partition scheme.
 
-**SAMD (Nano 33 IoT, MKR)**: the core and the DSL compile — 5 % of Flash on a
-Nano 33 IoT — but no transport exists, so no link does. Adding the family is
-one `ITransport` over WiFiNINA plus one branch in `Links.hpp`; nothing in the
-protocol or the DSL stands in the way. (It used to: a single `dtostrf` call
-in `BinaryCodec` made the whole library uncompilable on SAMD, because that
-function comes from avr-libc and the SAMD core does not have it.)
+**The NINA three** were exactly that prediction, and it held: one `ITransport`
+over `WiFiNINA` plus one branch, and nothing in the protocol or the DSL stood
+in the way. (Something used to: a single `dtostrf` call in `BinaryCodec` made
+the library uncompilable on SAMD, because that function comes from avr-libc.)
 
-AVR is not in `library.properties`'s `architectures` and the app does not
-expose the serial mode, but `SerialLink` does build on an Uno — 20 % of Flash
-and 79 % of RAM, which leaves little room for a sketch.
+They are grouped by their **radio** here and by their **SRAM** in
+`InstantIoTConfig.h` — the Uno WiFi Rev.2 shares a module with a MKR 1010 and
+has five times less memory. Two questions, two groupings; sorting by the radio
+in both places would have handed an ATmega4809 the ration of a chip its
+senior.
 
 A combination the board cannot do fails to compile, and the message says what
 to write instead rather than talking about templates. Links that do not exist
@@ -486,17 +501,37 @@ The TCP and TLS clients add three setters the links call before `begin()`:
 `setCredentials(ssid, pass)`, `setHeartbeat(ms)`, and — on the TLS ones only
 — `setCACert(pem)` / `setInsecure()`.
 
-### Two rules a WiFi transport must keep
+### `TcpSession` — what a TCP transport does NOT have to write
 
-**Never restart an association that is in flight.** `WiFi.begin()` on a
+Ten of the transports above are TCP. Written one by one they were the same
+file ten times: session, handshake, retry, backoff with jitter, the in-flight
+rule, the four `ITransport` methods. `TcpSession` is all of that, once, and a
+subclass answers only what genuinely differs:
+
+| seam | default | who overrides it, and why |
+|---|---|---|
+| `linkUp()` | — | required: `WiFi.status()`, `ETH.linkUp()`, an IP lease |
+| `beginLink()` | — | required. Returns **true if an attempt is now in flight**, false if it is already over. A WiFi association returns true; a blocking DHCP returns false |
+| `prepareClient()` | nothing | the ESP32 wants a timeout and `setNoDelay`; the Uno R4 must NOT get a timeout at all |
+| `linkCredentialsReady()` | yes | Ethernet needs none; WiFi refuses to start without an SSID |
+| `readyToConnect()` | yes | the ESP8266's TLS is the first link with a precondition beyond an address: BearSSL refuses a certificate it cannot date |
+| `onLinkDown/Up()`, `endLinkAttempt()` | nothing | only the ESP32 can say *why*; only WiFi needs an explicit `disconnect()` |
+
+The return value of `beginLink()` is the one that costs when it is wrong:
+backwards, it buys either a busy loop or a fifteen-second stall.
+
+### Two rules the trunk keeps for everyone
+
+**Never restart an attempt that is in flight.** `WiFi.begin()` on a
 connecting station does not restart it, it kills it — the ESP32 says so
 (`sta is connecting, cannot set config`), and a board on a slow network then
 never arrives, because every retry interrupts the attempt just before it
-completes. `poll()` records when the last `WiFi.begin` happened and watches
-without touching until the window has passed. `WiFi.begin` is called from one
-place only, `lanceLaTentativeWiFi()`, so the rule is enforceable.
+completes. It looks WiFi-specific and is not: `ETH.begin` re-initialises the
+driver, so calling it again cuts the very cable it is trying to restore.
+`TcpSession::startLinkAttempt()` is the only place an attempt starts, which
+is what makes the rule enforceable at all.
 
-**Say why it failed, out loud.** The ESP32 emits a disconnect reason within
+**Say why it failed, out loud** — where the chip can say it. The ESP32 emits a disconnect reason within
 about two seconds; `WiFiReason_ESP32.hpp` catches it and prints it in plain
 words — once per distinct reason, and *not* behind `INSTANTIOT_DEBUG`. It is
 the one moment where the board can do nothing else and the person watching
@@ -504,16 +539,32 @@ has no other source of truth. A password that lost two characters in a
 copy-paste cost an hour of blind debugging before this existed.
 `INSTANTIOT_QUIET` silences it.
 
+Only the ESP32 core reports one. WiFiS3 (Uno R4), WiFiNINA and the ESP8266
+core have no equivalent event API, so on those four families a board that
+cannot join says only that it timed out. That is a gap in the hardware's
+vocabulary, not in this file.
+
 ---
 
 ## 10. Memory model
 
 Statically allocated end to end.
 
-| Buffer | ESP32 | R4 / ESP8266 | other |
+| Buffer | ESP32 | R4 / ESP8266 / SAMD | AVR, megaAVR |
 |---|---|---|---|
-| `_rxBuffer` | 2 KB | 1 KB | 512 B |
-| `_txBuffer` | 1 KB | 512 B | 256 B |
+| `_rxBuffer` | 2 KB | 1 KB | 256 B — four whole frames |
+| `_txBuffer` | 1 KB | 512 B | 128 B — two |
+
+The small column is sized by the **protocol**, not by a guess: the largest
+frame the 2.0 model can produce is a 48-character text signal, fifty-eight
+bytes with its header and CRC. The old defaults were cut for widgets with
+long strings and multi-series charts, a class of message that no longer
+travels — on an Uno that cost 624 bytes of SRAM, 80 % → 61 % measured, for a
+capacity nothing could ever use.
+
+The dividing line is SRAM, not the radio: the Uno WiFi Rev.2 shares a WiFi
+module with a MKR 1010 and has 6 KB against its 32, so it sits in the right
+column here and with the NINA boards in `Links.hpp`.
 
 Plus a `char[49]` in the core for an incoming text signal, and one ~12-byte
 static node per `I<Widget>` / `ISignal` block. No `String`, no
@@ -527,10 +578,32 @@ static node per `I<Widget>` / `ISignal` block. No `String`, no
 #define INSTANTIOT_DEBUG               0   // 1 → IIOT_LOG to Serial
 #define INSTANTIOT_DEFAULT_SIGNAL_RATE 50  // frames/s ceiling until the
                                            // server pushes the real one
+#define INSTANT_MAX_FRAME_SIZE         64  // the protocol's largest frame
 #define INSTANT_RX_BUFFER_SIZE         …   // see the table above
 #define INSTANT_TX_BUFFER_SIZE         …
 #define INSTANT_AP_PORT                8080
 ```
+
+Four more are opt-in rather than tuning, and each belongs to one platform:
+
+```cpp
+#define INSTANTIOT_ETHERNET        1   // BEFORE the include — see §5
+#define INSTANTIOT_TLS_RX_BUFFER   6144  // ESP8266: sized against a 3411-byte
+                                         // Certificate record. Read the header
+                                         // of TlsClient_ESP8266.hpp first
+#define INSTANTIOT_SNTP_SERVER  "pool.ntp.org"   // ESP8266: BearSSL refuses a
+                                                 // certificate it cannot date
+#define INSTANTIOT_ETH_PHY_ADDR    1   // ESP32 + W5500 behind lwIP
+```
+
+`INSTANTIOT_ETHERNET` is opt-in and cannot be detected: Arduino's build finds
+libraries by READING `#include` directives, so a conditional include is never
+seen and the library never reaches the path. Asking the sketch to say so is
+the honest form.
+
+The platform is detected, not configured — `INSTANTIOT_PLATFORM_{ESP32,
+ESP8266, R4, SAMD, MEGAAVR, AVR}`. A board that matches none of them still
+compiles and gets a `#warning` naming the ones the bench actually covers.
 
 Destination defaults live in `Destinations.hpp` and are overridable the same
 way: `INSTANTIOT_CLOUD_HOST`, `INSTANTIOT_CLOUD_TLS_PORT` (9443),
@@ -568,7 +641,7 @@ Change it with `Cloud(TOKEN).heartbeatEvery(20000)`, before `begin()`.
 ./test/host/run.sh
 ```
 
-Compiles five test files with a plain `g++` against a 66-line `Arduino.h`
+Compiles six test files with a plain `g++` against a small `Arduino.h`
 shim and runs them in about a second: no board, no IDE. It
 does not replace a run on real hardware; it catches what does not need
 hardware to be wrong.
@@ -580,6 +653,7 @@ hardware to be wrong.
 | `test_destinations.cpp` | the defaults a sketch gets without asking |
 | `decoders.cpp` | the gesture convention, positions, pad names |
 | `dsl_on_signals.cpp` | that the macros expand and register |
+| `heartbeat_frame.cpp` | that the beat carries no invented board name, and the one a sketch chooses |
 
 The frames are routed through the real `processFrame`, not a copy of it —
 a copy keeps passing on the day the original changes.
@@ -594,19 +668,40 @@ What it has caught, in being written:
   `ISignal` and every `ISimpleButton` on the board silent
 - a board that gave up for good after one failed `begin()`
 - a frame the board cannot read vanishing without a word
+- sixteen configuration flags removed as dead when one of them still gated a
+  `case` — the build broke on `unused variable 'p'` in the same minute
 
 All of them compiled. No review would have seen them.
 
-Compiling for real needs `arduino-cli`:
+### The board bench — `test/boards.sh`
 
-```sh
-arduino-cli compile --fqbn esp32:esp32:esp32 --library . examples/controls/DirectionPad
+The other half, and the slow one. It compiles **every example on every
+board**: 22 sketches × 11 boards = 242 pairs, about an hour cold.
+
+```
+bash test/boards.sh     →  193 green · 49 expected failures · 0 surprises
 ```
 
-The three supported targets are `esp32:esp32:esp32`,
-`arduino:renesas_uno:unor4wifi` and `esp8266:esp8266:nodemcuv2`. A Bluetooth
-sketch needs the `huge_app` partition scheme — Bluetooth Classic plus WiFi
-does not fit in the default 1.3 MB, and never did.
+The expected failures are a list with a reason on each line, and the rule
+that gives the bench its value is symmetrical: **an unexpected GREEN is a
+surprise too**. It has already caught one — a sketch listed as failing on
+seven boards that compiled on all of them, and the mistake was in the list,
+not in the code.
+
+A line leaves that list when the code earns it. `esp8266 / TheCloud` sat
+there through two stages waiting on a TLS stack, and left when BearSSL was
+measured rather than guessed at.
+
+Two sketches need a board option, which the bench passes as an FQBN suffix
+and their headers repeat: `BluetoothClassic` and `BluetoothLE` want
+`PartitionScheme=huge_app` — the Bluetooth stack needs 1.60 MB and the
+default application partition is 1.31.
+
+The eleven targets are the five ESP32 variants (`esp32`, `esp32s2`,
+`esp32s3`, `esp32c3`, `esp32c6`), `esp8266:esp8266:nodemcuv2`,
+`arduino:renesas_uno:unor4wifi`, `arduino:avr:mega`,
+`arduino:samd:mkrwifi1010`, `arduino:samd:nano_33_iot` and
+`arduino:megaavr:uno2018`.
 
 PlatformIO works with no configuration of its own: drop the library in
 `lib/`, and its dependency finder resolves the rest. Verified on `esp32dev`
@@ -649,8 +744,9 @@ Written down rather than left to be rediscovered.
   a `IJoystick` block. That validated the frame, the DSL and the transport —
   and it found a bug on the app side, not here.
   Everything else is compiled and measured, never plugged in: both Ethernet
-  transports, the ESP8266's BearSSL and its NTP round trip, the three NINA
-  boards, Bluetooth, BLE, the serial link. `test/boards.sh` says the code
+  transports — including the encrypted one, which exists on ESP32 only — the
+  ESP8266's BearSSL and its NTP round trip, the three NINA boards, Bluetooth,
+  BLE, the serial link. `test/boards.sh` says the code
   builds and the footprints fit; it says nothing about a handshake. This stays
   at the top of the list until the hardware is on the desk.
 - **`SignalToWidget.hpp` is misnamed.** There are no widgets on the board any
@@ -660,6 +756,16 @@ Written down rather than left to be rediscovered.
 - **`decodeEvent` is gone, and so is the app's `buildEvent`.** A gesture now
   travels as a value, by the 1 / 0 / 2 convention, and there is only one way
   to send a press. The relay no longer knows about EVENT either.
+- **TLS over a cable exists on one family only, and not for want of trying.**
+  On the NINA boards it is possible with `ArduinoBearSSL` over an
+  `EthernetClient` — Blynk's recipe, read in their source rather than assumed.
+  It was measured and deliberately not written: a realistic sketch takes
+  74–76 % of the SRAM of the two SAMD boards, leaving about 8 KB for a stack
+  that a BearSSL handshake eats into, and it overflows the flash of the Uno
+  WiFi Rev.2 outright. It would also mean shipping the Let's Encrypt roots a
+  **second time**, as `br_x509_trust_anchor` structs rather than PEM, and
+  keeping both in step — that chain changed once already this month. What
+  would settle it is a MKR on the desk, not more reading.
 - **`INSTANTIOT_MAX_WIDGET_ID_LENGTH` carries a name from before 2.0.** It
   sizes the device name, the device id, the dashboard id and the legacy
   codec's WID slot — none of which is a widget. Renaming it would break a
