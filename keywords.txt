@@ -5,14 +5,25 @@
 
 
 #######################################
-# Facades (KEYWORD1)
+# The one object, the links, the destinations (KEYWORD1)
 #######################################
 
-InstantIoTWiFiAP	KEYWORD1
-InstantIoTWiFiServer	KEYWORD1
-InstantIoTBluetoothESP32SPP	KEYWORD1
-InstantIoTBluetoothBLE	KEYWORD1
-InstantIoTSerial	KEYWORD1
+InstantIoT	KEYWORD1
+
+AccessPoint	KEYWORD1
+WiFiLink	KEYWORD1
+BluetoothLink	KEYWORD1
+BLELink	KEYWORD1
+SerialLink	KEYWORD1
+
+Cloud	KEYWORD1
+MyServer	KEYWORD1
+
+plaintext	KEYWORD2
+secure	KEYWORD2
+withCertificate	KEYWORD2
+withoutCertCheck	KEYWORD2
+heartbeatEvery	KEYWORD2
 
 
 #######################################

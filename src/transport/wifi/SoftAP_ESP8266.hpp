@@ -16,7 +16,7 @@
   #define INSTANT_AP_PORT 8080
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class SoftAP_ESP8266 : public ITransport {
 public:
@@ -99,6 +99,6 @@ private:
     WiFiClient _client;
 };
 
-} // namespace InstantIoT
+} // namespace iiot
 
 #endif // ESP8266

@@ -10,14 +10,12 @@
 #include "BinaryCodec.hpp"
 #include "InstantIoTSignals.hpp"
 #include "SignalEvents.hpp"
-#include "Registry.hpp"
 #include "InstantIoTDeviceConfig.hpp"
 #include "InstantIoTMessage.hpp"
 #include "MessageSender.h"
 #include "../InstantIoTConfig.h"
-#include "../widgets/WidgetIncludes.hpp"
 
-namespace InstantIoT {
+namespace iiot {
 
 class InstantIoTCoreBase : public IMessageSender {
 public:
@@ -25,53 +23,50 @@ public:
     InstantIoTCoreBase(ITransport& transport)
         : _transport(transport)
         , _rxPos(0)
-        , _initialized(false)
+        , _begun(false)
     {}
 
-    virtual ~InstantIoTCoreBase() {
-        #if INSTANTIOT_WIDGETS_LED
-        for (uint8_t i = 0; i < _ledCount; i++) delete _leds[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_GAUGE
-        for (uint8_t i = 0; i < _gaugeCount; i++) delete _gauges[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_METRIC
-        for (uint8_t i = 0; i < _metricCount; i++) delete _metrics[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
-        for (uint8_t i = 0; i < _hLevelCount; i++) delete _hLevels[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_VERTICALLEVEL
-        for (uint8_t i = 0; i < _vLevelCount; i++) delete _vLevels[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_ADVANCEDCHART
-        for (uint8_t i = 0; i < _chartCount; i++) delete _charts[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_BARCHART
-        for (uint8_t i = 0; i < _barChartCount; i++) delete _barCharts[i];
-        #endif
-        #if INSTANTIOT_WIDGETS_TEXT
-        for (uint8_t i = 0; i < _textCount; i++) delete _texts[i];
-        #endif
-    }
+    /**
+     * Nothing left to free.
+     *
+     * It used to release eight heap-allocated widget arrays — one per
+     * display family, filled by the `gauge("name")` factories. Displays now
+     * read signals: the board writes an address, and nothing on the sketch
+     * side represents the drawing.
+     */
+    virtual ~InstantIoTCoreBase() = default;
 
     // ════════════════════════════════════════════════════════
     //  LIFECYCLE
     // ════════════════════════════════════════════════════════
 
+    /**
+     * `_begun` says `begin()` was ATTEMPTED, not that the link is open.
+     *
+     * The distinction cost a mute board in the field. It used to mean "the
+     * transport answered yes": a WiFi not yet up, a server not answering,
+     * and it stayed false — so `loop()` returned at once, so `poll()` was
+     * never called. And `poll()` is what carries the reconnection with
+     * backoff. The board never tried again, until the reset button, while
+     * the sketch calmly printed "not connected" forever.
+     *
+     * Failing on the first attempt is NORMAL: at boot the router is not
+     * always ready, and the server not always reachable. Giving up is what
+     * must not be.
+     */
     virtual bool begin() {
         IIOT_LOG("[InstantIoT] Starting...");
+        _begun = true;
         if (!_transport.begin()) {
-            IIOT_LOG("[InstantIoT] Transport FAILED");
+            IIOT_LOG("[InstantIoT] Transport FAILED — loop() will keep trying");
             return false;
         }
-        _initialized = true;
         IIOT_LOG("[InstantIoT] Ready");
         return true;
     }
 
     virtual void loop() {
-        if (!_initialized) return;
+        if (!_begun) return;
         _transport.poll();
         readLoop();
         heartbeatTick();
@@ -101,6 +96,9 @@ public:
     bool connected() override {
         return _transport.connected();
     }
+
+    /** How many frames arrived that the board could not read. */
+    uint32_t ignoredFrames() const { return _ignoredFrames; }
 
     /**
      * One place decides whether a signal frame leaves.
@@ -184,17 +182,17 @@ public:
     }
 
     /**
-     * Les surcharges de confort — et elles ne sont pas du confort.
+     * The convenience overloads — and they are not a convenience.
      *
-     * Sans elles, `write(I0, analogRead(A0) * 3.3 / 4095.0)` ne compile PAS :
-     * l'expression vaut un `double`, et `float`, `bool`, `int` deviennent trois
-     * candidats à égalité. Le message du compilateur parle de surcharge
-     * ambiguë, ce qui n'aide personne à comprendre qu'il suffisait d'écrire
-     * `3.3f`.
+     * Without them, `write(I0, analogRead(A0) * 3.3 / 4095.0)` does NOT
+     * compile: the expression is a `double`, and `float`, `bool` and `int`
+     * become three candidates tied. The compiler talks about an ambiguous
+     * overload, which helps nobody understand that writing `3.3f` would
+     * have been enough.
      *
-     * Or écrire `3.3` plutôt que `3.3f` est ce que fait tout le monde, et
-     * `millis()` rend un `unsigned long`. Ces lignes existent pour que la
-     * chose la plus naturelle à écrire soit celle qui compile.
+     * But writing `3.3` rather than `3.3f` is what everybody does, and
+     * `millis()` returns an `unsigned long`. These lines exist so that the
+     * most natural thing to write is the thing that compiles.
      */
     bool write(SignalRef sig, double value)        { return write(sig, (float)value); }
     bool write(SignalRef sig, long value)          { return write(sig, (int)value); }
@@ -223,114 +221,6 @@ public:
     }
 
     // ════════════════════════════════════════════════════════
-    // 📊 WIDGET ACCESS
-    // ════════════════════════════════════════════════════════
-
-    #if INSTANTIOT_WIDGETS_LED
-    LedWidget& led(const char* id) {
-        for (uint8_t i = 0; i < _ledCount; i++)
-            if (strcmp(_leds[i]->getId(), id) == 0) return *_leds[i];
-        if (_ledCount < INSTANTIOT_MAX_WIDGETS) {
-            _leds[_ledCount] = new LedWidget(id, *this);
-            return *_leds[_ledCount++];
-        }
-        static LedWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_GAUGE
-    GaugeWidget& gauge(const char* id) {
-        for (uint8_t i = 0; i < _gaugeCount; i++)
-            if (strcmp(_gauges[i]->getId(), id) == 0) return *_gauges[i];
-        if (_gaugeCount < INSTANTIOT_MAX_WIDGETS) {
-            _gauges[_gaugeCount] = new GaugeWidget(id, *this);
-            return *_gauges[_gaugeCount++];
-        }
-        static GaugeWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_METRIC
-    MetricWidget& metric(const char* id) {
-        for (uint8_t i = 0; i < _metricCount; i++)
-            if (strcmp(_metrics[i]->getId(), id) == 0) return *_metrics[i];
-        if (_metricCount < INSTANTIOT_MAX_WIDGETS) {
-            _metrics[_metricCount] = new MetricWidget(id, *this);
-            return *_metrics[_metricCount++];
-        }
-        static MetricWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
-    HorizontalLevelWidget& hLevel(const char* id) {
-        for (uint8_t i = 0; i < _hLevelCount; i++)
-            if (strcmp(_hLevels[i]->getId(), id) == 0) return *_hLevels[i];
-        if (_hLevelCount < INSTANTIOT_MAX_WIDGETS) {
-            _hLevels[_hLevelCount] = new HorizontalLevelWidget(id, *this);
-            return *_hLevels[_hLevelCount++];
-        }
-        static HorizontalLevelWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_VERTICALLEVEL
-    VerticalLevelWidget& vLevel(const char* id) {
-        for (uint8_t i = 0; i < _vLevelCount; i++)
-            if (strcmp(_vLevels[i]->getId(), id) == 0) return *_vLevels[i];
-        if (_vLevelCount < INSTANTIOT_MAX_WIDGETS) {
-            _vLevels[_vLevelCount] = new VerticalLevelWidget(id, *this);
-            return *_vLevels[_vLevelCount++];
-        }
-        static VerticalLevelWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_ADVANCEDCHART
-    AdvancedChartWidget& chart(const char* id) {
-        for (uint8_t i = 0; i < _chartCount; i++)
-            if (strcmp(_charts[i]->getId(), id) == 0) return *_charts[i];
-        if (_chartCount < INSTANTIOT_MAX_WIDGETS) {
-            _charts[_chartCount] = new AdvancedChartWidget(id, *this);
-            return *_charts[_chartCount++];
-        }
-        static AdvancedChartWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_BARCHART
-    BarChartWidget& barChart(const char* id) {
-        for (uint8_t i = 0; i < _barChartCount; i++)
-            if (strcmp(_barCharts[i]->getId(), id) == 0) return *_barCharts[i];
-        if (_barChartCount < INSTANTIOT_MAX_WIDGETS) {
-            _barCharts[_barChartCount] = new BarChartWidget(id, *this);
-            return *_barCharts[_barChartCount++];
-        }
-        static BarChartWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    #if INSTANTIOT_WIDGETS_TEXT
-    TextWidget& text(const char* id) {
-        for (uint8_t i = 0; i < _textCount; i++)
-            if (strcmp(_texts[i]->getId(), id) == 0) return *_texts[i];
-        if (_textCount < INSTANTIOT_MAX_WIDGETS) {
-            _texts[_textCount] = new TextWidget(id, *this);
-            return *_texts[_textCount++];
-        }
-        static TextWidget dummy("__dummy__", *this);
-        return dummy;
-    }
-    #endif
-
-    // ════════════════════════════════════════════════════════
     // ⚙️ CONFIG
     // ════════════════════════════════════════════════════════
 
@@ -352,7 +242,11 @@ protected:
     uint16_t _signalRatePerSecond = INSTANTIOT_DEFAULT_SIGNAL_RATE;
     uint32_t _lastSignalAt = 0;
 
-    bool _initialized;
+    /** True as soon as `begin()` has been called — not as soon as the link holds. */
+    bool _begun;
+
+    /** See `processFrame`. */
+    uint32_t _ignoredFrames = 0;
 
     // ─── Heartbeat state (server mode) ────────────────────
     uint32_t _heartbeatMs       = 0;   // 0 = disabled
@@ -372,31 +266,6 @@ protected:
         // Empty WID + TYPE_HEARTBEAT + EVENT 0 + no payload
         sendBinary("", TYPE_HEARTBEAT, 0);
     }
-
-    #if INSTANTIOT_WIDGETS_LED
-    LedWidget* _leds[INSTANTIOT_MAX_WIDGETS]; uint8_t _ledCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_GAUGE
-    GaugeWidget* _gauges[INSTANTIOT_MAX_WIDGETS]; uint8_t _gaugeCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_METRIC
-    MetricWidget* _metrics[INSTANTIOT_MAX_WIDGETS]; uint8_t _metricCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_HORIZONTALLEVEL
-    HorizontalLevelWidget* _hLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _hLevelCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_VERTICALLEVEL
-    VerticalLevelWidget* _vLevels[INSTANTIOT_MAX_WIDGETS]; uint8_t _vLevelCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_ADVANCEDCHART
-    AdvancedChartWidget* _charts[INSTANTIOT_MAX_WIDGETS]; uint8_t _chartCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_BARCHART
-    BarChartWidget* _barCharts[INSTANTIOT_MAX_WIDGETS]; uint8_t _barChartCount = 0;
-    #endif
-    #if INSTANTIOT_WIDGETS_TEXT
-    TextWidget* _texts[INSTANTIOT_MAX_WIDGETS]; uint8_t _textCount = 0;
-    #endif
 
     // ════════════════════════════════════════════════════════
     // 📥 READ — binary frame reassembly
@@ -443,19 +312,29 @@ protected:
         _rxPos -= n;
     }
 
+    /**
+     * A frame we cannot handle is INFORMATION.
+     *
+     * It used to vanish without a word. Two things can explain it, and
+     * both deserve to be known: the other end speaks a language we have
+     * stopped understanding — that happened with EVENT frames, which the
+     * app still sent once the board had stopped reading them — or it is
+     * noise on the wire.
+     *
+     * The counter is there because a log is not read after the fact: a
+     * sketch can publish `InstantIoT.ignoredFrames()` on a signal and see
+     * the problem from the app.
+     */
     void processFrame(const uint8_t* data, size_t len) {
-        // A signal first: its address sits where a widget id would, so the
-        // general decoder must never see this frame. Today it would simply
-        // find no case for TYPE 0x20 and give up — the return is here so that
-        // stays true the day a widget type is added near that code.
         if (dispatchSignalFrame(data, len)) return;
-        if (dispatchEventFrame(data, len)) return;
 
-        DecodedMessage msg;
-        uint8_t typeCode = 0, eventCode = 0;
-        if (!_codec.decode(data, len, msg, typeCode, eventCode)) return;
-        WidgetRegistry::dispatch(typeCode, msg.widgetId, eventCode, msg);
+        if (_ignoredFrames == 0) {
+            IIOT_LOG("[InstantIoT] unrecognised frame — the other end speaks "
+                     "a language this version does not read");
+        }
+        _ignoredFrames++;
     }
+
 
     /**
      * Returns true once the frame has been recognised as a signal — whether or
@@ -468,7 +347,8 @@ protected:
         const uint8_t* payload = nullptr;
         size_t payloadLen = 0;
 
-        if (!BinaryCodec::decodeSignal(data, len, address, tag, payload, payloadLen))
+        bool rappel = false;
+        if (!BinaryCodec::decodeSignal(data, len, address, tag, payload, payloadLen, rappel))
             return false;
 
         SignalEvent e;
@@ -479,67 +359,23 @@ protected:
 
         onSignalWritten(e);
 
-        // Le croisement, dit à voix haute.
+        // Un RAPPEL ne réveille pas un geste.
         //
-        // Sans ça, un `ISimpleButton` posé sur une adresse qui porte une
-        // VALEUR ne se déclenche jamais et ne dit rien : l'utilisateur voit un
-        // bloc mort et cherche dans son croquis. La carte, elle, sait — le
-        // bloc est là, il est simplement de l'autre genre.
-        if (dispatchSignal(e) == 0 && typeAtAddress(address) != 0) {
-            IIOT_LOG("[Signal] a widget block listens here — this address carries a value, "
-                     "use ISignal(...)");
-        }
+        // On reconnect the server sends back the last value of every
+        // signal that asks for it. That is what a state needs — a
+        // setpoint, a threshold: `ISignal(I5, float t)` must find it.
+        //
+        // But `ISimpleButton(I5)` declares something else: "I want to know
+        // somebody pressed". Nobody pressed. Delivering it would invent a
+        // gesture, and the sketch would light a lamp nobody asked for.
+        //
+        // The rule therefore belongs to the BLOCK, not to the signal's
+        // settings: whether replay is ticked or not, a gesture is not
+        // replayed.
+        dispatchSignal(e, rappel);
         return true;
     }
 
-    /**
-     * Un EVENT adressé par octet.
-     *
-     * Le type de widget ne vient PAS de la trame : il vient de la table que
-     * les blocs du croquis ont remplie au démarrage. `ISimpleButton(I5)` a
-     * inscrit « à l'adresse 5 vit un bouton », et c'est cette inscription —
-     * du code que l'utilisateur relit — qui décide comment lire l'événement.
-     */
-    bool dispatchEventFrame(const uint8_t* data, size_t len) {
-        uint8_t address = 0, eventCode = 0;
-        const uint8_t* payload = nullptr;
-        size_t payloadLen = 0;
-
-        if (!BinaryCodec::decodeEvent(data, len, address, eventCode, payload, payloadLen))
-            return false;
-
-        const uint8_t typeCode = typeAtAddress(address);
-        if (typeCode == 0) {
-            // Le pendant du diagnostic ci-dessus : un `ISignal` posé sur une
-            // adresse qui porte une ACTION reçoit des événements qu'il ne sait
-            // pas lire, et se tait.
-            if (hasSignalHandlerAt(address)) {
-                IIOT_LOG("[Event] an ISignal listens here — this address is an action, "
-                         "use ISimpleButton(...) or the block of its widget");
-            } else {
-                IIOT_LOG("[Event] no block registered at this address");
-            }
-            return true;
-        }
-
-        DecodedMessage msg;
-        msg.paramCount = 0;
-        if (payloadLen > 0)
-            _codec.decodeEventPayload(typeCode, eventCode, payload, payloadLen, msg);
-        msg.deviceId    = "";
-        msg.widgetType  = "";
-        msg.event       = "";
-        msg.dashboardId = "";
-
-        // Un libellé lisible pour les journaux et les rappels faibles ; le
-        // routage, lui, se fait sur l'octet.
-        _eventRef[0] = 'I';
-        formatAddress(address, _eventRef + 1, sizeof(_eventRef) - 1);
-        msg.widgetId = _eventRef;
-
-        WidgetRegistry::dispatch(typeCode, _eventRef, eventCode, msg, &address);
-        return true;
-    }
 
     static void formatAddress(uint8_t v, char* out, size_t) {
         if (v >= 100) { *out++ = '0' + (v / 100); v %= 100; *out++ = '0' + (v / 10); }
@@ -558,4 +394,4 @@ protected:
     char _signalText[49] = {0};
 };
 
-} // namespace InstantIoT
+} // namespace iiot

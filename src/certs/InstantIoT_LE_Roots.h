@@ -1,25 +1,85 @@
 #pragma once
 /**
  * ============================================================
- * 🔐 InstantIoT_LE_Roots.h — Let's Encrypt trust anchors (M2)
+ * 🔐 InstantIoT_LE_Roots.h — les racines auxquelles la carte fait confiance
  * ============================================================
- * Racines ISRG (Let's Encrypt). Utilisées pour VALIDER l'identité
- * du serveur cloud côté device.
  *
- *   INSTANTIOT_LE_ROOT_CAS : X1 + X2 concaténés (ESP32 / mbedTLS gère
- *                            plusieurs PEM d'un coup).
- *   INSTANTIOT_LE_ROOT_X1  : X1 SEUL — pour les piles TLS qui n'acceptent
- *                            qu'un certificat (ex. modem R4/WiFiS3).
- *                            La chaîne de instantiot.cloud remonte à X2
- *                            cross-signée par X1 → X1 seul suffit.
+ * Racines ISRG (Let's Encrypt). Elles servent à VÉRIFIER l'identité du
+ * serveur cloud, côté carte.
  *
- * Empreintes SHA-256 (vérifiées) :
- *   X1 96:BC:EC:06:...:08:C6   X2 69:72:9B:8E:...:14:70
+ *   INSTANTIOT_LE_ROOT_CAS : X1 + X2 concaténées, pour les piles qui
+ *                            acceptent plusieurs PEM d'un coup — mbedTLS
+ *                            sur ESP32, BearSSL sur ESP8266.
+ *   INSTANTIOT_LE_ROOT_X1  : X1 SEULE, pour une pile qui n'accepte qu'un
+ *                            certificat (le modem WiFiS3 de l'Uno R4).
+ *
+ * Empreintes SHA-256, vérifiées le 2 septembre 2026 contre ces PEM :
+ *   X1  96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:
+ *       CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6
+ *   X2  69:72:9B:8E:15:A8:6E:FC:17:7A:57:AF:B7:17:1D:FC:
+ *       64:AD:D2:8C:2F:CA:8C:F1:50:7E:34:45:3C:CB:14:70
+ *
  * Source : https://letsencrypt.org/certificates/
+ *
+ * ============================================================
+ * ## La chaîne que le serveur envoie vraiment
+ * ============================================================
+ *
+ * Relevée le 2 septembre 2026 —
+ *
+ *     openssl s_client -connect instantiot.cloud:9443 \
+ *             -servername instantiot.cloud -tls1_2 -showcerts
+ *
+ * — et elle a quatre certificats, tous ECDSA sauf la signature du dernier :
+ *
+ *     0  CN=instantiot.cloud        EC P-256   ← feuille
+ *     1  Let's Encrypt YE2          EC P-384
+ *     2  ISRG Root YE               EC P-384
+ *     3  ISRG Root X2               EC P-384, SIGNÉE PAR X1 (croisement)
+ *
+ * Les deux racines embarquées valident cette chaîne, chacune prise seule.
+ * Vérifié, pas supposé :
+ *
+ *     openssl s_client … -CAfile <racine> -no-CApath -no-CAstore
+ *       X1 seule → Verify return code: 0 (ok)
+ *       X2 seule → 0 (ok)
+ *
+ * Elles ne s'y prennent pas de la même façon, et c'est ce qui compte ici :
+ *
+ *   **X2** est atteinte au certificat n°2 — dont l'émetteur EST X2 — et la
+ *   chaîne s'arrête là. Le n°3 ne sert à rien.
+ *
+ *   **X1** n'est atteinte qu'au n°3, c'est-à-dire uniquement parce que le
+ *   serveur envoie ce croisement. C'est le cas de l'Uno R4, qui n'embarque
+ *   que X1. Ce certificat croisé expire le **2 septembre 2032** ; si Let's
+ *   Encrypt cessait de l'envoyer avant, le R4 perdrait sa confiance quand
+ *   toutes les autres cartes garderaient la leur.
+ *
+ * Une ancre X2 sur le R4 supprimerait cette dépendance. Ce n'est pas fait :
+ * le modem WiFiS3 n'accepte qu'un certificat, et rien ne prouve encore
+ * qu'il accepte une racine EC. Ça se tranche sur la carte, pas ici.
+ *
+ * ============================================================
+ * ## Ce que la longueur de cette chaîne coûte ailleurs
+ * ============================================================
+ *
+ * L'enregistrement TLS « Certificate » fait **3411 octets d'un seul bloc**,
+ * et instantiot.cloud ne négocie pas de fragments plus petits — sa
+ * passerelle est le `crypto/tls` de Go, qui n'implémente pas l'extension
+ * RFC 6066 `max_fragment_length`.
+ *
+ * L'ESP8266 doit donc contenir ces 3411 octets dans un tampon pris sur son
+ * tas : `INSTANTIOT_TLS_RX_BUFFER`, 6144 octets, dimensionné contre CE
+ * chiffre. Si cette chaîne s'allonge encore — elle vient de le faire, deux
+ * intermédiaires de plus — c'est l'ESP8266 qui cassera le premier, et sans
+ * rien dire d'utile. Voir `transport/wifi/TlsClient_ESP8266.hpp`.
+ *
+ * Relire ce fichier fait donc partie d'une mise en service, au même titre
+ * que la date d'expiration du certificat serveur.
  * ============================================================
  */
 
-// ── X1 seul (une pile qui n'accepte qu'un cert) ──
+// ── X1 seule — une pile qui n'accepte qu'un certificat (Uno R4) ──
 static const char INSTANTIOT_LE_ROOT_X1[] = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -54,7 +114,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
 )CERT";
 
-// ── X1 + X2 concaténés (mbedTLS/ESP32) ──
+// ── X1 + X2 concaténées — mbedTLS (ESP32), BearSSL (ESP8266) ──
 static const char INSTANTIOT_LE_ROOT_CAS[] = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
