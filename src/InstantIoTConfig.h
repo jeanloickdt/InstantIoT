@@ -93,8 +93,8 @@
 // So the sizes are now multiples of the frame, and the comment says which:
 //
 //   AVR      RX = 4 frames, TX = 2   — 2 KB of SRAM decides everything
-//   others   kept generous            — the RAM is there, and the legacy
-//                                       widget decoder is still compiled in
+//   others   kept generous            — the RAM is there, and a frame that
+//                                       arrives whole costs nothing to hold
 //
 // The dividing line is SRAM, not the radio. The Uno WiFi Rev.2 has the same
 // WiFi module as a MKR 1010 and 6 KB against its 32: it sits with the AVRs
