@@ -1,10 +1,41 @@
 #pragma once
 
 /*************************************************************
- * ⚡ InstantIoT Library v1.2.1
- * 
- * InstantIoTDeviceConfig.hpp - Device configuration and identity
- * 
+ * ⚡ InstantIoTDeviceConfig.hpp — what the board calls itself
+ *
+ * ## The board does not name itself, and that is the point
+ *
+ * Its identity is its TOKEN, presented once at the handshake. From that
+ * moment the relay knows which board is on the other end of the socket,
+ * and every SIGNAL frame says so by writing `DEV_COUNT = 0` —
+ * `BinaryCodec::encodeSignal`, "the relay knows the board".
+ *
+ * The heartbeat used to disagree. It went through the older encoder, which
+ * carries a device field, and so it shipped an identifier on every beat.
+ *
+ * That identifier was generated from the chip: the eFuse MAC on an ESP32,
+ * the chip id on an ESP8266 — and, on every board without a serial number
+ * of its own, the literal `device_DEADBEEF`. Identical on two Nano 33 IoT
+ * sitting on the same desk. Which mattered not at all, because **nothing
+ * reads it**:
+ *
+ *   - the relay skips the device section on every read path
+ *     (`FrameParser.extractControlId`, `extractType`, …) and filters
+ *     heartbeats out before the app ever sees them;
+ *   - in Direct mode the app builds its key from the device field of
+ *     SIGNAL frames, and those carry none — there is one board at the far
+ *     end of the wire, and no ambiguity to resolve.
+ *
+ * So the fix was not a better invented name. It was to stop inventing one:
+ * the default is empty, the encoder already writes `DEV_COUNT = 0` for an
+ * empty name, and the beat is sixteen bytes shorter — every five seconds,
+ * through TLS, forever.
+ *
+ * ## `setDeviceId()` still does exactly what it says
+ *
+ * A sketch that names its board gets that name in its heartbeats, as
+ * before. What disappeared is the name nobody chose.
+ *
  * Copyright (c) 2025 InstantIoT
  * MIT License
  *************************************************************/
@@ -12,7 +43,7 @@
 #include <Arduino.h>
 #include "../InstantIoTConfig.h"
 
-namespace InstantIoT {
+namespace iiot {
 
 /**
  * @brief InstantIoT device configuration
@@ -28,9 +59,10 @@ private:
     
 public:
     DeviceConfig() {
-        // Default values
         strcpy(_dashboardId, "default");
-        generateDeviceId();
+        // Empty on purpose — see the header. An empty name makes the encoder
+        // write DEV_COUNT = 0, which is what every SIGNAL frame already does.
+        _deviceId[0] = '\0';
         strcpy(_deviceName, "InstantIoT Device");
     }
     
@@ -50,7 +82,11 @@ public:
     }
     
     /**
-     * @brief Sets the device ID
+     * Names the board — optional, and empty by default.
+     *
+     * The name rides in the heartbeat's device field. Nothing on the server
+     * side reads it today; it is there for a fleet that wants its own label
+     * in a capture. The board's real identity is its token.
      */
     DeviceConfig& setDeviceId(const char* id) {
         if (id) {
@@ -79,29 +115,6 @@ public:
     const char* getDeviceId() const { return _deviceId; }
     const char* getDeviceName() const { return _deviceName; }
     
-private:
-    /**
-     * @brief Generates a unique device ID based on the MAC/chip ID
-     */
-    void generateDeviceId() {
-        #if defined(INSTANTIOT_PLATFORM_ESP32)
-            uint64_t chipId = ESP.getEfuseMac();
-            snprintf(_deviceId, sizeof(_deviceId), "esp32_%04X%08X",
-                (uint16_t)(chipId >> 32),
-                (uint32_t)chipId
-            );
-        #elif defined(INSTANTIOT_PLATFORM_ESP8266)
-            snprintf(_deviceId, sizeof(_deviceId), "esp8266_%08X", ESP.getChipId());
-
-        #elif defined(INSTANTIOT_PLATFORM_R4)
-            // R4 has no unique hardware ID — use fixed seed
-            // Override with: instant.config().setDeviceId("my_device")
-            snprintf(_deviceId, sizeof(_deviceId), "r4_%08lX", (unsigned long)0xDEADBEEF);
-        #else
-            // Unknown platform — use fixed seed
-            snprintf(_deviceId, sizeof(_deviceId), "device_%08lX", (unsigned long)0xDEADBEEF);
-        #endif
-    }
 };
 
-} // namespace InstantIoT
+} // namespace iiot

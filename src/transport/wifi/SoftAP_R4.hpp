@@ -18,7 +18,7 @@
   #define INSTANT_AP_PORT 8080
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class SoftAP_R4 : public ITransport {
 public:
@@ -91,4 +91,4 @@ private:
     WiFiClient   client_;
 };
 
-} // namespace InstantIoT
+} // namespace iiot

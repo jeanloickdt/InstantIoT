@@ -26,7 +26,7 @@
   #endif
 #endif
 
-namespace InstantIoT {
+namespace iiot {
 
 class SoftAP_ESP32 : public ITransport {
 public:
@@ -112,4 +112,4 @@ private:
     WiFiClient client_;
 };
 
-} // namespace InstantIoT
+} // namespace iiot
