@@ -47,6 +47,14 @@ public:
             IPAddress(255,255,255,0)
         );
         
+        // WPA2 will not take fewer than eight characters. The ESP32 stack
+        // does not say so, it silently drops the password: the board then broadcast an OPEN network, and anyone
+        // in range drove it. Refusing here is the only honest answer.
+        if (!pass_ || strlen(pass_) < 8) {
+            IIOT_LOG("[SoftAP] The password must be 8 characters or more (WPA2) — no open network");
+            return false;
+        }
+
         bool ok = WiFi.softAP(ssid_, pass_, 1, false, 4);
         if (!ok) {
             IIOT_LOG("[SoftAP] FAILED!");

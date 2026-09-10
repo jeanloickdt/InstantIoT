@@ -95,8 +95,12 @@ int main() {
 
     section("The heartbeat");
     {
-        ok(Cloud(T).heartbeatEvery(0).heartbeatMs == 0, "0 disables it");
+        ok(Cloud(T).heartbeatEvery(0).heartbeatMs == 1000,
+           "0 is not a choice: the relay would cut the session, so it becomes the floor");
+        ok(Cloud(T).heartbeatEvery(300000).heartbeatMs == 48000,
+           "past 48 s the relay's window no longer follows, so it is the ceiling");
         ok(MyServer("h", T).heartbeatEvery(20000).heartbeatMs == 20000, "and it is settable");
+        ok(MyServer("h", T).heartbeatEvery(500).heartbeatMs == 1000, "on a plain destination too");
     }
 
     printf(failures ? "\n%d FAILURE(S) of %d\n" : "\nall pass (%d/%d)\n",
