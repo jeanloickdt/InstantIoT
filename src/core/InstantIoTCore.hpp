@@ -106,21 +106,29 @@ public:
      * A single global ceiling, not a per-signal budget: the constraint comes
      * from the platform, never from the user, and one counter is all a small
      * board should spend on it.
+     *
+     * It is a token bucket, the same shape as the relay's fuse: `rate`
+     * tokens a second, up to `2 × rate` in reserve. A sketch that writes
+     * three values back to back — a dashboard publishing its state — spends
+     * three tokens and loses nothing; a sketch that writes in `loop()`
+     * without a delay drains the reserve, then leaves at `rate`. The old
+     * minimum gap between frames refused the second value of every burst,
+     * which is exactly the case the examples ship.
      */
     bool sendSignal(uint8_t address, uint8_t tag, const uint8_t* payload, size_t len) {
         if (!_transport.connected()) return false;
-
-        uint32_t now = millis();
-        uint32_t minGap = 1000UL / (_signalRatePerSecond ? _signalRatePerSecond : 1);
-        if (_lastSignalAt != 0 && (now - _lastSignalAt) < minGap) return false;
+        if (!refillSignalCredit()) return false;
 
         size_t n = _codec.encodeSignal(_txBuffer, sizeof(_txBuffer), address, tag, payload, len);
         if (n == 0) return false;
         if (_transport.write(_txBuffer, n) != n) return false;
 
-        _lastSignalAt = now;
+        _signalCredit -= SIGNAL_TOKEN;
         return true;
     }
+
+    /** How many signal frames the ceiling refused since boot — a sketch that sees this climb is writing too fast. */
+    uint32_t refusedSignals() const { return _refusedSignals; }
 
     bool sendBinary(
         const char* widgetId,
@@ -210,14 +218,16 @@ public:
     }
 
     /**
-     * The platform ceiling, in frames per second.
-     *
-     * Compiled default until the server pushes the real one at connection
-     * (étape 4) — deliberately the same value the server's fuse uses, so a
-     * board that never hears from the server still behaves.
+     * The ceiling this board applies to its own signal frames, in frames per
+     * second. The server never sends it and never trusts it: its fuse stays,
+     * and a board raising this above the fuse only buys itself a
+     * disconnection. It exists so a sketch that writes too fast is slowed
+     * here, silently, rather than cut off there.
      */
     void setSignalRateLimit(uint16_t framesPerSecond) {
         _signalRatePerSecond = framesPerSecond ? framesPerSecond : 1;
+        uint32_t cap = signalCreditCap();
+        if (_signalCredit > cap) _signalCredit = cap;
     }
 
     // ════════════════════════════════════════════════════════
@@ -236,11 +246,37 @@ protected:
     uint8_t _txBuffer[INSTANT_TX_BUFFER_SIZE];
 
     // ── Signals (2.0) ───────────────────────────────────────
-    // The platform ceiling and the single counter that applies it. One global
-    // pair, not one per address: the constraint is the platform's, and a small
+    // The ceiling and the single bucket that applies it. One global pair,
+    // not one per address: the constraint is the platform's, and a small
     // board should not pay a table for it.
+    //
+    // The credit is kept in thousandths of a token so the refill stays in
+    // integers: one elapsed millisecond earns `rate` thousandths.
+    static constexpr uint32_t SIGNAL_TOKEN = 1000;
     uint16_t _signalRatePerSecond = INSTANTIOT_DEFAULT_SIGNAL_RATE;
-    uint32_t _lastSignalAt = 0;
+    uint32_t _signalCredit  = 2UL * INSTANTIOT_DEFAULT_SIGNAL_RATE * SIGNAL_TOKEN;
+    uint32_t _lastRefillAt  = 0;
+    uint32_t _refusedSignals = 0;
+
+    uint32_t signalCreditCap() const { return 2UL * _signalRatePerSecond * SIGNAL_TOKEN; }
+
+    /** Refills the bucket for the time elapsed; true if a frame may leave now. */
+    bool refillSignalCredit() {
+        uint32_t now     = millis();
+        uint32_t cap     = signalCreditCap();
+        uint32_t elapsed = now - _lastRefillAt;
+        _lastRefillAt = now;
+        // Past the time it takes to fill from empty, the exact figure no
+        // longer matters — and the multiplication would overflow after a
+        // long silence.
+        if (elapsed >= 2000UL) _signalCredit = cap;
+        else {
+            _signalCredit += elapsed * _signalRatePerSecond;
+            if (_signalCredit > cap) _signalCredit = cap;
+        }
+        if (_signalCredit < SIGNAL_TOKEN) { _refusedSignals++; return false; }
+        return true;
+    }
 
     /** True as soon as `begin()` has been called — not as soon as the link holds. */
     bool _begun;

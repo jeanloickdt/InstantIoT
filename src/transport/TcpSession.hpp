@@ -67,6 +67,15 @@
   #define INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT 25
 #endif
 
+// How long a session must HOLD before the backoff forgets its history.
+// A connection the server accepts then drops within seconds (bad token,
+// fuse, full relay) is not a success: without this window every such drop
+// reset the backoff to its minimum, and a rejected board hammered the
+// relay once a second forever.
+#ifndef INSTANTIOT_SESSION_HELD_MS
+  #define INSTANTIOT_SESSION_HELD_MS 10000
+#endif
+
 namespace iiot {
 
 class TcpSession : public ITransport {
@@ -102,6 +111,7 @@ public:
         if (!connectServer())        return false;
 
         backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
+        sessionOpened();
         return true;
     }
 
@@ -134,7 +144,7 @@ public:
                 return;
             }
 
-            if (millis() < nextRetryAt_) return;
+            if (!retryDue()) return;
 
             retryAttempt_++;
             IIOT_LOG_VAL("[TcpSession] Link reconnect attempt #", retryAttempt_);
@@ -150,7 +160,16 @@ public:
         // TCP dropped → reconnect (with backoff)
         if (!client_.connected()) {
             if (client_) client_.stop();
-            if (millis() < nextRetryAt_) return;
+            if (!retryArmed_) {
+                // First pass after the drop: the retry waits its turn like
+                // any other, jitter included. Reconnecting at once made a
+                // whole fleet knock on the relay in the same second when
+                // it came back.
+                retryArmed_ = true;
+                scheduleRetry();
+                return;
+            }
+            if (!retryDue()) return;
 
             retryAttempt_++;
             IIOT_LOG_VAL("[TcpSession] TCP reconnect attempt #", retryAttempt_);
@@ -158,7 +177,14 @@ public:
                 scheduleRetry();
                 return;
             }
-            // SUCCESS: full reset of backoff + counter
+            sessionOpened();
+            return;
+        }
+
+        // Connected. The backoff only forgets its history once the session
+        // has HELD: an accept followed by a drop is not a success.
+        if (!sessionHeld_ && millis() - connectedAt_ >= INSTANTIOT_SESSION_HELD_MS) {
+            sessionHeld_ = true;
             backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
             retryAttempt_ = 0;
         }
@@ -352,6 +378,16 @@ private:
         return true;
     }
 
+    // ----- Session bookkeeping -----
+    void sessionOpened() {
+        connectedAt_  = millis();
+        sessionHeld_  = false;
+        retryArmed_   = false;
+    }
+
+    /** Wrap-safe: `millis()` rolls over after 49 days, a plain `<` does not survive it. */
+    bool retryDue() const { return (int32_t)(millis() - nextRetryAt_) >= 0; }
+
     // ----- Backoff with jitter -----
     //
     // Computes the next retry = backoffMs_ ± jitter%, then doubles
@@ -391,6 +427,12 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
+    /** When the current session opened; meaningful only while connected. */
+    uint32_t    connectedAt_ = 0;
+    /** True once the session has lasted INSTANTIOT_SESSION_HELD_MS. */
+    bool        sessionHeld_ = false;
+    /** True once the drop has been noticed and a retry scheduled. */
+    bool        retryArmed_ = false;
     /** When the last attempt started, or 0 if nothing is in flight. */
     uint32_t    linkAttemptStartedAt_ = 0;
     uint32_t    heartbeatMs_;       // 0 = legacy, >0 = announced to server

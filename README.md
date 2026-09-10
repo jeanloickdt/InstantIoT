@@ -348,7 +348,7 @@ All of them go **before** the include.
 #define INSTANTIOT_DEBUG                    1      // full trace (default 0)
 #define INSTANTIOT_QUIET                    1      // no connection diagnostics at all
 #define INSTANTIOT_WIFI_CONNECT_TIMEOUT_MS  30000  // default 15000
-#define INSTANTIOT_DEFAULT_SIGNAL_RATE      50     // frames/s ceiling
+#define INSTANTIOT_DEFAULT_SIGNAL_RATE      10     // frames/s ceiling, burst of 2x (mirrors the relay fuse)
 #define INSTANTIOT_CLOUD_HOST               "staging.example"
 #define INSTANT_AP_PORT                     8080
 ```
