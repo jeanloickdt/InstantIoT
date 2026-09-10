@@ -240,7 +240,11 @@ once; and never from an interrupt — set a flag, write in `loop()`.
 platform ceiling, the same frames-per-second the server's fuse enforces, so a
 sketch without a `delay()` cannot get itself disconnected for flooding.
 `write()` returns `false` when the ceiling swallowed the call — not an error,
-and most sketches ignore it.
+and most sketches ignore it. `true` means the frame **left the board**, not
+that the server kept it: an address the project does not declare, a type
+that does not match the declaration, or an account over its plan is dropped
+on the server side without a word back. Check the app when a value never
+shows up.
 
 Two things the compiler catches. `write(IO, x)` — capital O instead of zero —
 does not compile, and it even guesses right:
