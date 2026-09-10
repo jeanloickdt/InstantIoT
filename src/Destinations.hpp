@@ -49,6 +49,25 @@
 
 namespace iiot {
 
+/**
+ * The interval a destination will actually announce.
+ *
+ * The relay declares a board absent after about 2.5 x the announced
+ * interval, and clamps that window to 2 s ... 120 s. Below one second the
+ * board would spend its budget on presence; above 48 s the relay's window
+ * stops following and the board is cut at 120 s while believing itself on
+ * time. Zero used to mean "no heartbeat": on a relay that is a session cut
+ * every 90 s, not a choice a sketch should be able to make by accident.
+ */
+static const uint32_t INSTANTIOT_HEARTBEAT_MIN_MS = 1000;
+static const uint32_t INSTANTIOT_HEARTBEAT_MAX_MS = 48000;
+
+inline uint32_t boundedHeartbeat(uint32_t ms) {
+    if (ms < INSTANTIOT_HEARTBEAT_MIN_MS) return INSTANTIOT_HEARTBEAT_MIN_MS;
+    if (ms > INSTANTIOT_HEARTBEAT_MAX_MS) return INSTANTIOT_HEARTBEAT_MAX_MS;
+    return ms;
+}
+
 struct SecureDestination;
 
 /**
@@ -67,8 +86,8 @@ struct PlainDestination {
     PlainDestination(const char* h, uint16_t p, const char* t)
         : host(h), port(p), token(t) {}
 
-    /** Presence heartbeat interval, in milliseconds. 0 disables it. */
-    PlainDestination& heartbeatEvery(uint32_t ms) { heartbeatMs = ms; return *this; }
+    /** Presence heartbeat interval, in milliseconds, held to 1 s ... 48 s. */
+    PlainDestination& heartbeatEvery(uint32_t ms) { heartbeatMs = boundedHeartbeat(ms); return *this; }
 
     /** Switch to encrypted, same host and same port. */
     SecureDestination secure() const;
@@ -104,7 +123,8 @@ struct SecureDestination {
 
     SecureDestination& withCertificate(const char* pem) { caPem = pem; return *this; }
     SecureDestination& withoutCertCheck() { checksIdentity = false; return *this; }
-    SecureDestination& heartbeatEvery(uint32_t ms) { heartbeatMs = ms; return *this; }
+    /** Presence heartbeat interval, in milliseconds, held to 1 s ... 48 s. */
+    SecureDestination& heartbeatEvery(uint32_t ms) { heartbeatMs = boundedHeartbeat(ms); return *this; }
 
     /** A staging deployment, a self-hosted cloud — nothing else moves. */
     SecureDestination& at(const char* h, uint16_t p) {

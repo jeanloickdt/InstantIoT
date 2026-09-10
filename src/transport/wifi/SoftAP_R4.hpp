@@ -32,6 +32,14 @@ public:
     bool begin() override {
         IIOT_LOG_VAL("[SoftAP-R4] Creating: ", ssid_);
 
+        // WPA2 will not take fewer than eight characters. The R4 stack
+        // reports a plain failure or, on some firmware, opens anyway: the board then broadcast an OPEN network, and anyone
+        // in range drove it. Refusing here is the only honest answer.
+        if (!pass_ || strlen(pass_) < 8) {
+            IIOT_LOG("[SoftAP-R4] The password must be 8 characters or more (WPA2) — no open network");
+            return false;
+        }
+
         int status = WiFi.beginAP(ssid_, pass_);
         if (status != WL_AP_LISTENING) {
             IIOT_LOG("[SoftAP-R4] FAILED!");

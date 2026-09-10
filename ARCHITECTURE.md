@@ -187,6 +187,7 @@ one line changing on the destination side. It did.
 InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));
 InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
 InstantIoT.begin(AccessPoint("MyBoard", "12345678"));   // no far end to name
+                                                         // 8 characters or more, or nothing starts
 ```
 
 Both are **descriptions**, not live objects: they do not survive the
@@ -631,7 +632,11 @@ server sets its socket read timeout to about 2.5× the announced interval
 (clamped to 2 s … 120 s) and flags the device offline after that silence.
 Heartbeats are never relayed to apps.
 
-Change it with `Cloud(TOKEN).heartbeatEvery(20000)`, before `begin()`.
+Change it with `Cloud(TOKEN).heartbeatEvery(20000)`, before `begin()`. The
+value is held to 1 s … 48 s: below, the board spends its budget on
+presence; above, the server's window stops following and the board is cut
+at 120 s while believing itself on time. Zero is not a choice — on a relay
+it was a session cut every 90 s.
 
 ---
 

@@ -107,6 +107,7 @@ public:
             return false;
         }
         if (!connectWiFi()) return false;
+        seedJitter();
         if (!connectServer()) return false;
         backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
         return true;
@@ -269,6 +270,21 @@ private:
 
         IIOT_LOG_VAL("[WiFiR4Sec] Handshake sent (TLS), heartbeat=", (long)heartbeatMs_);
         return true;
+    }
+
+    // ----- Jitter entropy -----
+    //
+    // On AVR, SAMD and Renesas, `random()` is a plain PRNG that starts from
+    // the same state at every boot: a fleet powered up together produced
+    // the same "jitter" and knocked on the relay in the same second. The
+    // time the link took to come up is the one thing that differs from
+    // board to board. ESP32 and ESP8266 draw from hardware, and calling
+    // `randomSeed()` there would DOWNGRADE them to the PRNG.
+    void seedJitter() {
+#if !defined(ESP32) && !defined(ESP8266)
+        uint32_t seed = micros() ^ (millis() << 16);
+        randomSeed(seed ? seed : 1);
+#endif
     }
 
     void scheduleRetry() {
