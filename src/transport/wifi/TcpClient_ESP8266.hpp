@@ -89,6 +89,9 @@ protected:
     void endLinkAttempt() override { WiFi.disconnect(); }
 
     /** Same as the ESP32: a timeout and no Nagle on a control channel. */
+    /** Keepalive: a dead server is noticed in about 30 s (15 s idle, 5 s probes, 3 misses). */
+    void tuneSession() override { wifiClient_.keepAlive(15, 5, 3); }
+
     void prepareClient() override {
         wifiClient_.setTimeout(INSTANTIOT_TCP_CONNECT_TIMEOUT_MS);
         wifiClient_.setNoDelay(true);
