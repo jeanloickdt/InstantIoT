@@ -760,6 +760,28 @@ Written down rather than left to be rediscovered.
   BLE, the serial link. `test/boards.sh` says the code
   builds and the footprints fit; it says nothing about a handshake. This stays
   at the top of the list until the hardware is on the desk.
+- **The ESP32 does not check a certificate's dates.** Its mbedTLS is built
+  with `CONFIG_MBEDTLS_HAVE_TIME=y` but `CONFIG_MBEDTLS_HAVE_TIME_DATE`
+  *not set* — read in the `sdkconfig` of the installed cores (esp32 and
+  esp32-s3 libs 3.3.7, and the Arduino ESP32 2.0.18 core alike), not
+  assumed. The chain is still verified against the embedded Let's Encrypt
+  roots, so a stranger's certificate is refused; but an **expired** one
+  that was once legitimate is accepted for as long as its key exists.
+  With Let's Encrypt's 90-day lifetime the window is short, and the
+  library cannot re-enable the check — it is compiled out of the core. The
+  ESP8266 does date its certificates (BearSSL insists, hence its NTP round
+  trip). What would close it: a core built with the flag, or a check of
+  `notAfter` in the sketch once the clock is set — neither is this
+  library's to do today.
+- **Connecting blocks `loop()`, for up to fifteen seconds.** `connect()`
+  is synchronous on every Arduino stack: the TLS handshake is bounded to
+  10 s on ESP32 (`INSTANTIOT_TLS_HANDSHAKE_TIMEOUT_S`), and on the Uno R4
+  it cannot be bounded at all — a non-zero timeout switches the modem to a
+  command that misbehaves (see `TcpClient_R4.hpp`). A relay that is down
+  therefore freezes the sketch on each attempt, and the backoff is what
+  keeps those attempts rare (one every 30 s once the ceiling is reached).
+  A sketch that cannot afford the pause should not drive a motor from the
+  same `loop()` as its link.
 - **`SignalToWidget.hpp` is misnamed.** There are no widgets on the board any
   more — that was the point of 2.0. What it does is turn a raw value into
   what a *block* expects. The name will send someone looking in the wrong
