@@ -87,6 +87,14 @@ votre serveur y est — celle de Let's Encrypt l'est, sur un firmware
 récent — soit il faut passer par le *WiFiNINA Firmware Updater* de l'IDE,
 soit `.plaintext()`.
 
+**Sur ESP32, la date d'un certificat n'est pas verifiee.** Le mbedTLS des
+coeurs Arduino est compile sans `MBEDTLS_HAVE_TIME_DATE` (lu dans leur
+`sdkconfig`). La chaine est bien verifiee contre les racines Let's Encrypt
+embarquees — un certificat inconnu est refuse — mais un certificat
+**expire** qui fut legitime reste accepte tant que sa cle existe. Fenetre
+courte (90 jours chez Let's Encrypt), et rien a faire cote croquis : le
+controle est compile hors du coeur. L'ESP8266, lui, date ses certificats.
+
 ⁴ **Bluetooth Classic : l'ESP32 d'origine, et lui seul.** Le S3, le C3 et
 le C6 n'ont que le BLE ; le S2 n'a aucune radio Bluetooth. Sur ces
 quatre-la, `BluetoothLink` ne compile pas, et le message le dit.
