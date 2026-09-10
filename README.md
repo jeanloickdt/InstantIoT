@@ -58,7 +58,8 @@ reaches a destination.
 ```cpp
 InstantIoT.begin(WiFiLink("MyWiFi", "secret"), Cloud(TOKEN));                 // TLS
 InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
-InstantIoT.begin(AccessPoint("MyBoard", "12345678"));   // the board IS the network
+InstantIoT.begin(AccessPoint("MyBoard", "12345678"));   // the board IS the network — pick your own
+                                                         // password, 8 characters or more, or nothing starts
 InstantIoT.begin(BluetoothLink("MyBoard"));
 InstantIoT.begin(SerialLink(10, 11));
 ```
@@ -353,7 +354,7 @@ All of them go **before** the include.
 #define INSTANT_AP_PORT                     8080
 ```
 
-Per-destination, at the call site: `.heartbeatEvery(20000)`, `.at(host, port)`.
+Per-destination, at the call site: `.heartbeatEvery(20000)` (held to 1 s … 48 s), `.at(host, port)`.
 
 ---
 

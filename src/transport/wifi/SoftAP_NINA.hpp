@@ -48,8 +48,10 @@ public:
 
         // WPA2 will not take fewer than eight characters, and the module
         // reports that as a plain failure. Say which of the two it is.
-        if (pass_ && strlen(pass_) > 0 && strlen(pass_) < 8) {
-            IIOT_LOG("[SoftAP-NINA] The password must be 8 characters or more (WPA2)");
+        // An empty password used to mean an OPEN network. Same rule as the
+        // other boards now: eight characters or nothing starts.
+        if (!pass_ || strlen(pass_) < 8) {
+            IIOT_LOG("[SoftAP-NINA] The password must be 8 characters or more (WPA2) — no open network");
             return false;
         }
 
