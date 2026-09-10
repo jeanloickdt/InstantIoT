@@ -34,7 +34,9 @@ private:
 #define F(x) (x)
 #define PI 3.1415926535897932384626433832795
 
-inline unsigned long millis() { return 0; }
+/** The clock the tests move by hand. One instance for every translation unit. */
+inline unsigned long& fakeMillis() { static unsigned long now = 0; return now; }
+inline unsigned long millis() { return fakeMillis(); }
 
 /** AVR-isms the codec uses; the C library has no equivalent by that name. */
 inline char* dtostrf(double v, signed char width, unsigned char prec, char* out) {
