@@ -307,11 +307,26 @@ protected:
     // 📥 READ — binary frame reassembly
     // ════════════════════════════════════════════════════════
 
+    /**
+     * One pass over what the wire has for us — BOUNDED.
+     *
+     * It used to read until the transport ran dry. A peer that never runs
+     * dry — a relay in trouble, a hostile intermediary, a loop on a
+     * gateway — then owned `loop()`: no heartbeat, no sketch, no way back
+     * short of a reset. One buffer's worth per pass is plenty for a frame
+     * format whose largest frame is 64 bytes, and it hands the turn back.
+     *
+     * Frames are extracted after every chunk, so a run of valid frames
+     * larger than the buffer no longer trips the overflow reset.
+     */
     void readLoop() {
-        while (_transport.available() > 0) {
+        size_t budget = sizeof(_rxBuffer);
+        while (budget > 0 && _transport.available() > 0) {
             uint8_t buf[64];
-            int n = _transport.read(buf, sizeof(buf));
+            size_t want = sizeof(buf) < budget ? sizeof(buf) : budget;
+            int n = _transport.read(buf, want);
             if (n <= 0) break;
+            budget -= (size_t)n;
             for (int i = 0; i < n; i++) {
                 if (_rxPos < sizeof(_rxBuffer)) {
                     _rxBuffer[_rxPos++] = buf[i];
@@ -320,14 +335,21 @@ protected:
                     IIOT_LOG("[Core] RX overflow, reset");
                 }
             }
+            extractFrames();
         }
-        extractFrames();
     }
 
     void extractFrames() {
         // Header = AA + VER + LEN(2) = 4 bytes. Min frame = header + CRC = 5 bytes.
         while (_rxPos >= 5) {
-            if (_rxBuffer[0] != 0xAA) { shiftBuffer(1); continue; }
+            if (_rxBuffer[0] != 0xAA) {
+                // Resynchronise in one jump to the next candidate start,
+                // not one byte per iteration: on a burst of noise the old
+                // shift moved the whole buffer once per byte of noise.
+                const uint8_t* next = (const uint8_t*)memchr(_rxBuffer + 1, 0xAA, _rxPos - 1);
+                shiftBuffer(next ? (size_t)(next - _rxBuffer) : _rxPos);
+                continue;
+            }
             if (_rxBuffer[1] != 0x01) { shiftBuffer(1); continue; }
 
             uint16_t len = (uint16_t)_rxBuffer[2] | ((uint16_t)_rxBuffer[3] << 8);
