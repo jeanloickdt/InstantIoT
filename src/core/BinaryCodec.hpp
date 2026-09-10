@@ -182,19 +182,18 @@ static float readFloatLE(const uint8_t* buf) {
     return val;
 }
 
-static size_t writeString(uint8_t* buf, const char* str) {
-    if (!str) { buf[0] = 0; return 1; }
-    uint8_t len = (uint8_t)strlen(str);
-    buf[0] = len;
-    memcpy(buf + 1, str, len);
-    return 1 + len;
-}
-
-static size_t readString(const uint8_t* buf, char* out, size_t outSize) {
-    uint8_t len = buf[0];
-    size_t copy = (len < outSize - 1) ? len : outSize - 1;
-    memcpy(out, buf + 1, copy);
-    out[copy] = '\0';
+/**
+ * A length-prefixed string into `room` bytes. Returns 0 — and writes
+ * nothing — when it does not fit: a name longer than the wire's one-byte
+ * length, or longer than what is left of the body. It used to truncate
+ * the length to a byte and copy the whole string anyway, past the end of
+ * a stack buffer.
+ */
+static size_t writeString(uint8_t* buf, size_t room, const char* str) {
+    size_t len = str ? strlen(str) : 0;
+    if (len > 255 || 1 + len > room) return 0;
+    buf[0] = (uint8_t)len;
+    if (len) memcpy(buf + 1, str, len);
     return 1 + len;
 }
 
@@ -205,14 +204,6 @@ static size_t readString(const uint8_t* buf, char* out, size_t outSize) {
 class BinaryCodec {
 
     char _deviceId[32];
-
-    // Safe readString with bounds-check — returns 0 on error
-    static size_t safeReadString(const uint8_t* payload, size_t p, size_t len, char* out, size_t outSize) {
-        if (p >= len) { out[0] = '\0'; return 0; }
-        uint8_t slen = payload[p];
-        if (p + 1 + slen > len) { out[0] = '\0'; return 0; }
-        return readString(payload + p, out, outSize);
-    }
 
 public:
 
@@ -240,13 +231,18 @@ public:
         // DEV_COUNT + DEV
         if (deviceId && deviceId[0] != '\0') {
             body[b++] = 1;
-            b += writeString(body + b, deviceId);
+            size_t w = writeString(body + b, sizeof(body) - b, deviceId);
+            if (w == 0) return 0;
+            b += w;
         } else {
             body[b++] = 0;
         }
 
         // WID_LEN + WID
-        b += writeString(body + b, widgetId);
+        size_t w = writeString(body + b, sizeof(body) - b, widgetId);
+        if (w == 0) return 0;
+        b += w;
+        if (b + 2 > sizeof(body)) return 0;
 
         // TYPE + EVENT
         body[b++] = typeCode;
