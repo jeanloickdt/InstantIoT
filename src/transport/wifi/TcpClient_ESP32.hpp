@@ -36,6 +36,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <lwip/sockets.h>
 #include "../TcpSession.hpp"
 #include "WiFiReason_ESP32.hpp"
 
@@ -107,6 +108,18 @@ protected:
     void prepareClient() override {
         wifiClient_.setTimeout(INSTANTIOT_TCP_CONNECT_TIMEOUT_MS);
         wifiClient_.setNoDelay(true);
+    }
+
+    /**
+     * Keepalive: a dead server is noticed in about 30 s, not in minutes.
+     * Probes start after 15 s of silence, every 5 s, 3 misses close.
+     */
+    void tuneSession() override {
+        int on = 1, idle = 15, intv = 5, cnt = 3;
+        wifiClient_.setSocketOption(SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+        wifiClient_.setOption(TCP_KEEPIDLE,  &idle);
+        wifiClient_.setOption(TCP_KEEPINTVL, &intv);
+        wifiClient_.setOption(TCP_KEEPCNT,   &cnt);
     }
 
     bool linkCredentialsReady() const override {

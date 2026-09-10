@@ -35,6 +35,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <lwip/sockets.h>
 #include "../../core/Transport.h"
 #include "WiFiReason_ESP32.hpp"
 #include "../../InstantIoTConfig.h"
@@ -324,6 +325,7 @@ private:
             IIOT_LOG("[WiFiSecure] TLS connect FAILED (check CA / port / SNI)");
             return false;
         }
+        tuneSession();
 
         // Handshake applicatif : [PAYLOAD_LEN | PAYLOAD_BYTES]
         //   payload = "token"           (legacy, heartbeatMs_ = 0)
@@ -369,6 +371,18 @@ private:
 
     /** Wrap-safe: `millis()` rolls over after 49 days, a plain `<` does not survive it. */
     bool retryDue() const { return (int32_t)(millis() - nextRetryAt_) >= 0; }
+
+    /**
+     * Keepalive: a dead server is noticed in about 30 s, not in minutes.
+     * Probes start after 15 s of silence, every 5 s, 3 misses close.
+     */
+    void tuneSession() {
+        int on = 1, idle = 15, intv = 5, cnt = 3;
+        client_.setSocketOption(SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+        client_.setOption(TCP_KEEPIDLE,  &idle);
+        client_.setOption(TCP_KEEPINTVL, &intv);
+        client_.setOption(TCP_KEEPCNT,   &cnt);
+    }
 
     void scheduleRetry() {
         uint32_t base = backoffMs_;
