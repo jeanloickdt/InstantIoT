@@ -171,10 +171,12 @@
 // ============================================================
 //  SIGNALS (InstantIoT 2.0)
 // ============================================================
-// The ceiling a board applies to its own signal frames until the server
-// pushes the real one at connection. Same value as the server's fuse, so a
-// board that never hears from the server still behaves — and a sketch that
-// writes in loop() without a delay can no longer get itself disconnected.
+// The ceiling a board applies to its own signal frames, in frames per
+// second, with twice that in reserve for a burst. The server never pushes
+// it: its own fuse admits 10 frames a second with a burst of 20, and this
+// value mirrors it so a sketch that writes in loop() without a delay is
+// slowed here rather than disconnected there. Raising it above the fuse
+// only buys a disconnection.
 #ifndef INSTANTIOT_DEFAULT_SIGNAL_RATE
-#define INSTANTIOT_DEFAULT_SIGNAL_RATE 50
+#define INSTANTIOT_DEFAULT_SIGNAL_RATE 10
 #endif
