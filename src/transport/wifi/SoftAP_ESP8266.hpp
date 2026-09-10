@@ -34,6 +34,14 @@ public:
         WiFi.mode(WIFI_AP);
         WiFi.softAPConfig(_ip, _ip, IPAddress(255, 255, 255, 0));
 
+        // WPA2 will not take fewer than eight characters. The ESP8266 stack
+        // silently opens the network instead: the board then broadcast an OPEN network, and anyone
+        // in range drove it. Refusing here is the only honest answer.
+        if (!_password || strlen(_password) < 8) {
+            IIOT_LOG("[SoftAP-8266] The password must be 8 characters or more (WPA2) — no open network");
+            return false;
+        }
+
         if (!WiFi.softAP(_ssid, _password)) {
             IIOT_LOG("[SoftAP-8266] Failed to create AP!");
             return false;
