@@ -66,6 +66,15 @@
   #define INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT 25
 #endif
 
+// How long a session must HOLD before the backoff forgets its history.
+// A connection the server accepts then drops within seconds (bad token,
+// fuse, full relay) is not a success: without this window every such drop
+// reset the backoff to its minimum, and a rejected board hammered the
+// relay once a second forever.
+#ifndef INSTANTIOT_SESSION_HELD_MS
+  #define INSTANTIOT_SESSION_HELD_MS 10000
+#endif
+
 namespace iiot {
 
 class TlsClient_ESP32 : public ITransport {
@@ -135,6 +144,7 @@ public:
         if (!connectServer()) return false;
 
         backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
+        sessionOpened();
         return true;
     }
 
@@ -179,7 +189,7 @@ public:
                 return;
             }
 
-            if (millis() < nextRetryAt_) return;
+            if (!retryDue()) return;
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiSecure] WiFi reconnect attempt #", retryAttempt_);
@@ -195,7 +205,15 @@ public:
         // TLS/TCP tombé → reconnexion (avec backoff)
         if (!client_.connected()) {
             client_.stop();
-            if (millis() < nextRetryAt_) return;
+            if (!retryArmed_) {
+                // First pass after the drop: the retry waits its turn like
+                // any other, jitter included — no immediate knock on the
+                // relay from a whole fleet at once.
+                retryArmed_ = true;
+                scheduleRetry();
+                return;
+            }
+            if (!retryDue()) return;
 
             retryAttempt_++;
             IIOT_LOG_VAL("[WiFiSecure] TLS reconnect attempt #", retryAttempt_);
@@ -203,6 +221,14 @@ public:
                 scheduleRetry();
                 return;
             }
+            sessionOpened();
+            return;
+        }
+
+        // Connected. The backoff only forgets its history once the session
+        // has HELD: an accept followed by a drop is not a success.
+        if (!sessionHeld_ && millis() - connectedAt_ >= INSTANTIOT_SESSION_HELD_MS) {
+            sessionHeld_ = true;
             backoffMs_ = INSTANTIOT_RECONNECT_BACKOFF_MIN_MS;
             retryAttempt_ = 0;
         }
@@ -335,6 +361,15 @@ private:
     }
 
     // ----- Backoff avec jitter (identique au transport clair) -----
+    void sessionOpened() {
+        connectedAt_ = millis();
+        sessionHeld_ = false;
+        retryArmed_  = false;
+    }
+
+    /** Wrap-safe: `millis()` rolls over after 49 days, a plain `<` does not survive it. */
+    bool retryDue() const { return (int32_t)(millis() - nextRetryAt_) >= 0; }
+
     void scheduleRetry() {
         uint32_t base = backoffMs_;
         int32_t jitterRange = (int32_t)(base * INSTANTIOT_RECONNECT_BACKOFF_JITTER_PCT) / 100;
@@ -371,6 +406,9 @@ private:
     uint32_t    nextRetryAt_;
     uint32_t    backoffMs_;
     uint32_t    retryAttempt_ = 0;
+    uint32_t    connectedAt_ = 0;      // when the current session opened
+    bool        sessionHeld_ = false;  // lasted INSTANTIOT_SESSION_HELD_MS
+    bool        retryArmed_ = false;   // drop noticed, retry scheduled
     /** When the last `WiFi.begin` happened, or 0 if nothing is in flight. */
     uint32_t    wifiAttemptStartedAt_ = 0;
     uint32_t    heartbeatMs_;
