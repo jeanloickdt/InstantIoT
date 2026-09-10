@@ -245,6 +245,9 @@ protected:
      * these are not one-time calls, and treating them as such is how a
      * transport reconnects into an unverified session.
      */
+    /** Keepalive: a dead server is noticed in about 30 s (15 s idle, 5 s probes, 3 misses). */
+    void tuneSession() override { sslClient_.keepAlive(15, 5, 3); }
+
     void prepareClient() override {
         sslClient_.setBufferSizes(INSTANTIOT_TLS_RX_BUFFER,
                                   INSTANTIOT_TLS_TX_BUFFER);

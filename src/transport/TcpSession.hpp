@@ -235,6 +235,17 @@ protected:
     virtual void prepareClient() {}
 
     /**
+     * Tune the socket once it is OPEN — keepalive, mostly.
+     *
+     * The board never expects anything from the server, so a server that
+     * dies without a FIN — power cut, VM frozen, NAT entry expired — left
+     * the board "connected" for minutes while the relay had declared it
+     * offline within seconds. TCP keepalive is what notices, and only the
+     * stacks with a real socket underneath can turn it on. Default: nothing.
+     */
+    virtual void tuneSession() {}
+
+    /**
      * Are the credentials there at all?
      *
      * Default: yes. Ethernet needs none; WiFi refuses to start without an
@@ -315,6 +326,7 @@ private:
             IIOT_LOG("[TcpSession] TCP connect FAILED");
             return false;
         }
+        tuneSession();
 
         // Handshake: [PAYLOAD_LEN | PAYLOAD_BYTES]
         //   payload = "token"            (legacy, heartbeatMs_ = 0)
