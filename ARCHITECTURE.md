@@ -578,7 +578,7 @@ static node per `I<Widget>` / `ISignal` block. No `String`, no
 ```cpp
 #define INSTANTIOT_DEBUG               0   // 1 → IIOT_LOG to Serial
 #define INSTANTIOT_DEFAULT_SIGNAL_RATE 10  // frames/s ceiling, burst of 2x;
-                                           // mirrors the relay fuse (10/s, 20)
+                                           // the relay fuse is 10/s sustained
 #define INSTANT_MAX_FRAME_SIZE         64  // the protocol's largest frame
 #define INSTANT_RX_BUFFER_SIZE         …   // see the table above
 #define INSTANT_TX_BUFFER_SIZE         …
@@ -612,9 +612,11 @@ way: `INSTANTIOT_CLOUD_HOST`, `INSTANTIOT_CLOUD_TLS_PORT` (9443),
 (5000).
 
 The rate ceiling is **cooperative**: the server never trusts it and never
-pushes it, its own fuse (10 frames/s, burst 20) stays. The board applies the
-same figures as a token bucket: a burst of a few writes in a row passes, a
-`loop()` writing without a delay is slowed to the rate. It exists so a
+pushes it, its own fuse (10 frames/s sustained, with a burst of 100 that
+covers the relay's own read lag rather than anything a board would send)
+stays. The board applies the same rate as a token bucket, with a burst of
+20: a burst of a few writes in a row passes, a `loop()` writing without a
+delay is slowed to the rate, and the board always stays under the fuse. It exists so a
 beginner writing in the main loop is not disconnected for flooding. The
 transports back it up on reconnection: after a drop the first retry waits
 its jittered backoff, and the backoff only resets once a session has held

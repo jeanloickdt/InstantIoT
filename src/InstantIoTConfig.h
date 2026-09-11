@@ -173,10 +173,11 @@
 // ============================================================
 // The ceiling a board applies to its own signal frames, in frames per
 // second, with twice that in reserve for a burst. The server never pushes
-// it: its own fuse admits 10 frames a second with a burst of 20, and this
-// value mirrors it so a sketch that writes in loop() without a delay is
-// slowed here rather than disconnected there. Raising it above the fuse
-// only buys a disconnection.
+// it: its own fuse admits 10 frames a second sustained (with a burst of 100,
+// sized on the relay's own read lag, not on what a board may send), and this
+// value keeps the board under that rate so a sketch that writes in loop()
+// without a delay is slowed here rather than disconnected there. Raising it
+// above the fuse only buys a disconnection.
 #ifndef INSTANTIOT_DEFAULT_SIGNAL_RATE
 #define INSTANTIOT_DEFAULT_SIGNAL_RATE 10
 #endif
