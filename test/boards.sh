@@ -41,6 +41,7 @@ RACINE="$(pwd)"
 # that: an unexpected GREEN is a surprise, and this one was mine.
 ATTENDUS_EN_ECHEC=(
   "arduino:avr:mega|SimpleButton|no radio: AccessPoint does not exist on AVR"
+  "arduino:avr:mega|AccessPoint|no radio: AccessPoint does not exist on AVR"
   "arduino:avr:mega|TheCloud|no radio: WiFiLink does not exist on AVR"
   "arduino:avr:mega|OwnServer|no radio: WiFiLink does not exist on AVR"
 

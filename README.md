@@ -303,7 +303,7 @@ void loop()  { InstantIoT.loop(); timers.run(); }
 
 | Folder | What it shows |
 |---|---|
-| `connection/` | `OwnServer`, `TheCloud` — the shortest sketch that connects |
+| `connection/` | `AccessPoint` (the board is the network — the first test), `TheCloud`, `OwnServer`, `EthernetCloud`, `EthernetCloudTLS`, `BluetoothClassic`, `BluetoothLE`, `SerialModule` — the shortest sketch that connects, each way |
 | `controls/` | the nine control blocks: buttons, switch, sliders, joystick, D-pad, segmented |
 | `measurements/` | `UltrasonicLevel` (HC-SR04), `AnalogTemperature` (LM35, no library to install), `TextAndState` |
 | `complete/` | `Thermostat` (both directions, with replay), `Dashboard`, `Diagnostic` |
