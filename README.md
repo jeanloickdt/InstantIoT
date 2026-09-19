@@ -374,9 +374,12 @@ Per-destination, at the call site: `.heartbeatEvery(20000)` (held to 1 s … 48 
 
 ## Bluetooth and Serial
 
-The code is in the tree, it compiles, and the wire protocol is the same — but
-the mobile app does not expose a selector for these yet, so an end-to-end
-connection is not possible today. They are kept so the work is not lost.
+The wire protocol is the same as over Wi-Fi: a signal does not know how it
+travelled. The app (1.3.0 and later) offers these links when you create a
+project and writes the matching `begin()` line. `SerialLink(Serial1)` with a
+BLE module on an Uno R4 WiFi is verified end to end — button, slider, chart —
+at 9600 baud; the two ESP32 links compile and speak the same bytes, and are
+next on the bench.
 
 | Link | Extra setup |
 |---|---|
