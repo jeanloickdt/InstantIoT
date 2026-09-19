@@ -376,10 +376,11 @@ Per-destination, at the call site: `.heartbeatEvery(20000)` (held to 1 s … 48 
 
 The wire protocol is the same as over Wi-Fi: a signal does not know how it
 travelled. The app (1.3.0 and later) offers these links when you create a
-project and writes the matching `begin()` line. `SerialLink(Serial1)` with a
-BLE module on an Uno R4 WiFi is verified end to end — button, slider, chart —
-at 9600 baud; the two ESP32 links compile and speak the same bytes, and are
-next on the bench.
+project and writes the matching `begin()` line. A BLE module (HM-10 class) is
+verified end to end — button, slider, chart — at 9600 baud, both ways of
+wiring it: `SerialLink(Serial1)` on an Uno R4 WiFi, `SerialLink(13, 15)` on
+an ESP8266 (LOLIN D1 mini). The two native ESP32 links compile and speak the
+same bytes, and are next on the bench.
 
 | Link | Extra setup |
 |---|---|
