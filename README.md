@@ -61,7 +61,8 @@ InstantIoT.begin(WiFiLink("MyWiFi", "secret"), MyServer("192.168.1.42", TOKEN));
 InstantIoT.begin(AccessPoint("MyBoard", "12345678"));   // the board IS the network — pick your own
                                                          // password, 8 characters or more, or nothing starts
 InstantIoT.begin(BluetoothLink("MyBoard"));
-InstantIoT.begin(SerialLink(10, 11));
+InstantIoT.begin(SerialLink(Serial1));                 // a serial module on a hardware UART
+InstantIoT.begin(SerialLink(10, 11));                  // the same module on two software pins (AVR, ESP8266)
 ```
 
 Three of them have no destination to name — the phone is at the other end of
@@ -76,7 +77,8 @@ the wire.
 | **TLS sur Ethernet** | ✅ ⁶ | — | — ⁷ | — | **jamais** |
 | `BluetoothLink` (Classic) | ✅ ⁴ | — | — | — | — |
 | `BLELink` (NimBLE) | ✅ ⁵ | — | — | — | — |
-| `SerialLink` (SoftwareSerial) | — | — | — | ✅ | ✅ |
+| `SerialLink(Serial1)` (UART matériel) | ✅ | ✅ | ✅ | — | ✅ |
+| `SerialLink(rx, tx)` (SoftwareSerial) | — | — | — | ✅ | ✅ |
 
 ¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — trois cartes dont
 le WiFi est le même co-processeur u-blox NINA-W10.
@@ -380,7 +382,7 @@ connection is not possible today. They are kept so the work is not lost.
 |---|---|
 | `BluetoothLink(name)` — Classic, ESP32 | needs the `huge_app` partition scheme: Bluetooth Classic plus Wi-Fi does not fit in the default 1.3 MB |
 | `BLELink(name)` — ESP32 | install [`NimBLE-Arduino`](https://github.com/h2zero/NimBLE-Arduino), **and `#include <NimBLEDevice.h>` before `<InstantIoT.h>`** — Arduino only finds a library it sees included |
-| `SerialLink(rx, tx)` — AVR, ESP8266 | an external Bluetooth-Serial module (HC-05 / HC-06) wired to the board |
+| `SerialLink(Serial1)` — any board with a spare UART; `SerialLink(rx, tx)` — AVR, ESP8266 | an external Bluetooth-Serial module (HC-05 / HC-06 / HM-10) wired to the board |
 
 ---
 

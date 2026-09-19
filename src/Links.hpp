@@ -43,6 +43,10 @@
  *              SerialLink
  * AVR          EthernetLink (plain), SerialLink
  *
+ * SerialLink over a hardware UART — `SerialLink(Serial1)` — exists on
+ * every board above; the two-pin form needs SoftwareSerial, so AVR and
+ * ESP8266 only.
+ *
  * A pairing the board cannot do fails to compile, and says so in one
  * sentence rather than a page of templates.
  * ============================================================
@@ -196,8 +200,18 @@
     #endif
 #endif
 
-// SoftwareSerial belongs to the AVR core and ships alongside the ESP8266
-// one; the ESP32 does not have it at all.
+// A serial module has two roads onto the board.
+//
+// A HARDWARE UART, on every board that has one to spare: `Serial1` on the
+// Uno R4 WiFi, the MKRs, the Nano 33 IoT, the ESP32 family; `Serial1` to
+// `Serial3` on the Mega. This one needs nothing from the core beyond
+// `HardwareSerial`, so it is always here.
+#include "transport/serial/HardSerial.hpp"
+#define INSTANTIOT_HAS_HARDWARE_SERIAL_LINK 1
+
+// TWO SOFTWARE PINS, where SoftwareSerial exists: the AVR core and the
+// ESP8266 one; the ESP32 does not have it at all. This is the road for an
+// Uno or a Nano, whose only UART is the USB one.
 //
 // Platform macros, not `__has_include`, for the reason above: the include
 // must be SEEN for the library to be added to the search path. With
@@ -287,21 +301,53 @@ struct BLELink {
 };
 #endif
 
-#if defined(INSTANTIOT_HAS_SERIAL_LINK)
-/** Two wires. For a board with no radio, or for bring-up. */
+/**
+ * Two wires. For a board with no radio, or for bring-up.
+ *
+ *     InstantIoT.begin(SerialLink(Serial1));     // a hardware UART — any board
+ *     InstantIoT.begin(SerialLink(10, 11));      // two software pins — AVR, ESP8266
+ *
+ * It used to exist only in the two-pin form, and a board without
+ * SoftwareSerial — the Uno R4 WiFi, a MKR, an ESP32 — could not take a
+ * module at all, though it has a UART sitting free. The UART form is the
+ * one to prefer wherever it exists: no bit-banging, no 57600 ceiling.
+ */
 struct SerialLink {
+    HardwareSerial* port;
     uint8_t rx, tx;
     long    baud;
 
+    explicit SerialLink(HardwareSerial& uart, long speed = INSTANT_SERIAL_BAUDRATE)
+        : port(&uart), rx(0), tx(0), baud(speed) {}
+
+#if defined(INSTANTIOT_HAS_SERIAL_LINK)
     SerialLink(uint8_t rxPin, uint8_t txPin, long speed = INSTANT_SERIAL_BAUDRATE)
-        : rx(rxPin), tx(txPin), baud(speed) {}
+        : port(nullptr), rx(rxPin), tx(txPin), baud(speed) {}
+#else
+    // Two pins on a board with no SoftwareSerial: say so in one sentence,
+    // and say what to write instead. Without this overload the error would
+    // be "no matching constructor" and a list of candidates.
+    template <class A, class B>
+    SerialLink(A, B, long = 0) : port(nullptr), rx(0), tx(0), baud(0) {
+        static_assert(AlwaysFalse<A>::value,
+            "SoftwareSerial does not exist on this board. It is in the AVR core "
+            "and in the ESP8266 one; neither the ESP32, nor the Uno R4 WiFi, nor "
+            "the SAMD core has it. Wire the module to a hardware UART and write "
+            "SerialLink(Serial1) instead.");
+    }
+#endif
 
     ITransport& transport() const {
-        static TransportSerial t(rx, tx, baud);
-        return t;
+#if defined(INSTANTIOT_HAS_SERIAL_LINK)
+        if (!port) {
+            static TransportSerial soft(rx, tx, baud);
+            return soft;
+        }
+#endif
+        static HardSerial hard(*port, baud);
+        return hard;
     }
 };
-#endif
 
 // ════════════════════════════════════════════════════════════
 //  The link that leads elsewhere
@@ -552,11 +598,5 @@ _IIO_LINK_ABSENT(BLELink,
     "it to the search path.")
 #endif
 
-#if !defined(INSTANTIOT_HAS_SERIAL_LINK)
-_IIO_LINK_ABSENT(SerialLink,
-    "SoftwareSerial does not exist on this board. It is in the AVR core and "
-    "in the ESP8266 one; neither the ESP32, nor the Uno R4 WiFi, nor the SAMD "
-    "core has it.")
-#endif
 
 }  // namespace iiot
