@@ -78,7 +78,8 @@ void loop()  { InstantIoT.loop(); timers.run(); }
         ┌────────────────────▼─────────────────────────────┐
         │  Transports                                      │
         │  • SoftAP_* / TcpClient_* / TlsClient_*          │
-        │  • Bluetooth_ESP32 / BLE_ESP32 / SoftSerial      │
+        │  • Bluetooth_ESP32 / BLE_ESP32                   │
+        │  • HardSerial / SoftSerial                       │
         └──────────────────────────────────────────────────┘
 ```
 
@@ -120,7 +121,7 @@ src/
 │   ├─ ethernet/EthClient_W5x00.hpp       the W5500's own TCP stack, plain
 │   ├─ ethernet/EthLink_ESP32.hpp         the same chip behind lwIP, TLS too
 │   ├─ bluetooth/{Bluetooth_ESP32,BLE_ESP32}.hpp
-│   └─ serial/SoftSerial.hpp
+│   └─ serial/{HardSerial,SoftSerial}.hpp   a UART the chip has, or two pins bit-banged
 │
 ├─ certs/InstantIoT_LE_Roots.h    Let's Encrypt roots, for TLS
 │
@@ -204,7 +205,8 @@ function-local `static`.
 | `Cloud` / `MyServer` TLS, Ethernet | ✓, via lwIP⁴ | — | not done⁵ | — | **never** |
 | `BluetoothLink` (Classic) | ✓ ⁶ | — | — | — | — |
 | `BLELink` (NimBLE) | ✓ ⁷ | — | — | — | — |
-| `SerialLink` | — | — | — | ✓ | ✓ |
+| `SerialLink(Serial1)` — hardware UART | ✓ | ✓ | ✓ | — ⁸ | ✓ |
+| `SerialLink(rx, tx)` — SoftwareSerial | — | — | — | ✓ | ✓ |
 
 ¹ MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — one u-blox NINA-W10 module,
 one branch in `Links.hpp`.
@@ -225,6 +227,11 @@ the roots a second time as `br_x509_trust_anchor` structs. See README note 7.
 Classic radio; the S2 has neither.
 ⁷ The whole family except the S2. The sketch must `#include <NimBLEDevice.h>`
 BEFORE `<InstantIoT.h>`, and both need the `huge_app` partition scheme.
+⁸ The ESP8266's `Serial1` is transmit-only; the two-pin form is the one to
+use there. A hardware UART is what lets a board WITHOUT SoftwareSerial — the
+R4, the NINA three, the ESP32 — take an HC-05 or HM-10 at all: the module
+goes on `Serial1`, and `HardSerial` is `SoftSerial` with a `HardwareSerial&`
+where the bit-banged port was.
 
 **The NINA three** were exactly that prediction, and it held: one `ITransport`
 over `WiFiNINA` plus one branch, and nothing in the protocol or the DSL stood

@@ -67,17 +67,11 @@ ATTENDUS_EN_ECHEC=(
   "arduino:samd:nano_33_iot|BluetoothLE|NimBLE is an ESP32 library"
   "arduino:megaavr:uno2018|BluetoothLE|NimBLE is an ESP32 library"
 
-  # SerialModule — AVR et ESP8266. Le Mega et la NodeMCU passent ; les
-  # autres coeurs n'embarquent pas SoftwareSerial.
-  "esp32:esp32:esp32|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "esp32:esp32:esp32s3|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "esp32:esp32:esp32c3|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "esp32:esp32:esp32c6|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "esp32:esp32:esp32s2|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "arduino:renesas_uno:unor4wifi|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "arduino:samd:mkrwifi1010|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "arduino:samd:nano_33_iot|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
-  "arduino:megaavr:uno2018|SerialModule|SoftwareSerial belongs to the AVR and ESP8266 cores"
+  # SerialModule WAS here for every board without SoftwareSerial — the
+  # ESP32s, the R4, the SAMDs, the Uno WiFi Rev2. `SerialLink(Serial1)`
+  # rides a hardware UART instead, and every board on this bench has one
+  # to spare. The line leaves the list because the code earned it.
+
 
   # Les quatorze autres croquis, sur le Mega : douze ouvrent un point
   # d'acces, deux rejoignent un WiFi. Aucune des deux choses n'existe sur
