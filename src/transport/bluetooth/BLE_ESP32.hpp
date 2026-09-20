@@ -80,8 +80,15 @@ public:
 
         service->start();
 
-        // Advertising
+        // Advertising. NimBLE 2.x does NOT put the device name on the air by
+        // itself: without setName() the board advertises flags + the NUS UUID
+        // and nothing else. Android may still show a name it cached from an
+        // earlier connection; iOS shows "Unknown" and the app hides it. The
+        // 128-bit UUID fills the 31-byte advertisement, so the name rides in
+        // the scan response — phones ask for it on every active scan.
         NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
+        advertising->enableScanResponse(true);
+        advertising->setName(_deviceName);
         advertising->addServiceUUID(NUS_SERVICE_UUID);
         advertising->start();
 
