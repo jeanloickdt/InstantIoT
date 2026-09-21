@@ -393,8 +393,10 @@ same bytes, and are next on the bench.
 ## Under the hood
 
 Static allocation end to end — no heap, no `String`, no JSON. A signal frame is
-14 bytes for a float. `ARCHITECTURE.md` walks the protocol byte by byte, and
-`test/host/run.sh` runs the whole bench in about a second, with no board.
+14 bytes for a float. `PROTOCOL-2.0.md` is the wire specification — every
+byte, with worked examples, for a port to a board the library does not
+support; `ARCHITECTURE.md` walks the library itself, and `test/host/run.sh`
+runs the whole bench in about a second, with no board.
 
 ---
 
