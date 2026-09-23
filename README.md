@@ -80,99 +80,7 @@ the wire.
 | `SerialLink(Serial1)` (hardware UART) | ✅ | ✅ | ✅ | — | ✅ |
 | `SerialLink(rx, tx)` (SoftwareSerial) | — | — | — | ✅ | ✅ |
 
-¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — three boards whose
-Wi-Fi is the same u-blox NINA-W10 co-processor.
-
-² **NINA does TLS, but with roots you don't get to choose.** They live in the
-module's firmware and a sketch cannot add to them: `withCertificate()` is
-ignored there, and says so. Either your server's root is already present —
-Let's Encrypt's is, on recent firmware — or you go through the IDE's
-*WiFiNINA Firmware Updater*, or `.plaintext()`.
-
-**On ESP32, a certificate's date is not checked.** The Arduino cores' mbedTLS
-is compiled without `MBEDTLS_HAVE_TIME_DATE` (read from their `sdkconfig`).
-The chain is still verified against the embedded Let's Encrypt roots — an
-unknown certificate is refused — but an **expired** certificate that was once
-legitimate stays accepted as long as its key exists. Short window (90 days
-with Let's Encrypt), and nothing to do sketch-side: the check is compiled out
-of the core. The ESP8266, for its part, does date its certificates.
-
-⁴ **Bluetooth Classic: the original ESP32, and it alone.** The S3, the C3 and
-the C6 have only BLE; the S2 has no Bluetooth radio at all. On those four,
-`BluetoothLink` does not compile, and the message says so.
-
-⁵ **BLE: the whole family except the S2**, which has no radio. The sketch must
-write `#include <NimBLEDevice.h>` BEFORE `<InstantIoT.h>` — see the table
-below.
-
-⁶ **TLS over a cable exists only on ESP32, and not for the reason you'd
-think.** It's not that the W5500 lacks crypto: the encryption would run on the
-processor. It's that Arduino's `Ethernet` library uses the TCP stack **wired
-into the chip**, and an ESP TLS client doesn't wrap a `Client`, it IS one
-(`class NetworkClientSecure : public NetworkClient`). There is nothing to
-wrap.
-
-The ESP32 core can drive the same W5500 as a network interface, behind lwIP —
-`ETH.begin(ETH_PHY_W5500, ...)` — and then TLS works without knowing there's a
-cable. That's what `EthLink_ESP32` does, and it's why this form asks for the
-three pins: a module has no fixed pinout.
-
-⁷ **On NINA, it's possible but not done, and the figures are measured.** It
-would take `ArduinoBearSSL`, which composes over any `Client` — Blynk's
-recipe. A realistic sketch fits on both SAMD boards (MKR 1010: 48% of flash,
-**74% of SRAM**, 8.4 KB left; Nano 33 IoT: 76%, 7.8 KB) and **does not fit**
-on the Uno WiFi Rev.2, which overflows the flash. Two costs add up:
-`BearSSLClient` takes `br_x509_trust_anchor`s, not PEM — so our roots in TWO
-representations to keep in sync — and it needs an NTP clock like the ESP8266.
-That will be decided with a board on the desk, not before.
-
-³ **The ESP8266's TLS is software, and it costs.** BearSSL takes 104 KB of
-flash and about 20 KB of heap while a session is open, on a board with roughly
-40 KB free. It fits — a sketch that itself keeps 10 KB in memory, not. It also
-needs a clock: the library queries an NTP server on its own as Wi-Fi comes up,
-because a certificate has dates and a board that just booted thinks it's 1970.
-The figures are at the top of `src/transport/wifi/TlsClient_ESP8266.hpp`.
-
-`EthernetLink` needs a W5100 / W5500 shield and **one line before the
-include**: `#define INSTANTIOT_ETHERNET 1`. It is not detected on its own —
-the Arduino build finds libraries by reading the `#include`s, so a conditional
-include is never seen.
-
-**On AVR, the TLS column will never fill in.** The W5x00 carries no crypto and
-an AVR has neither the RAM nor the flash for a handshake. A Mega reaches the
-cloud in the clear, and the compiler says so rather than letting the sketch
-find out on the bench. **An Uno doesn't have enough RAM for Ethernet at all** —
-measured: the library alone takes 61% of its 2 KB.
-
-A combination your board cannot do **fails to compile**, and the message says
-what to write instead:
-
-```
-error: static assertion failed: AccessPoint is already the far end: the board
-IS the network, and the app connects straight to it. To reach a server, the
-link is WiFiLink(ssid, password).
-```
-
-### TLS, and how to step out of it
-
-`Cloud(TOKEN)` encrypts and verifies the server's identity against the
-embedded Let's Encrypt roots. Three ways out, and they do not mean the same
-thing:
-
-```cpp
-Cloud(TOKEN).withCertificate(MY_ROOT)  // your own authority — still verified
-Cloud(TOKEN).withoutCertCheck()        // encrypted, identity unchecked — bring-up only
-Cloud(TOKEN).plaintext()               // no encryption at all
-```
-
-`plaintext()` returns a **different type**, so no TLS stack is linked at all:
-898 975 bytes against 991 947 on an ESP32 — 93 KB the board never has to
-carry. A board with no TLS can reach the
-cloud for real, instead of failing to compile over a path it never takes. The
-token then travels readable — that is the price, and it is a decision, never a
-default.
-
-Self-hosting with your own certificate: `MyServer(host, port, TOKEN).secure()`.
+*(The notes ¹–⁷ on the table above, and the ways to step out of TLS, are collected at the end — see **Boards, links and TLS**.)*
 
 ---
 
@@ -380,6 +288,106 @@ same bytes, and are next on the bench.
 | `BluetoothLink(name)` — Classic, ESP32 | needs the `huge_app` partition scheme: Bluetooth Classic plus Wi-Fi does not fit in the default 1.3 MB |
 | `BLELink(name)` — ESP32 | install [`NimBLE-Arduino`](https://github.com/h2zero/NimBLE-Arduino), **and `#include <NimBLEDevice.h>` before `<InstantIoT.h>`** — Arduino only finds a library it sees included |
 | `SerialLink(Serial1)` — any board with a spare UART; `SerialLink(rx, tx)` — AVR, ESP8266 | an external Bluetooth-Serial module (HC-05 / HC-06 / HM-10) wired to the board |
+
+---
+
+## Boards, links and TLS — the details
+
+The capability table near the top says what each board can do; here is why, and how to override it.
+
+¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — three boards whose
+Wi-Fi is the same u-blox NINA-W10 co-processor.
+
+² **NINA does TLS, but with roots you don't get to choose.** They live in the
+module's firmware and a sketch cannot add to them: `withCertificate()` is
+ignored there, and says so. Either your server's root is already present —
+Let's Encrypt's is, on recent firmware — or you go through the IDE's
+*WiFiNINA Firmware Updater*, or `.plaintext()`.
+
+**On ESP32, a certificate's date is not checked.** The Arduino cores' mbedTLS
+is compiled without `MBEDTLS_HAVE_TIME_DATE` (read from their `sdkconfig`).
+The chain is still verified against the embedded Let's Encrypt roots — an
+unknown certificate is refused — but an **expired** certificate that was once
+legitimate stays accepted as long as its key exists. Short window (90 days
+with Let's Encrypt), and nothing to do sketch-side: the check is compiled out
+of the core. The ESP8266, for its part, does date its certificates.
+
+⁴ **Bluetooth Classic: the original ESP32, and it alone.** The S3, the C3 and
+the C6 have only BLE; the S2 has no Bluetooth radio at all. On those four,
+`BluetoothLink` does not compile, and the message says so.
+
+⁵ **BLE: the whole family except the S2**, which has no radio. The sketch must
+write `#include <NimBLEDevice.h>` BEFORE `<InstantIoT.h>` — see the table
+below.
+
+⁶ **TLS over a cable exists only on ESP32, and not for the reason you'd
+think.** It's not that the W5500 lacks crypto: the encryption would run on the
+processor. It's that Arduino's `Ethernet` library uses the TCP stack **wired
+into the chip**, and an ESP TLS client doesn't wrap a `Client`, it IS one
+(`class NetworkClientSecure : public NetworkClient`). There is nothing to
+wrap.
+
+The ESP32 core can drive the same W5500 as a network interface, behind lwIP —
+`ETH.begin(ETH_PHY_W5500, ...)` — and then TLS works without knowing there's a
+cable. That's what `EthLink_ESP32` does, and it's why this form asks for the
+three pins: a module has no fixed pinout.
+
+⁷ **On NINA, it's possible but not done, and the figures are measured.** It
+would take `ArduinoBearSSL`, which composes over any `Client` — Blynk's
+recipe. A realistic sketch fits on both SAMD boards (MKR 1010: 48% of flash,
+**74% of SRAM**, 8.4 KB left; Nano 33 IoT: 76%, 7.8 KB) and **does not fit**
+on the Uno WiFi Rev.2, which overflows the flash. Two costs add up:
+`BearSSLClient` takes `br_x509_trust_anchor`s, not PEM — so our roots in TWO
+representations to keep in sync — and it needs an NTP clock like the ESP8266.
+That will be decided with a board on the desk, not before.
+
+³ **The ESP8266's TLS is software, and it costs.** BearSSL takes 104 KB of
+flash and about 20 KB of heap while a session is open, on a board with roughly
+40 KB free. It fits — a sketch that itself keeps 10 KB in memory, not. It also
+needs a clock: the library queries an NTP server on its own as Wi-Fi comes up,
+because a certificate has dates and a board that just booted thinks it's 1970.
+The figures are at the top of `src/transport/wifi/TlsClient_ESP8266.hpp`.
+
+`EthernetLink` needs a W5100 / W5500 shield and **one line before the
+include**: `#define INSTANTIOT_ETHERNET 1`. It is not detected on its own —
+the Arduino build finds libraries by reading the `#include`s, so a conditional
+include is never seen.
+
+**On AVR, the TLS column will never fill in.** The W5x00 carries no crypto and
+an AVR has neither the RAM nor the flash for a handshake. A Mega reaches the
+cloud in the clear, and the compiler says so rather than letting the sketch
+find out on the bench. **An Uno doesn't have enough RAM for Ethernet at all** —
+measured: the library alone takes 61% of its 2 KB.
+
+A combination your board cannot do **fails to compile**, and the message says
+what to write instead:
+
+```
+error: static assertion failed: AccessPoint is already the far end: the board
+IS the network, and the app connects straight to it. To reach a server, the
+link is WiFiLink(ssid, password).
+```
+
+### TLS, and how to step out of it
+
+`Cloud(TOKEN)` encrypts and verifies the server's identity against the
+embedded Let's Encrypt roots. Three ways out, and they do not mean the same
+thing:
+
+```cpp
+Cloud(TOKEN).withCertificate(MY_ROOT)  // your own authority — still verified
+Cloud(TOKEN).withoutCertCheck()        // encrypted, identity unchecked — bring-up only
+Cloud(TOKEN).plaintext()               // no encryption at all
+```
+
+`plaintext()` returns a **different type**, so no TLS stack is linked at all:
+898 975 bytes against 991 947 on an ESP32 — 93 KB the board never has to
+carry. A board with no TLS can reach the
+cloud for real, instead of failing to compile over a path it never takes. The
+token then travels readable — that is the price, and it is a decision, never a
+default.
+
+Self-hosting with your own certificate: `MyServer(host, port, TOKEN).secure()`.
 
 ---
 
