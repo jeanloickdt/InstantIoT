@@ -71,85 +71,78 @@ the wire.
 | | ESP32 | Uno R4 WiFi | NINA¹ | ESP8266 | AVR (Mega) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `AccessPoint` | ✅ | ✅ | ✅ | ✅ | — |
-| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (clair) | — |
+| `WiFiLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ (plaintext) | — |
 | `EthernetLink` + `Cloud` / `MyServer` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TLS sur WiFi | ✅ | ✅ | ✅ ² | ✅ ³ | — pas de radio |
-| **TLS sur Ethernet** | ✅ ⁶ | — | — ⁷ | — | **jamais** |
+| TLS over Wi-Fi | ✅ | ✅ | ✅ ² | ✅ ³ | — no radio |
+| **TLS over Ethernet** | ✅ ⁶ | — | — ⁷ | — | **never** |
 | `BluetoothLink` (Classic) | ✅ ⁴ | — | — | — | — |
 | `BLELink` (NimBLE) | ✅ ⁵ | — | — | — | — |
-| `SerialLink(Serial1)` (UART matériel) | ✅ | ✅ | ✅ | — | ✅ |
+| `SerialLink(Serial1)` (hardware UART) | ✅ | ✅ | ✅ | — | ✅ |
 | `SerialLink(rx, tx)` (SoftwareSerial) | — | — | — | ✅ | ✅ |
 
-¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — trois cartes dont
-le WiFi est le même co-processeur u-blox NINA-W10.
+¹ **NINA** = MKR WiFi 1010, Nano 33 IoT, Uno WiFi Rev.2 — three boards whose
+Wi-Fi is the same u-blox NINA-W10 co-processor.
 
-² **Le TLS des NINA valide, mais avec des racines qu'on ne choisit pas.**
-Elles vivent dans le firmware du module et un croquis ne peut pas en
-ajouter : `withCertificate()` y est ignoré, en le disant. Soit la racine de
-votre serveur y est — celle de Let's Encrypt l'est, sur un firmware
-récent — soit il faut passer par le *WiFiNINA Firmware Updater* de l'IDE,
-soit `.plaintext()`.
+² **NINA does TLS, but with roots you don't get to choose.** They live in the
+module's firmware and a sketch cannot add to them: `withCertificate()` is
+ignored there, and says so. Either your server's root is already present —
+Let's Encrypt's is, on recent firmware — or you go through the IDE's
+*WiFiNINA Firmware Updater*, or `.plaintext()`.
 
-**Sur ESP32, la date d'un certificat n'est pas verifiee.** Le mbedTLS des
-coeurs Arduino est compile sans `MBEDTLS_HAVE_TIME_DATE` (lu dans leur
-`sdkconfig`). La chaine est bien verifiee contre les racines Let's Encrypt
-embarquees — un certificat inconnu est refuse — mais un certificat
-**expire** qui fut legitime reste accepte tant que sa cle existe. Fenetre
-courte (90 jours chez Let's Encrypt), et rien a faire cote croquis : le
-controle est compile hors du coeur. L'ESP8266, lui, date ses certificats.
+**On ESP32, a certificate's date is not checked.** The Arduino cores' mbedTLS
+is compiled without `MBEDTLS_HAVE_TIME_DATE` (read from their `sdkconfig`).
+The chain is still verified against the embedded Let's Encrypt roots — an
+unknown certificate is refused — but an **expired** certificate that was once
+legitimate stays accepted as long as its key exists. Short window (90 days
+with Let's Encrypt), and nothing to do sketch-side: the check is compiled out
+of the core. The ESP8266, for its part, does date its certificates.
 
-⁴ **Bluetooth Classic : l'ESP32 d'origine, et lui seul.** Le S3, le C3 et
-le C6 n'ont que le BLE ; le S2 n'a aucune radio Bluetooth. Sur ces
-quatre-la, `BluetoothLink` ne compile pas, et le message le dit.
+⁴ **Bluetooth Classic: the original ESP32, and it alone.** The S3, the C3 and
+the C6 have only BLE; the S2 has no Bluetooth radio at all. On those four,
+`BluetoothLink` does not compile, and the message says so.
 
-⁵ **BLE : toute la famille sauf le S2**, qui n'a pas la radio. Le croquis
-doit ecrire `#include <NimBLEDevice.h>` AVANT `<InstantIoT.h>` — voir le
-tableau ci-dessous.
+⁵ **BLE: the whole family except the S2**, which has no radio. The sketch must
+write `#include <NimBLEDevice.h>` BEFORE `<InstantIoT.h>` — see the table
+below.
 
-⁶ **Le TLS sur cable n'existe que sur ESP32, et pas pour la raison qu'on
-croit.** Ce n'est pas que le W5500 manque de crypto : le chiffrement
-tournerait sur le processeur. C'est que la bibliotheque `Ethernet`
-d'Arduino se sert de la pile TCP **cablee dans le composant**, et qu'un
-client TLS des ESP n'enveloppe pas un `Client`, il en EST un
-(`class NetworkClientSecure : public NetworkClient`). Il n'y a rien a
-envelopper.
+⁶ **TLS over a cable exists only on ESP32, and not for the reason you'd
+think.** It's not that the W5500 lacks crypto: the encryption would run on the
+processor. It's that Arduino's `Ethernet` library uses the TCP stack **wired
+into the chip**, and an ESP TLS client doesn't wrap a `Client`, it IS one
+(`class NetworkClientSecure : public NetworkClient`). There is nothing to
+wrap.
 
-Le coeur ESP32 sait piloter le meme W5500 comme une carte reseau,
-derriere lwIP — `ETH.begin(ETH_PHY_W5500, ...)` — et alors le TLS marche
-sans savoir qu'il y a un cable. C'est ce que fait `EthLink_ESP32`, et
-c'est pourquoi cette forme demande les trois broches : un module n'a
-aucun brochage impose.
+The ESP32 core can drive the same W5500 as a network interface, behind lwIP —
+`ETH.begin(ETH_PHY_W5500, ...)` — and then TLS works without knowing there's a
+cable. That's what `EthLink_ESP32` does, and it's why this form asks for the
+three pins: a module has no fixed pinout.
 
-⁷ **Sur les NINA, c'est possible mais pas fait, et les chiffres sont
-mesures.** Il faudrait `ArduinoBearSSL`, qui se compose sur un `Client`
-quelconque — la recette de Blynk. Un croquis realiste tient sur les deux
-SAMD (MKR 1010 : 48 % de flash, **74 % de SRAM**, 8,4 Ko restants ; Nano
-33 IoT : 76 %, 7,8 Ko) et **ne tient pas** sur l'Uno WiFi Rev.2, qui
-deborde la flash. Deux couts s'ajoutent : `BearSSLClient` prend des
-`br_x509_trust_anchor`, pas du PEM — donc nos racines en DEUX
-representations a garder d'accord — et il faut une horloge NTP comme sur
-l'ESP8266. Ca se decidera avec une carte sur le bureau, pas avant.
+⁷ **On NINA, it's possible but not done, and the figures are measured.** It
+would take `ArduinoBearSSL`, which composes over any `Client` — Blynk's
+recipe. A realistic sketch fits on both SAMD boards (MKR 1010: 48% of flash,
+**74% of SRAM**, 8.4 KB left; Nano 33 IoT: 76%, 7.8 KB) and **does not fit**
+on the Uno WiFi Rev.2, which overflows the flash. Two costs add up:
+`BearSSLClient` takes `br_x509_trust_anchor`s, not PEM — so our roots in TWO
+representations to keep in sync — and it needs an NTP clock like the ESP8266.
+That will be decided with a board on the desk, not before.
 
-³ **Le TLS de l'ESP8266 est logiciel, et il se paie.** BearSSL prend
-104 Ko de flash et environ 20 Ko de tas pendant qu'une session est
-ouverte, sur une carte qui en a a peu pres 40 Ko de libres. Ca tient — un
-croquis qui garde lui-meme 10 Ko en memoire, non. Il lui faut aussi une
-horloge : la bibliotheque interroge un serveur NTP toute seule au moment
-ou le WiFi monte, parce qu'un certificat a des dates et qu'une carte qui
-demarre croit etre en 1970. Les mesures sont en tete de
-`src/transport/wifi/TlsClient_ESP8266.hpp`.
+³ **The ESP8266's TLS is software, and it costs.** BearSSL takes 104 KB of
+flash and about 20 KB of heap while a session is open, on a board with roughly
+40 KB free. It fits — a sketch that itself keeps 10 KB in memory, not. It also
+needs a clock: the library queries an NTP server on its own as Wi-Fi comes up,
+because a certificate has dates and a board that just booted thinks it's 1970.
+The figures are at the top of `src/transport/wifi/TlsClient_ESP8266.hpp`.
 
-`EthernetLink` demande un shield W5100 / W5500 et **une ligne avant
-l'include** : `#define INSTANTIOT_ETHERNET 1`. Elle n'est pas détectée
-toute seule — le build Arduino trouve les bibliothèques en lisant les
-`#include`, donc un include conditionnel n'est jamais vu.
+`EthernetLink` needs a W5100 / W5500 shield and **one line before the
+include**: `#define INSTANTIOT_ETHERNET 1`. It is not detected on its own —
+the Arduino build finds libraries by reading the `#include`s, so a conditional
+include is never seen.
 
-**Sur AVR, la colonne TLS ne se remplira pas.** Le W5x00 ne porte pas de
-crypto et un AVR n'a ni la RAM ni le flash pour une poignée de main. Un
-Mega atteint le cloud en clair, et le compilateur le dit plutôt que de
-laisser le croquis le découvrir sur l'établi. **Un Uno, lui, n'a pas
-assez de RAM pour l'Ethernet du tout** — mesuré : la bibliothèque seule
-occupe 61 % de ses 2 Ko.
+**On AVR, the TLS column will never fill in.** The W5x00 carries no crypto and
+an AVR has neither the RAM nor the flash for a handshake. A Mega reaches the
+cloud in the clear, and the compiler says so rather than letting the sketch
+find out on the bench. **An Uno doesn't have enough RAM for Ethernet at all** —
+measured: the library alone takes 61% of its 2 KB.
 
 A combination your board cannot do **fails to compile**, and the message says
 what to write instead:
@@ -404,7 +397,7 @@ runs the whole bench in about a second, with no board.
 
 - 🌐 [instantiot.io](https://instantiot.io)
 - 📱 [InstantIoT on Google Play](https://play.google.com/store/apps/details?id=com.jeanloickdt.instantiot)
-- 💬 [Community & Support](mailto:bonjour@jeanloickdt.com)
+- 💬 [Community & Support](https://community.instantiot.io)
 
 ---
 
